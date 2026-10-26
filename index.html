@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>W1 Control Room</title>
+<style>
+:root{
+  --ink:#0A0A0C;--navy:#1B2B44;--surface:#14213A;--card:rgba(22,34,58,.72);--card-solid:#131e34;--card2:#0f182b;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);
+  --text:#F5F5F7;--text2:#BCC3D3;--muted:#8A93A6;--orange:#FF6A00;--orange2:#FF8A3D;--amber:#FFB000;
+  --good:#3FB98A;--warn:#F2B33D;--crit:#EF5B5B;--info:#3DA5FF;--grey:#6F7890;
+  --c1:#139E8F;--c2:#D9691A;--c3:#2E86D6;--c4:#C9519A;
+  --r:18px;--r2:12px;--mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --shadow:0 1px 0 rgba(255,255,255,.05) inset,0 20px 40px -24px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+body{background:radial-gradient(1100px 560px at 88% -12%,rgba(255,106,0,.20),transparent 62%),radial-gradient(900px 520px at -12% 8%,rgba(61,165,255,.09),transparent 60%),linear-gradient(180deg,#0A0A0C 0%,#0f1930 42%,#0c1425 100%);min-height:100vh;overflow-x:hidden}
+a{color:var(--orange2);text-decoration:none}a:hover{text-decoration:underline}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--orange2);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1400px;margin:0 auto;padding:0 16px 90px}
+header{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;justify-content:space-between;padding:24px 0 14px}
+.brand{display:flex;gap:14px;align-items:center}
+.logo{width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,#FF6A00,#ff9a4d);display:grid;place-items:center;box-shadow:0 10px 30px -6px rgba(255,106,0,.55)}
+.wm{font:800 27px/1 -apple-system,"SF Pro Display",system-ui,sans-serif;letter-spacing:-.025em}.wm b{color:var(--orange2);font-weight:800}
+.sub{color:var(--text2);font-size:13px;margin-top:5px}
+.hright{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.status{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px}
+.stamp{color:var(--muted);font-size:12px;text-align:right}
+nav{position:sticky;top:0;z-index:20;background:rgba(10,10,12,.78);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line);margin:0 -16px 16px;padding:10px 16px;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav a{flex:none;padding:6px 12px;border-radius:999px;color:var(--text2);font-weight:600;font-size:12.5px;border:1px solid var(--line);cursor:pointer;white-space:nowrap}
+nav a:hover{text-decoration:none;border-color:var(--line2);color:var(--text)}
+nav a .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;text-align:center}
+nav .sp{flex:1}
+.tbtn{flex:none;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer}
+.tbtn.on{background:var(--orange);border-color:var(--orange);color:#fff}
+/* modules */
+#mods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.mod{grid-column:span 1;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);min-width:0;scroll-margin-top:64px;transition:box-shadow .2s}
+.mod.full{grid-column:1/-1}
+.mod.hidden{display:none}
+.mod.flash{box-shadow:0 0 0 2px var(--orange2),var(--shadow)}
+.mh{display:flex;align-items:center;gap:12px;padding:14px 16px 12px}
+.mi{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none}
+.mt{font:700 15.5px/1.2 -apple-system,"SF Pro Display",system-ui,sans-serif;letter-spacing:-.01em}
+.ms{color:var(--muted);font-size:12px;margin-top:2px}
+.mh .grow{flex:1;min-width:0}
+.ctl{display:flex;gap:2px;opacity:.55;transition:opacity .15s}
+.mod:hover .ctl,.ctl:focus-within,body.custom .ctl{opacity:1}
+@media (hover:none){.ctl{opacity:1}}
+.ctl button{width:28px;height:28px;border-radius:8px;border:0;background:transparent;color:var(--text2);cursor:pointer;display:grid;place-items:center}
+.ctl button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.ctl .hide{display:none}body.custom .ctl .hide{display:grid}
+.mb{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease}
+.mb>div{overflow:hidden;min-width:0}
+.mod.col .mb{grid-template-rows:0fr}
+.mod.col .mh{padding-bottom:14px}
+.mbi{padding:0 16px 16px}
+.help{display:none;margin:0 16px 12px;padding:10px 12px;border-radius:10px;background:rgba(61,165,255,.08);border:1px solid rgba(61,165,255,.25);color:var(--text2);font-size:12.5px}
+.mod.showhelp .help{display:block}
+@media (prefers-reduced-motion:reduce){.mb,.panel{transition:none!important}}
+/* generic */
+.grid{display:grid;gap:12px}
+.k6{grid-template-columns:repeat(auto-fit,minmax(168px,1fr))}
+.tile{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:var(--r2);padding:14px;position:relative;overflow:hidden}
+.tile .lab{color:var(--text2);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.tile .val{font:800 30px/1.1 -apple-system,"SF Pro Display",system-ui,sans-serif;letter-spacing:-.025em;margin-top:6px}
+.tile .val small{font-size:14px;color:var(--muted);font-weight:600}
+.tile .foot{color:var(--muted);font-size:12px;margin-top:5px}
+.tile.click{cursor:pointer}.tile.click:hover{border-color:var(--line2)}
+.ringrow{display:flex;align-items:center;gap:12px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;border:1px solid transparent}
+.r-green{background:rgba(63,185,138,.14);color:#86e3bd;border-color:rgba(63,185,138,.35)}
+.r-amber{background:rgba(242,179,61,.14);color:#ffd27a;border-color:rgba(242,179,61,.4)}
+.r-red{background:rgba(239,91,91,.16);color:#ffa0a0;border-color:rgba(239,91,91,.45)}
+.r-blue{background:rgba(61,165,255,.14);color:#a3d4ff;border-color:rgba(61,165,255,.35)}
+.r-grey{background:rgba(138,147,166,.12);color:#c0c7d6;border-color:rgba(138,147,166,.3)}
+.mdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.why{color:var(--muted);font-size:12px}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mono{font-family:var(--mono);font-size:12px}
+.empty{color:var(--muted);font-style:italic;padding:6px 0}
+.seg{display:inline-flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:2px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--text2);padding:5px 11px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+.seg button.on{background:#F5F5F7;color:#0A0A0C;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.bar-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;white-space:nowrap}
+th.sort{cursor:pointer}
+td.n,th.n{text-align:right;font-family:var(--mono)}
+tr.click{cursor:pointer}tr.click:hover td{background:rgba(255,255,255,.035)}
+.scroll{overflow-x:auto}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--text2);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.legend i.dash{height:0;border-top:2px dashed currentColor;border-radius:0;width:14px;vertical-align:3px}
+svg text{fill:var(--muted);font:11px -apple-system,system-ui,sans-serif}
+/* sitrep */
+.sit{display:grid;gap:8px}
+.sl{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.sl .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-weight:900;font-size:13px}
+.sl.red{background:rgba(239,91,91,.08);border-color:rgba(239,91,91,.3)}
+.sl a{font-family:var(--mono);font-weight:700}
+/* issues */
+.iss{display:grid;gap:8px}
+.it{border-left:4px solid var(--grey);border-radius:10px;padding:10px 12px;background:rgba(255,255,255,.035);cursor:pointer}
+.it:hover{background:rgba(255,255,255,.06)}
+.it.red{border-color:var(--crit)}.it.amber{border-color:var(--warn)}
+.it .act{color:var(--orange2);font-size:12.5px;margin-top:4px}
+/* board */
+.board{background:#07090d;border:1px solid #1d232c;border-radius:14px;overflow:hidden}
+.bhead,.brow{display:grid;grid-template-columns:86px 76px minmax(0,1fr) 150px 150px;gap:12px;align-items:center;padding:10px 16px}
+.bhead{background:#0d1117;color:#7b8496;font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;font-weight:700}
+.bgrp{padding:7px 16px;background:#0a0d12;color:var(--orange2);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;border-top:1px solid #171c24}
+.brow{border-top:1px solid #12161d;cursor:pointer}
+.brow:hover,.brow:focus{background:#0f141b;outline:none}
+.eta{font-family:var(--mono);color:var(--amber);font-size:17px;font-weight:700;letter-spacing:.02em;line-height:1.1}
+.eta small{display:block;font-size:10.5px;color:#8b7a52;font-weight:600;letter-spacing:0}
+.eta.done{color:#566072}
+.tid{font-family:var(--mono);font-weight:700}
+.ttl{color:#f8e9c9;font-weight:600}
+/* gantt */
+.gantt{position:relative;overflow-x:auto}
+.gin{min-width:760px;position:relative}
+.gaxis{display:grid;grid-template-columns:110px 1fr;font-size:11px;color:var(--muted)}
+.gticks{position:relative;height:20px}
+.gticks span{position:absolute;transform:translateX(-50%)}
+.grow2{display:grid;grid-template-columns:110px 1fr;align-items:center;min-height:34px;border-top:1px solid var(--line)}
+.glab{font-size:12px;color:var(--text2);font-weight:600;padding-right:8px}
+.gtrack{position:relative;height:34px}
+.gbar{position:absolute;top:6px;height:22px;border-radius:7px;font:700 11px/22px var(--mono);color:#0A0A0C;padding:0 6px;overflow:hidden;white-space:nowrap;cursor:pointer;box-shadow:0 0 0 2px var(--card-solid)}
+.gbar.done{opacity:.45}
+.gbar.ms{width:12px!important;padding:0;border-radius:3px;transform:rotate(45deg) scale(.8);top:11px;height:12px}
+.gnow{position:absolute;top:0;bottom:0;width:2px;background:var(--orange);box-shadow:0 0 12px var(--orange)}
+.gnow b{position:absolute;top:-2px;left:4px;font-size:10.5px;color:var(--orange2);white-space:nowrap}
+.gridl{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.05)}
+/* tube */
+.tube{overflow-x:auto;padding:4px 0}
+.tline{display:flex;align-items:flex-start;min-width:max-content;padding:0 6px}
+.st{width:116px;text-align:center;position:relative;cursor:pointer}
+.st:before{content:"";position:absolute;top:13px;left:0;right:0;height:8px;background:var(--orange)}
+.st:first-child:before{left:50%}.st:last-child:before{right:50%}
+.st.done:before{background:#4d5667}
+.st .dot{position:relative;width:34px;height:34px;margin:0 auto;border-radius:50%;background:#fff;border:6px solid var(--grey);display:grid;place-items:center;font-size:12px;font-weight:900;color:#0A0A0C}
+.st .nm{font-family:var(--mono);font-weight:800;margin-top:6px;font-size:12px}
+.st .tt{font-size:11px;color:var(--text2);padding:0 6px;line-height:1.25;height:2.5em;overflow:hidden}
+.st .tm{font-family:var(--mono);color:var(--amber);font-size:12px}
+.pathlab{font-size:12px;color:var(--text2);font-weight:700;margin:4px 0 6px;text-transform:uppercase;letter-spacing:.08em}
+/* week */
+.week{display:grid;grid-template-columns:repeat(8,minmax(148px,1fr));gap:10px;overflow-x:auto;padding-bottom:6px;margin-top:12px}
+.day{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.day.today{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange) inset}
+.day h4{margin:0 0 8px;font-size:11.5px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;display:flex;justify-content:space-between}
+.chip{display:block;width:100%;text-align:left;border:0;border-left:4px solid var(--grey);background:rgba(255,255,255,.04);color:var(--text);border-radius:6px;padding:5px 7px;margin-bottom:5px;font-size:12px;line-height:1.3;cursor:pointer}
+.chip:hover{background:rgba(255,255,255,.08)}
+.chip b{font-family:var(--mono);font-size:11px}
+/* bars */
+.hbar{display:grid;grid-template-columns:minmax(90px,210px) 1fr 70px;gap:10px;align-items:center;margin:7px 0;font-size:13px}
+.hbar.click{cursor:pointer}
+.track{height:14px;background:rgba(255,255,255,.05);border-radius:4px;display:flex;overflow:hidden;gap:2px}
+.track span{display:block;height:100%}
+.track span:last-child{border-radius:0 4px 4px 0}
+.hbar .v{font-family:var(--mono);text-align:right;color:var(--text2)}
+.gauge{height:10px;border-radius:5px;background:rgba(255,255,255,.07);position:relative;overflow:visible;margin-top:6px}
+.gauge>span{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.gauge i{position:absolute;top:-3px;bottom:-3px;width:2px;background:rgba(255,255,255,.35)}
+/* panel */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;display:none;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.panel{position:fixed;top:0;right:0;height:100%;width:min(640px,100%);background:linear-gradient(180deg,#131e34,#0c1324);border-left:1px solid #2b3a57;z-index:50;transform:translateX(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);overflow-y:auto;padding:22px 20px 60px;box-shadow:-30px 0 60px rgba(0,0,0,.4)}
+.panel.on{transform:none}.scrim.on{display:block}
+.panel .x{position:sticky;top:0;float:right;background:#1d2a45;border:1px solid #2b3a57;border-radius:999px;width:34px;height:34px;font-size:18px;cursor:pointer;z-index:2}
+.panel h3{margin:0 0 4px;font:700 20px/1.25 -apple-system,"SF Pro Display",system-ui,sans-serif;letter-spacing:-.01em;padding-right:44px}
+.panel .meta{color:var(--text2);font-size:13px;margin-bottom:12px}
+.panel h5{margin:18px 0 6px;color:var(--orange2);font-size:11.5px;text-transform:uppercase;letter-spacing:.1em}
+.panel ol,.panel ul{margin:0;padding-left:20px;color:var(--text2)}
+.panel li{margin:4px 0}
+.box{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--text2);white-space:pre-wrap;word-break:break-word}
+.callout{border-left:4px solid var(--grey);padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);margin:10px 0}
+.callout.red{border-color:var(--crit)}.callout.amber{border-color:var(--warn)}.callout.green{border-color:var(--good)}.callout.blue{border-color:var(--info)}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mini .tile{padding:10px}.mini .val{font-size:20px}
+.tip{position:fixed;pointer-events:none;z-index:60;background:#0b1220;border:1px solid #2b3a57;border-radius:9px;padding:8px 10px;font-size:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;max-width:290px}
+footer{color:var(--muted);font-size:12px;margin-top:36px;border-top:1px solid var(--line);padding-top:14px}
+footer details{margin-top:8px}footer summary{cursor:pointer;color:var(--text2)}
+@media (max-width:900px){#mods{grid-template-columns:1fr}.mod,.mod.full{grid-column:1/-1}}
+@media (max-width:760px){
+  .bhead{display:none}
+  .brow{grid-template-columns:66px minmax(0,1fr);grid-template-areas:"eta main" "tid main" ". own" ". stc";row-gap:4px;column-gap:10px}
+  .brow .eta{grid-area:eta}.brow .bmain{grid-area:main}.brow .tid{grid-area:tid;font-size:12px}.brow .own{grid-area:own}.brow .stc{grid-area:stc}
+  .wm{font-size:22px}.tile .val{font-size:24px}.mini{grid-template-columns:repeat(2,1fr)}
+  .hright{align-items:flex-start}.stamp{text-align:left}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand">
+    <div class="logo" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></div>
+    <div><div class="wm">London <b>Commuter</b></div><div class="sub">v3 Week 1 Control Room · <span id="week"></span></div></div>
+  </div>
+  <div class="hright"><div id="status"></div><div class="stamp" id="stamp"></div></div>
+</header>
+<nav id="nav" aria-label="Sections"></nav>
+<div id="mods"></div>
+<footer id="foot"></footer>
+</div>
+<div class="scrim" id="scrim"></div>
+<aside class="panel" id="panel" aria-live="polite"></aside>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+"use strict";
+/* Data: embedded when built locally (--out), else fetched from the data branch and decrypted in the browser. */
+const EMBED=/*__DATA__*/null;
+const DATA_URL="https://raw.githubusercontent.com/multisportusa-git/lc-control-room/data/w1.enc";
+const HOSTED=!EMBED;
+const STALE_MIN=HOSTED?25:6;
+function app(D){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const T=Object.fromEntries(D.tasks.map(t=>[t.id,t]));
+const RAG={green:["✓","On track"],amber:["▲","Attention"],red:["✕","Problem"],blue:["●","Ready"],grey:["○","Queued"]};
+const RORD={red:0,amber:1,blue:2,green:3,grey:4};
+const RCOL={green:"var(--good)",amber:"var(--warn)",red:"var(--crit)",blue:"var(--info)",grey:"var(--grey)"};
+const MCOL={haiku:"var(--c1)",opus:"var(--c2)",sonnet:"var(--c3)",fable:"var(--c4)",none:"#8A93A6"};
+const OWN={JB:"You (JB)",COORD:"Coordinator",LANE:"Lane",COWORK:"Cowork",QUEUE:"Test queue",SCRIPT:"Script"};
+const pill=(r,txt)=>`<span class="pill r-${r}"><span aria-hidden="true">${RAG[r][0]}</span> ${esc(txt||RAG[r][1])}</span>`;
+const fmt=n=>n==null||isNaN(n)?"–":n>=1e9?(n/1e9).toFixed(2)+"B":n>=1e6?(n/1e6).toFixed(n>=1e7?1:2)+"M":n>=1e3?Math.round(n/1e3)+"k":String(Math.round(n));
+const ownerTxt=t=>`<span class="mdot" style="background:${MCOL[t.model]||MCOL.none}"></span>${esc(OWN[t.owner]||t.owner)}${t.model!=="none"?" · "+esc(t.model)+" "+esc(t.effort):""}`;
+const genEpoch=Date.parse(D.gen_iso)/1000;
+const dn=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric"});
+const dtf=(e,o)=>new Date(e*1000).toLocaleString("en-GB",o||{weekday:"short",hour:"2-digit",minute:"2-digit"});
+const link=s=>esc(s).replace(/\bW1-\d{2}[A-Z]{0,2}\b/g,m=>T[m]?`<a href="#" data-t="${m}">${m}</a>`:m);
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const ICON={
+ sit:'<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/>',
+ kpi:'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
+ chg:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
+ iss:'<path d="M12 3l9.5 17H2.5z"/><path d="M12 10v4M12 17.5v.5"/>',
+ you:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+ tl:'<path d="M3 6h10M3 12h16M3 18h7"/><circle cx="17" cy="6" r="2"/><circle cx="14" cy="18" r="2"/>',
+ board:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h4M7 13h10M7 17h7"/>',
+ path:'<circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><path d="M7.5 12h2M14.5 12h2"/>',
+ week:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+ live:'<circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/>',
+ quota:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+ tok:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+ q:'<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/>',
+ pr:'<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5v7M18 15.5V9a3 3 0 0 0-3-3h-4"/>',
+ health:'<path d="M12 21s-8-4.5-8-11a5 5 0 0 1 8-4 5 5 0 0 1 8 4c0 6.5-8 11-8 11z"/><path d="M8 12h2l1.5-3 2 6 1.5-3h1"/>',
+};
+const ico=(k,c)=>`<div class="mi" style="background:${c}22;color:${c}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg></div>`;
+
+/* ---------- state: hash for drill-downs, localStorage for layout ---------- */
+const H=Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+function setH(k,v){if(v==null)delete H[k];else H[k]=v;history.replaceState(null,"","#"+new URLSearchParams(H).toString())}
+const DEFAULT_ORDER=["sit","kpi","chg","iss","you","tl","board","path","week","live","quota","tok","q","pr","health"];
+let L=LS.get("w1dash.layout",{});L.order=(L.order||[]).filter(k=>DEFAULT_ORDER.includes(k));DEFAULT_ORDER.forEach(k=>{if(!L.order.includes(k))L.order.push(k)});
+L.col=L.col||{};L.wide=L.wide||{};L.hide=L.hide||{};L.f=L.f||{};
+const saveL=()=>LS.set("w1dash.layout",L);
+
+/* ---------- derived ---------- */
+const nRed=D.tasks.filter(t=>t.rag==="red").length,nAmb=D.tasks.filter(t=>t.rag==="amber").length;
+const staleSrc=D.health.filter(h=>!h.ok);
+const pageAge=Math.round((Date.now()/1000-genEpoch)/60);
+const TK=D.tok||{sessions:[],buckets:[],models:[],timelines:{}};
+const seen=LS.get("w1dash.seen",null);
+const changes=seen?D.tasks.filter(t=>{const o=seen.s[t.id];return o&&(o[0]!==t.status||o[1]!==t.rag)}).map(t=>({t,from:seen.s[t.id]})):[];
+const newTasks=seen?D.tasks.filter(t=>!seen.s[t.id]):[];
+function markSeen(){LS.set("w1dash.seen",{at:Date.now(),s:Object.fromEntries(D.tasks.map(t=>[t.id,[t.status,t.rag]]))})}
+if(!seen)markSeen();
+
+/* ---------- header ---------- */
+$("#week").textContent=D.week;
+const trust=pageAge>STALE_MIN?["red",HOSTED?`Data is ${pageAge} min old: the Mac has not pushed (asleep, offline or the job stopped)`:`Page is ${pageAge} min old: the updater may have stopped`]:staleSrc.length?["amber",`${staleSrc.length} data source${staleSrc.length>1?"s":""} stale`]:["green","All sources fresh"];
+$("#status").innerHTML=`<span class="status r-${D.overall}">${RAG[D.overall][0]} ${D.overall==="red"?nRed+" problem"+(nRed>1?"s":""):D.overall==="amber"?nAmb+" need attention":"All on track"}${D.overall==="red"&&nAmb?" · "+nAmb+" attention":""}</span>`;
+$("#stamp").innerHTML=`Data ${esc(D.gen)} · <a href="#" data-go="health" style="color:${RCOL[trust[0]]}">${RAG[trust[0]][0]} ${esc(trust[1])}</a><br>${HOSTED?"Pushed from the Mac every 10 min · reloads every 5 min":"Rebuilt every 2 min · reloads every 60 s"}`;
+
+/* ---------- module registry ---------- */
+const M={
+ sit:{t:"Situation report",s:"Where things stand, in a few lines",i:"sit",c:"#FF8A3D",w:"full",nav:"SITREP",
+  help:"Written by the generator from task state, the schedule and the gates. Red lines first, then what is running, what starts next, what waits on you, and the projected finish times."},
+ kpi:{t:"At a glance",s:"Progress, gates, tokens and quota",i:"kpi",c:"#3DA5FF",w:"full",nav:"Glance",
+  help:"Rings show tasks done out of the total. Gate rings count the tasks tagged GO-build or G1 in W1_TASKS.json. Projected times come from the schedule (see Today's timeline)."},
+ chg:{t:"Since you last looked",s:"",i:"chg",c:"#9B7BEA",w:"full",nav:"Changes",
+  help:"Compares task status and colour with a snapshot kept in this browser. Press 'Mark as seen' to start a new comparison. Automatic reloads do not reset it."},
+ iss:{t:"Problems and attention",s:"Red first; each with the next action and who owns it",i:"iss",c:"#EF5B5B",w:"half",nav:"Problems",
+  help:"Red: blocked, a lane refused or stopped, overdue and not started, or running past twice its estimate. Amber: needs you, past 1.5x its estimate, a merged PR not yet closed, or projected to finish after its planned day."},
+ you:{t:"Waiting on you",s:"Decisions and steps only you can do",i:"you",c:"#FFB000",w:"half",nav:"You",
+  help:"Tasks owned by JB in W1_TASKS.json that are not done. 'Now' means nothing blocks it."},
+ tl:{t:"Today's timeline",s:"Who is doing what, when; the orange line is now",i:"tl",c:"#19C3B1",w:"full",nav:"Timeline",
+  help:"Each row is a worker: you, the coordinator, up to 3 code lanes, 2 test runners, Cowork, scripts. Bars are scheduled from dependencies, the planned day, worker limits and estimates (Script 5 min, Queue 45, Haiku lane 45, Sonnet lane 90/150, Opus 180, review 45-60, Cowork 60-90, JB 15, coordinator 20). Faded bars are done; diamonds are scripts."},
+ board:{t:"Departure board",s:"Every task for today, with its expected time",i:"board",c:"#FFB000",w:"full",nav:"Board",
+  help:"Expected = projected finish (done tasks show when they finished). The small line under a time shows the planned day when it is projected to slip."},
+ path:{t:"Critical paths",s:"The chains that decide the install and the end of the week",i:"path",c:"#FF6A00",w:"full",nav:"Paths",
+  help:"GO-build path: the open tasks leading to the last GO-build gate task. Critical path: the open chain that finishes last. Each walks back through the dependency that finishes latest."},
+ week:{t:"The week",s:"Planned vs done vs projected, then every task by day",i:"week",c:"#3DA5FF",w:"full",nav:"Week",
+  help:"Burn-up: cumulative tasks planned by each day, done by each day, and projected by each day. The gap between planned and projected is the slip."},
+ live:{t:"Live sessions",s:"Active in the last 15 minutes; context used",i:"live",c:"#3FB98A",w:"half",nav:"Live",
+  help:"From the transcript index. Context = tokens sent with the session's last request. Coordinator limits: 250k start hand-over, 275k done, 300k never. Lanes: 225k, 250k, 275k."},
+ quota:{t:"Quota forecast",s:"Will the week last until Friday 16:00?",i:"quota",c:"#C9519A",w:"half",nav:"Quota",
+  help:"Rough. The Claude Code share is scaled by this Mac's tokens since the weekly reset and projected at the last 24 h pace; the Cowork and chat share is extended at its rate so far. Cloud sessions are not on this Mac, so a fresh W1-05 reading makes this much better."},
+ tok:{t:"Token usage",s:"Every Claude Code session on this Mac; total = start cost + work",i:"tok",c:"#139E8F",w:"full",nav:"Tokens",
+  help:"Indexed from ~/.claude/projects transcripts (subagents count in their parent session) and local Cowork logs. Start cost = context of a session's first request. Work = everything after. Cache reads are the re-read prefix: the cheapest tokens but most of the count."},
+ q:{t:"Test queue",s:"",i:"q",c:"#19C3B1",w:"half",nav:"Queue",help:"The ten newest result files in testq/results. PASS-FILTERED is never merge evidence."},
+ pr:{t:"Pull requests",s:"Open, and merged in the last 24 h",i:"pr",c:"#9B7BEA",w:"half",nav:"PRs",help:"From gh pr list, cached for 10 minutes."},
+ health:{t:"Data health",s:"Can you trust this page? Every source and its age",i:"health",c:"#3FB98A",w:"full",nav:"Health",
+  help:"Each source the page reads, when it last changed, and whether that is fresh enough. If the page itself is older than 6 minutes, the 2-minute updater has stopped."},
+};
+
+/* ---------- renderers ---------- */
+function ring(done,total,col,size=62){const r=size/2-6,c=2*Math.PI*r,p=total?done/total:0;
+return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${done} of ${total}" style="flex:none"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c*p} ${c}" transform="rotate(-90 ${size/2} ${size/2})"/><text x="50%" y="54%" text-anchor="middle" style="fill:#fff;font-weight:800;font-size:12.5px">${Math.round(p*100)}%</text></svg>`}
+const R={};
+R.sit=()=>{const IC={red:["✕","var(--crit)"],now:["▶","var(--info)"],next:["→","var(--c1)"],you:["●","var(--amber)"],plan:["◷","var(--orange2)"]};
+ return `<div class="sit">${D.sit.map(l=>`<div class="sl ${l.k==="red"?"red":""}"><div class="ic" style="background:${IC[l.k][1]}22;color:${IC[l.k][1]}" aria-hidden="true">${IC[l.k][0]}</div><div>${link(l.text)}</div></div>`).join("")}</div>`};
+R.kpi=()=>{const done=D.tasks.filter(t=>t.status==="done").length;const tdy=D.today_ids.map(i=>T[i]);const td=tdy.filter(t=>t.status==="done").length;
+ const s0=(()=>{const d=new Date(D.gen_iso);d.setHours(0,0,0,0);return d/1000})();let tt=0;TK.buckets.forEach(b=>{if(b[1]>=s0)tt+=b[3]+b[4]+b[5]+b[6]});
+ const q=D.usage.length?D.usage[D.usage.length-1]:null;const g=D.gates;
+ const k=[["Week",ring(done,D.tasks.length,"var(--orange)"),`${done}<small> / ${D.tasks.length}</small>`,`projected end ${D.week_finish}`,"week"],
+  ["Today",ring(td,tdy.length,"var(--info)"),`${td}<small> / ${tdy.length}</small>`,`projected finish ${D.day_finish}`,"board"],
+  ["GO-build gate",ring(g["GO-build"].done,g["GO-build"].total,"var(--good)"),`${g["GO-build"].done}<small> / ${g["GO-build"].total}</small>`,`install + v2 tag ${g["GO-build"].eta}`,"path"],
+  ["G1 gate",ring(g.G1.done,g.G1.total,"var(--c4)"),`${g.G1.done}<small> / ${g.G1.total}</small>`,`projected ${g.G1.eta}`,"week"],
+  ["Tokens today","",fmt(tt),`${TK.sessions.filter(s=>s.last>=genEpoch-900).length} sessions live now`,"tok"],
+  ["Weekly quota","",q?`${q.week}<small>%</small>`:"–",q?`read ${q.at.slice(5,16).replace("T"," ")} · forecast ${QF.text}`:"no reading (W1-05)","quota"]];
+ return `<div class="grid k6">${k.map(([l,r,v,f,go])=>`<div class="tile click" data-go="${go}" role="button" tabindex="0"><div class="lab">${l}</div><div class="ringrow" style="margin-top:6px">${r}<div class="val" style="margin:0">${v}</div></div><div class="foot">${f}</div></div>`).join("")}</div>`};
+R.chg=()=>{const since=seen?new Date(seen.at).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}):"now";
+ const rows=changes.map(c=>`<tr class="click" data-t="${c.t.id}"><td class="mono" style="white-space:nowrap"><b>${c.t.id}</b></td><td class="ell" style="max-width:420px">${esc(c.t.title)}</td><td>${pill(c.from[1],c.from[0])} → ${pill(c.t.rag,c.t.status)}</td></tr>`).join("");
+ if(!seen)return `<div class="empty">First visit in this browser: changes are tracked from now.</div>`;
+ return `<div class="bar-row"><span class="why">Compared with ${esc(since)}: ${changes.length} change${changes.length===1?"":"s"}${newTasks.length?`, ${newTasks.length} new task(s)`:""}.</span><span style="flex:1"></span><button class="tbtn" id="markseen">Mark as seen</button></div>${changes.length?`<div class="scroll"><table>${rows}</table></div>`:`<div class="empty">Nothing has changed since then.</div>`}`};
+R.iss=()=>{const L2=D.tasks.filter(t=>t.rag==="red"||t.rag==="amber").sort((a,b)=>RORD[a.rag]-RORD[b.rag]||b.ndesc-a.ndesc);
+ const allI=!!L.f.issall,shown=allI?L2:L2.filter(t=>t.rag==="red").concat(L2.filter(t=>t.rag==="amber").slice(0,4));
+ return L2.length?`<div class="iss">${shown.map(t=>`<div class="it ${t.rag}" data-t="${t.id}" role="button" tabindex="0"><div style="display:flex;gap:8px;align-items:center">${pill(t.rag,t.rag==="red"?"Problem":"Attention")}<b class="mono">${t.id}</b><span class="ell" style="flex:1">${esc(t.title)}</span></div><div class="why" style="margin-top:4px">${esc(t.why)}</div>${t.plan?`<div class="act">→ ${esc(t.plan)}</div>`:""}${t.ndesc?`<div class="why">blocks ${t.ndesc} later task${t.ndesc>1?"s":""}</div>`:""}</div>`).join("")}</div>${L2.length>shown.length||allI?`<div style="margin-top:10px"><button class="tbtn" data-tog="issall">${allI?"Show fewer":`Show all ${L2.length}`}</button></div>`:""}`:`<div class="empty">No problems. Everything is on track.</div>`};
+R.you=()=>{const n=D.tasks.filter(t=>t.status!=="done"&&t.owner==="JB").sort((a,b)=>(a.why.startsWith("Waiting")-b.why.startsWith("Waiting"))||a.beg_iso.localeCompare(b.beg_iso));
+ return n.length?`<table>${n.map(t=>{const now=!t.why.startsWith("Waiting");return `<tr class="click" data-t="${t.id}"><td class="mono" style="white-space:nowrap"><b>${t.id}</b></td><td>${esc(t.title)}<div class="why">${now?"Ready now · about "+t.est+" min":esc(t.why)}</div></td><td class="n" style="white-space:nowrap">${now?pill("amber","Now"):`<span class="why">${t.start_day===D.today?"from "+t.start:dn(t.start_day)+" "+t.start}</span>`}</td></tr>`}).join("")}</table>`:`<div class="empty">Nothing waits on you.</div>`};
+R.tl=()=>{const d0=new Date(D.now_iso);d0.setHours(0,0,0,0);const day0=d0/1000,day1=day0+86400;
+ const bars=D.tasks.map(t=>({t,b:Date.parse(t.beg_iso)/1000,f:Date.parse(t.fin_iso)/1000})).filter(x=>x.b<day1&&x.f>=day0);
+ if(!bars.length)return `<div class="empty">Nothing scheduled today.</div>`;
+ const nowE=Date.parse(D.now_iso)/1000;let lo=Math.max(day0,Math.min(day0+7*3600,nowE-3*3600)),hi=Math.max(day0+22*3600,...bars.map(x=>Math.min(x.f,day1)));lo=Math.floor(lo/3600)*3600;hi=Math.ceil(hi/3600)*3600;
+ const pct=e=>((Math.min(Math.max(e,lo),hi)-lo)/(hi-lo)*100);
+ const PORD={JB:0,COORD:1,LANE:2,QUEUE:3,COWORK:4,SCRIPT:5};
+ const rowKey=x=>x.t.owner==="SCRIPT"?"SCRIPT 1":x.t.slot&&x.t.slot!=="cycle"?x.t.slot:(x.t.owner+" 1");
+ const rows=[...new Set(bars.map(rowKey))].sort((a,b)=>(PORD[a.split(" ")[0]]-PORD[b.split(" ")[0]])||a.localeCompare(b));
+ const lab=k=>{const [o,n]=k.split(" ");return o==="LANE"?"Lane "+n:o==="QUEUE"?"Runner "+n:o==="SCRIPT"?"Scripts":(OWN[o]||o)};
+ let ticks="",grid="";for(let h=lo;h<=hi;h+=3600){const p=pct(h);ticks+=`<span style="left:${p}%">${new Date(h*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</span>`;grid+=`<div class="gridl" style="left:${p}%"></div>`}
+ const nowp=pct(Date.parse(D.now_iso)/1000);
+ return `<div class="gantt"><div class="gin"><div class="gaxis"><div></div><div class="gticks">${ticks}</div></div>${rows.map(k=>`<div class="grow2"><div class="glab">${lab(k)}</div><div class="gtrack">${grid}${bars.filter(x=>rowKey(x)===k).map(x=>{const l=pct(x.b),w=Math.max(pct(x.f)-l,.6);const ms=x.t.owner==="SCRIPT";const clip=x.b<lo&&!ms;return `<div class="gbar ${x.t.status==="done"?"done":""} ${ms?"ms":""}" data-t="${x.t.id}" style="left:${l}%;width:${w}%;background:${RCOL[x.t.rag]};${clip?"border-top-left-radius:0;border-bottom-left-radius:0":""}" title="${esc(x.t.id+" · "+x.t.title+" · "+dtf(x.b,{hour:"2-digit",minute:"2-digit"})+"–"+dtf(x.f,{hour:"2-digit",minute:"2-digit"})+" · "+RAG[x.t.rag][1])}">${ms?"":(clip?"◀ ":"")+x.t.id.slice(3)}</div>`}).join("")}${nowp>0&&nowp<100?`<div class="gnow" style="left:${nowp}%"></div>`:""}</div></div>`).join("")}<div class="grow2" style="min-height:18px;border-top:0"><div></div><div style="position:relative;height:18px">${nowp>0&&nowp<100?`<div class="gnow" style="left:${nowp}%;background:none;box-shadow:none"><b>now ${new Date(D.now_iso).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</b></div>`:""}</div></div></div></div><div class="legend">${["red","amber","blue","green","grey"].map(k=>`<span><i style="background:${RCOL[k]}"></i>${RAG[k][0]} ${RAG[k][1]}</span>`).join("")}<span>faded = done · ◆ = script</span></div>`};
+R.board=()=>{const tdy=D.today_ids.map(i=>T[i]);const f=L.f.own||"all",hd=!!L.f.hidedone;
+ const G={all:()=>true,JB:t=>t.owner==="JB",COORD:t=>t.owner==="COORD",LANE:t=>t.owner==="LANE",COWORK:t=>t.owner==="COWORK",AUTO:t=>t.owner==="QUEUE"||t.owner==="SCRIPT"};
+ const list=tdy.filter(G[f]).filter(t=>!(hd&&t.status==="done"));
+ const more=!!L.f.boardmore;const grp=[["Now",t=>t.status==="doing"||t.status==="blocked"],["Next",t=>t.status==="todo"&&!t.why.startsWith("Waiting")],...(more?[["Later",t=>t.status==="todo"&&t.why.startsWith("Waiting")],["Done",t=>t.status==="done"]]:[])];
+ const nHidden=more?0:list.filter(t=>t.status==="done"||(t.status==="todo"&&t.why.startsWith("Waiting"))).length;
+ const seg=`<div class="seg" data-f="own">${[["all","All"],["JB","You"],["COORD","Coordinator"],["LANE","Lanes"],["COWORK","Cowork"],["AUTO","Queue & scripts"]].map(([k,l])=>`<button data-v="${k}" class="${k===f?"on":""}">${l} <span class="why">${tdy.filter(G[k]).length}</span></button>`).join("")}</div><div class="seg" data-f="hidedone"><button data-v="1" class="${hd?"on":""}">Hide done</button></div>`;
+ return `<div class="bar-row">${seg}</div><div class="board"><div class="bhead"><div>Expected</div><div>Task</div><div>Description</div><div>Owner · model</div><div>Status</div></div>${grp.map(([g,fn])=>{const rows=list.filter(fn).sort((a,b)=>RORD[a.rag]-RORD[b.rag]||a.fin_iso.localeCompare(b.fin_iso));if(!rows.length)return"";return `<div class="bgrp">${g} · ${rows.length}</div>`+rows.map(t=>`<div class="brow" tabindex="0" data-t="${t.id}"><div class="eta ${t.status==="done"?"done":""}" style="${t.rag==="red"&&t.status!=="done"?"color:#ff8a8a":""}">${t.status==="done"?(t.updated||"").slice(11,16):(t.finish_day===D.today?t.finish:dn(t.finish_day))}${t.rag==="red"&&t.status!=="done"?`<small style="color:#ff9c9c">if fixed now</small>`:t.slip_days?`<small>+${t.slip_days} day vs plan</small>`:""}</div><div class="tid">${t.id}</div><div class="bmain"><div class="ttl ell">${esc(t.title)}</div><div class="why ell">${esc(t.why)}</div></div><div class="own">${ownerTxt(t)}</div><div class="stc">${pill(t.rag,t.status==="done"?"Done":t.status==="doing"&&t.rag==="green"?"On time":null)}</div></div>`).join("")}).join("")||`<div class="empty" style="padding:14px">No tasks match this filter.</div>`}</div><div style="margin-top:10px"><button class="tbtn" data-tog="boardmore">${more?"Show only Now and Next":`Show later and done (${nHidden})`}</button></div>`};
+function stations(ids){return ids.length?`<div class="tube"><div class="tline">${ids.map(i=>{const t=T[i];return `<div class="st ${t.status==="done"?"done":""}" data-t="${i}" title="${esc(t.title)}"><div class="dot" style="border-color:${RCOL[t.rag]}">${RAG[t.rag][0]}</div><div class="nm">${i}</div><div class="tt">${esc(t.title)}</div><div class="tm">${t.status==="done"?"done":(t.finish_day===D.today?"":dn(t.finish_day)+" ")+t.finish}</div></div>`}).join("")}</div></div>`:`<div class="empty">Nothing open on this path.</div>`}
+R.path=()=>`<div class="pathlab">GO-build · install and v2 tag · ${esc(D.gates["GO-build"].eta)}</div>${stations(D.gates["GO-build"].path)}<div class="pathlab" style="margin-top:14px">Critical path · end of week · ${esc(D.week_finish)}</div>${stations(D.crit)}`;
+R.week=()=>{const B=D.burn,W=900,Hh=200,pl=36,pb=24,mx=D.tasks.length,x=i=>pl+i*(W-pl-14)/Math.max(B.length-1,1),y=v=>Hh-pb-v/mx*(Hh-pb-10);
+ const line=(k,col,dash)=>`<polyline fill="none" stroke="${col}" stroke-width="2.4" ${dash?'stroke-dasharray="6 5"':""} points="${B.map((b,i)=>b[k]==null?null:x(i)+","+y(b[k])).filter(Boolean).join(" ")}"/>`;
+ let s=`<svg width="100%" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Burn-up: planned, done and projected tasks">`;[0,.25,.5,.75,1].forEach(f=>s+=`<line x1="${pl}" x2="${W-6}" y1="${y(mx*f)}" y2="${y(mx*f)}" stroke="rgba(255,255,255,.06)"/><text x="${pl-6}" y="${y(mx*f)+4}" text-anchor="end">${Math.round(mx*f)}</text>`);
+ B.forEach((b,i)=>s+=`<text x="${x(i)}" y="${Hh-6}" text-anchor="middle" style="${b.day===D.today?"fill:#FF8A3D;font-weight:700":""}">${dn(b.day)}</text>`);
+ s+=line("planned","#8A93A6",true)+line("proj","var(--c3)",true)+line("done","var(--orange)",false);
+ const ti=B.findIndex(b=>b.day===D.today);if(ti>=0){const b=B[ti];s+=`<circle cx="${x(ti)}" cy="${y(b.done)}" r="5" fill="var(--orange)" stroke="#131e34" stroke-width="2"/><text x="${x(ti)+8}" y="${y(b.done)-8}" style="fill:#fff;font-weight:700">${b.done} done · ${b.planned} planned by today</text>`}
+ s+=`</svg><div class="legend"><span style="color:#8A93A6"><i class="dash"></i>Planned</span><span><i style="background:var(--orange)"></i>Done</span><span style="color:var(--c3)"><i class="dash"></i>Projected</span></div>`;
+ const days=[...new Set(D.tasks.map(t=>t.day))].sort();
+ if(!L.f.weekdays)return s+`<div style="margin-top:10px"><button class="tbtn" data-tog="weekdays">Show every task by day (${D.tasks.length})</button></div>`;
+ return s+`<div style="margin-top:10px"><button class="tbtn" data-tog="weekdays">Hide tasks by day</button></div><div class="week">${days.map(d=>{const ts=D.tasks.filter(t=>t.day===d);const dd=ts.filter(t=>t.status==="done").length;return `<div class="day ${d===D.today?"today":""}"><h4><span>${dn(d)}</span><span>${dd}/${ts.length}</span></h4>${ts.map(t=>`<button class="chip" data-t="${t.id}" style="border-left-color:${RCOL[t.rag]}"><span class="mdot" style="background:${MCOL[t.model]||MCOL.none}"></span><b>${t.id}</b> ${esc(t.title.slice(0,58))}</button>`).join("")}</div>`}).join("")}</div><div class="legend">${Object.entries(MCOL).map(([k,v])=>`<span><span class="mdot" style="background:${v}"></span>${k==="none"?"no model":k}</span>`).join("")}<span>left edge = status colour</span></div>`};
+function gauge(v,lim,cols){const mx=lim[lim.length-1]*1.05;const c=v>=lim[1]?"var(--crit)":v>=lim[0]?"var(--warn)":"var(--good)";return `<div class="gauge"><span style="width:${Math.min(v/mx*100,100)}%;background:${c}"></span>${lim.map(l=>`<i style="left:${l/mx*100}%" title="${fmt(l)}"></i>`).join("")}</div>`}
+R.live=()=>{const lv=TK.sessions.map((s,i)=>({...s,i})).filter(s=>s.last>=genEpoch-900).sort((a,b)=>(b.sid===D.coord_sid)-(a.sid===D.coord_sid)||b.last-a.last);
+ const co=TK.sessions.findIndex(s=>s.sid===D.coord_sid);const C=co>=0?TK.sessions[co]:null;
+ const head=C?`<div class="tile click" data-s="${co}" style="margin-bottom:10px"><div class="lab">Coordinator ${esc(D.facts.coordinator)} · context now</div><div style="display:flex;align-items:baseline;gap:10px;margin-top:4px"><div class="val" style="margin:0">${fmt(C.last_ctx)}</div><div class="why">of 250k hand-over · 300k never · last active ${Math.max(0,Math.round((genEpoch-C.last)/60))} min ago</div></div>${gauge(C.last_ctx,[250000,275000,300000])}</div>`:`<div class="why" style="margin-bottom:8px">Coordinator session not found in the index (COORDINATOR.json names ${esc(D.facts.coordinator||"none")}).</div>`;
+ return head+(lv.length?`<table>${lv.filter(s=>s.sid!==D.coord_sid).slice(0,10).map(s=>`<tr class="click" data-s="${s.i}"><td style="width:46%"><div class="ell" style="max-width:260px">${esc(s.title.split(" | ")[0])}</div><div class="why">${s.kind}${s.task?" · "+s.task:""} · ${Math.max(0,Math.round((genEpoch-s.last)/60))} min ago</div></td><td>${gauge(s.last_ctx,s.kind==="coordinator"?[250000,275000,300000]:[225000,250000,275000])}</td><td class="n">${fmt(s.last_ctx)}</td></tr>`).join("")}</table>`:`<div class="empty">No other session active in the last 15 minutes.</div>`)};
+const QF=(()=>{const u=D.usage;if(!u.length)return{text:"needs a reading",ok:null};const l=u[u.length-1];const at=Date.parse(l.at.length<=16?l.at+":00Z":l.at)/1000;
+ const lastReset=(e=>{const d=new Date(e*1000);const back=(d.getDay()-5+7)%7;const r=new Date(d);r.setDate(d.getDate()-back);r.setHours(16,0,0,0);if(r/1000>e)r.setDate(r.getDate()-7);return r/1000})(at);const next=lastReset+7*86400;
+ let tokSince=0,tok24=0;TK.buckets.forEach(b=>{const v=b[3]+b[4]+b[5]+b[6];if(b[1]>=lastReset&&b[1]<at)tokSince+=v;if(b[1]>=genEpoch-86400)tok24+=v});
+ const code=l.code!=null?l.code:l.week,other=l.week-code,hrsLeft=Math.max(0,(next-genEpoch)/3600),elapsed=Math.max(1,(at-lastReset)/3600);
+ if(tokSince<5e6||elapsed<12)return {text:"needs more data",ok:null,thin:true,last:l,ageH:(genEpoch-at)/3600};
+ const codeRate=code/tokSince;const codeNow=code+codeRate*(TK.buckets.filter(b=>b[1]>=at).reduce((a,b)=>a+b[3]+b[4]+b[5]+b[6],0));
+ const proj=codeNow+codeRate*tok24/24*hrsLeft+other+other/elapsed*hrsLeft;
+ return {text:proj>150?"over 150% by Fri 16:00":`~${Math.round(proj)}% by Fri 16:00`,proj,now:codeNow+other+other/elapsed*Math.max(0,(genEpoch-at)/3600),last:l,next,hrsLeft,ok:proj<100,ageH:(genEpoch-at)/3600}})();
+R.quota=()=>{if(QF.ok===null)return QF.thin?`<div class="empty">Not enough data since the weekly reset to forecast. Last reading ${QF.last.week}% (${QF.ageH.toFixed(0)} h old).</div>`:`<div class="empty">No usage reading yet. W1-05 adds one each morning and evening.</div>`;
+ const W=520,Hq=170,u=D.usage;const pts=u.map(d=>({e:Date.parse(d.at.length<=16?d.at+":00Z":d.at)/1000,v:d.week}));const e0=QF.next-7*86400,e1=QF.next;const x=e=>34+(e-e0)/(e1-e0)*(W-48),y=v=>Hq-24-Math.min(v,120)/120*(Hq-36);
+ let s=`<svg width="100%" viewBox="0 0 ${W} ${Hq}" role="img" aria-label="Quota used this week with forecast">`;[0,50,100].forEach(v=>s+=`<line x1="34" x2="${W-10}" y1="${y(v)}" y2="${y(v)}" stroke="${v===100?"rgba(239,91,91,.6)":"rgba(255,255,255,.07)"}" ${v===100?'stroke-dasharray="4 4"':""}/><text x="28" y="${y(v)+4}" text-anchor="end">${v}%</text>`);
+ for(let d=0;d<=7;d++){const e=e0+d*86400;s+=`<text x="${x(e)}" y="${Hq-6}" text-anchor="middle">${new Date(e*1000).toLocaleDateString("en-GB",{weekday:"short"})}</text>`}
+ const nowE=genEpoch;s+=`<polyline fill="none" stroke="var(--c4)" stroke-width="2.4" points="${[{e:e0,v:0},...pts].map(p=>x(p.e)+","+y(p.v)).join(" ")}"/>`;
+ s+=`<polyline fill="none" stroke="var(--c4)" stroke-width="2.4" stroke-dasharray="6 5" points="${x(pts[pts.length-1].e)},${y(pts[pts.length-1].v)} ${x(nowE)},${y(QF.now)} ${x(e1)},${y(QF.proj)}"/>`;
+ s+=pts.map(p=>`<circle cx="${x(p.e)}" cy="${y(p.v)}" r="4.5" fill="var(--c4)" stroke="#131e34" stroke-width="2"/>`).join("")+`<line x1="${x(nowE)}" x2="${x(nowE)}" y1="10" y2="${Hq-22}" stroke="var(--orange)" stroke-width="1.5"/><text x="${x(e1)-4}" y="${Math.max(14,y(QF.proj)-8)}" text-anchor="end" style="fill:#fff;font-weight:700">${QF.proj>150?">150":Math.round(QF.proj)}%</text></svg>`;
+ const verdict=QF.proj>=100?["red","Runs out before Friday 16:00 at this pace"]:QF.proj>=85?["amber","Tight: close to the limit by Friday"]:["green","Lasts until Friday 16:00 at this pace"];
+ return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">${pill(verdict[0],verdict[1])}<span class="why">last reading ${QF.last.week}% · ${QF.ageH.toFixed(0)} h old${QF.ageH>14?" · <b style='color:var(--warn)'>W1-05 reading due</b>":""}</span></div>${s}<div class="legend"><span><i style="background:var(--c4)"></i>Recorded</span><span style="color:var(--c4)"><i class="dash"></i>Forecast (rough)</span><span style="color:var(--crit)"><i class="dash"></i>Weekly limit</span></div>`};
+/* tokens */
+const WINS=[["today","Today"],["48h","48 h"],["72h","72 h"],["7d","7 days"],["30d","30 days"],["90d","90 days"]];
+const KINDS=["coordinator","lane","subagent","cowork","spare","other"];
+const KCOL={coordinator:"var(--c1)",lane:"var(--c2)",subagent:"var(--c3)",cowork:"var(--c4)",spare:"#8A93A6",other:"#5d667a"};
+const COMP=[["cr","Cache read","var(--c1)"],["cw","Cache write","var(--c2)"],["inp","Fresh input","var(--c3)"],["out","Output","var(--c4)"]];
+function since(w){if(w==="today"){const d=new Date(D.gen_iso);d.setHours(0,0,0,0);return d/1000}return genEpoch-{"48h":48,"72h":72,"7d":168,"30d":720,"90d":2160}[w]*3600}
+const mfam=m=>{m=(m||"").toLowerCase();return m.includes("opus")?"opus":m.includes("sonnet")?"sonnet":m.includes("haiku")?"haiku":m.includes("fable")||m.includes("mythos")?"fable":"other"};
+function hbars(items,total,attr){return items.length?items.map(it=>`<div class="hbar ${attr?"click":""}" ${attr?`data-${attr}="${esc(it.key)}"`:""}><div class="ell">${it.label}</div><div class="track">${it.parts.filter(p=>p.v>0).map(p=>`<span style="width:${(p.v/total*100).toFixed(2)}%;background:${p.c}" title="${esc(p.tip||"")}"></span>`).join("")}</div><div class="v">${fmt(it.v)}</div></div>`).join(""):`<div class="empty">No sessions in this window.</div>`}
+R.tok=()=>{const TW=L.f.win||"today",TP=L.f.proj||"lc",TC=L.f.cr||"with",TS=L.f.sort||"wtotal",KF=L.f.kind||"all";
+ const s0=since(TW),hourly=["today","48h","72h"].includes(TW);const per=TK.sessions.map(()=>({inp:0,cw:0,cr:0,out:0,req:0}));const series={},bym={};
+ const okS=s=>(TP!=="lc"||s.project==="London Commuter")&&(KF==="all"||s.kind===KF);
+ TK.buckets.forEach(b=>{const s=TK.sessions[b[0]];if(b[1]<s0||!okS(s))return;const p=per[b[0]];p.inp+=b[3];p.cw+=b[4];p.cr+=b[5];p.out+=b[6];p.req+=b[7];
+  let k=b[1];if(!hourly){const d=new Date(b[1]*1000);d.setHours(0,0,0,0);k=d/1000}const z=series[k]||(series[k]={inp:0,cw:0,cr:0,out:0});z.inp+=b[3];z.cw+=b[4];z.cr+=b[5];z.out+=b[6];
+  const f=mfam(TK.models[b[2]]);bym[f]=(bym[f]||0)+b[3]+b[4]+b[5]+b[6]});
+ const rows=TK.sessions.map((s,i)=>{const p=per[i];const tot=p.inp+p.cw+p.cr+p.out;const st=s.first>=s0?s.start:0;return {...s,i,w:p,wtotal:tot,wstart:Math.min(st,tot),wwork:Math.max(tot-st,0),wreq:p.req}}).filter(r=>r.wtotal>0);
+ const sum=k=>rows.reduce((a,r)=>a+r[k],0),tot=sum("wtotal"),st=sum("wstart"),wk=sum("wwork");const started=rows.filter(r=>r.wstart>0);
+ const avg=started.length?st/started.length:0,cr=rows.reduce((a,r)=>a+r.w.cr,0),out=rows.reduce((a,r)=>a+r.w.out,0);
+ const ctl=`<div class="bar-row"><div class="seg" data-f="win">${WINS.map(([k,l])=>`<button data-v="${k}" class="${k===TW?"on":""}">${l}</button>`).join("")}</div><div class="seg" data-f="proj">${[["lc","London Commuter"],["all","All projects"]].map(([k,l])=>`<button data-v="${k}" class="${k===TP?"on":""}">${l}</button>`).join("")}</div><div class="seg" data-f="kind">${[["all","All kinds"],...KINDS.filter(k=>TK.sessions.some(s=>s.kind===k)).map(k=>[k,k[0].toUpperCase()+k.slice(1)])].map(([k,l])=>`<button data-v="${k}" class="${k===KF?"on":""}">${l}</button>`).join("")}</div></div>`;
+ const kpis=`<div class="grid k6">${[["Total",fmt(tot),`${rows.length} sessions · ${fmt(sum("wreq"))} requests`],["Start cost",fmt(st),`${started.length} sessions started`],["Work",fmt(wk),tot?Math.round(wk/tot*100)+"% of total":""],["Avg start",fmt(avg),`target 50k · ${avg>60000?"<b style='color:var(--warn)'>above the 60k gate</b>":"within the gate"}`],["Cache reads",tot?Math.round(cr/tot*100)+"<small>%</small>":"–","re-read prefix; cheapest kind"],["Output",fmt(out),"written by the model"]].map(([l,v,f])=>`<div class="tile"><div class="lab">${l}</div><div class="val">${v}</div><div class="foot">${f}</div></div>`).join("")}</div>`;
+ const all=[];let k0=hourly?Math.floor(s0/3600)*3600:(()=>{const d=new Date(s0*1000);d.setHours(0,0,0,0);return d/1000})();
+ for(let k=k0;k<=genEpoch;){all.push(k);if(hourly)k+=3600;else{const d=new Date(k*1000);d.setDate(d.getDate()+1);d.setHours(0,0,0,0);k=d/1000}}
+ const CC=TC==="with"?COMP:COMP.filter(c=>c[0]!=="cr");const zt=z=>CC.reduce((a,c)=>a+z[c[0]],0);
+ const W=1200,Hh=230,pl=50,pb=26,pt=10,vmax=Math.max(1,...all.map(k=>series[k]?zt(series[k]):0));
+ const p10=Math.pow(10,Math.floor(Math.log10(vmax))),nice=[1,2,2.5,5,10].map(m=>m*p10).find(v=>v>=vmax)||vmax;
+ const bw=(W-pl-8)/Math.max(all.length,1),y=v=>Hh-pb-(v/nice)*(Hh-pb-pt);
+ let svg=`<svg width="100%" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Tokens over time" id="tokchart">`;
+ for(let g=0;g<=4;g++){const v=nice*g/4;svg+=`<line x1="${pl}" x2="${W-4}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(255,255,255,.06)"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`}
+ const every=Math.ceil(all.length/18);
+ all.forEach((k,i)=>{const z=series[k]||{inp:0,cw:0,cr:0,out:0};let acc=0;const x=pl+i*bw+Math.max(1,bw*.12),w=Math.max(1,bw*.76),T0=zt(z);
+  CC.forEach(([c,,col])=>{const v=z[c];if(!v)return;const y1=y(acc+v),y0=y(acc);svg+=`<rect x="${x}" y="${y1}" width="${w}" height="${Math.max(0,y0-y1-(acc?2:0))}" fill="${col}" rx="${acc+v===T0?3:0}"/>`;acc+=v});
+  svg+=`<rect x="${pl+i*bw}" y="${pt}" width="${bw}" height="${Hh-pb-pt}" fill="transparent" data-k="${k}"/>`;
+  if(i%every===0)svg+=`<text x="${x+w/2}" y="${Hh-8}" text-anchor="middle">${hourly?new Date(k*1000).toLocaleTimeString("en-GB",{hour:"2-digit"}):new Date(k*1000).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</text>`});
+ svg+=`</svg>`;window._series=series;window._hourly=hourly;
+ const bk={};rows.forEach(r=>{const z=bk[r.kind]||(bk[r.kind]={n:0,s:0,w:0});z.n++;z.s+=r.wstart;z.w+=r.wwork});
+ const kI=KINDS.filter(k=>bk[k]).map(k=>({key:k,label:`<span class="mdot" style="background:${KCOL[k]}"></span>${k} <span class="why">· ${bk[k].n}</span>`,v:bk[k].s+bk[k].w,parts:[{v:bk[k].s,c:"var(--c2)",tip:"start "+fmt(bk[k].s)},{v:bk[k].w,c:"var(--c3)",tip:"work "+fmt(bk[k].w)}]})).sort((a,b)=>b.v-a.v);
+ const fam=[["haiku","var(--c1)"],["opus","var(--c2)"],["sonnet","var(--c3)"],["fable","var(--c4)"],["other","#5d667a"]];
+ const mI=fam.filter(([f])=>bym[f]).map(([f,c])=>({key:f,label:`<span class="mdot" style="background:${c}"></span>${f}`,v:bym[f],parts:[{v:bym[f],c}]})).sort((a,b)=>b.v-a.v);
+ const bt={};rows.forEach(r=>{if(!r.task)return;const z=bt[r.task]||(bt[r.task]={s:0,w:0});z.s+=r.wstart;z.w+=r.wwork});
+ const tI=Object.entries(bt).map(([k,z])=>({key:k,label:`<b class="mono">${k}</b> <span class="why">${esc((T[k]||{}).title||"")}</span>`,v:z.s+z.w,parts:[{v:z.s,c:"var(--c2)"},{v:z.w,c:"var(--c3)"}]})).sort((a,b)=>b.v-a.v).slice(0,12);
+ const sw=`<div class="legend"><span><i style="background:var(--c2)"></i>Start cost</span><span><i style="background:var(--c3)"></i>Work</span></div>`;
+ const sd=started.map(r=>({v:r.wstart,r})).sort((a,b)=>a.v-b.v);let dist=`<div class="empty">No session started in this window.</div>`;
+ if(sd.length){const W2=560,H2=150,mx=Math.max(130000,...sd.map(d=>d.v))*1.05,xx=v=>100+v/mx*(W2-114),LY={coordinator:36,lane:62,subagent:88,cowork:114,spare:114,other:114};
+  dist=`<svg width="100%" viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Start cost per session">`+[[50000,"50k target","var(--good)","end"],[60000,"60k gate","var(--warn)","start"]].map(([v,l,c,a])=>`<line x1="${xx(v)}" x2="${xx(v)}" y1="14" y2="${H2-22}" stroke="${c}" stroke-dasharray="4 4"/><text x="${xx(v)+(a==="end"?-4:4)}" y="10" text-anchor="${a}">${l}</text>`).join("")+
+  sd.map(d=>`<circle cx="${xx(d.v)}" cy="${LY[d.r.kind]||114}" r="6" fill="${KCOL[d.r.kind]}" stroke="#131e34" stroke-width="2" data-s="${d.r.i}" style="cursor:pointer"><title>${esc(d.r.title.split(" | ")[0])} · start ${fmt(d.v)}</title></circle>`).join("")+
+  Object.entries({coordinator:36,lane:62,subagent:88,"cowork / other":114}).map(([k,yy])=>`<text x="4" y="${yy+4}">${k}</text>`).join("")+`<text x="100" y="${H2-6}">0</text><text x="${W2-14}" y="${H2-6}" text-anchor="end">${fmt(mx)}</text></svg><div class="why">median ${fmt(sd[Math.floor(sd.length/2)].v)} · best ${fmt(sd[0].v)} · worst ${fmt(sd[sd.length-1].v)} · ${sd.filter(d=>d.v<=60000).length}/${sd.length} within the 60k gate</div>`}
+ const cols=[["title","Session",0],["kind","Kind",0],["task","Task",0],["wreq","Req",1],["wstart","Start",1],["wwork","Work",1],["wtotal","Total",1],["peak","Peak ctx",1],["last","Last",1]];
+ const sorted=rows.slice().sort((a,b)=>["title","kind","task"].includes(TS)?String(a[TS]||"").localeCompare(String(b[TS]||"")):(b[TS]||0)-(a[TS]||0)).slice(0,150);
+ const table=sorted.length?`<div class="scroll"><table><thead><tr>${cols.map(([k,l,n])=>`<th class="sort ${n?"n":""}" data-sort="${k}" aria-sort="${TS===k?"descending":"none"}">${l}${TS===k?" ▾":""}</th>`).join("")}</tr></thead><tbody>${sorted.map(r=>`<tr class="click" data-s="${r.i}"><td><div class="ell" style="max-width:360px">${esc(r.title.split(" | ")[0])}</div><div class="why">${[...new Set(r.models.map(mfam))].join(", ")}${r.effort?" · "+esc(r.effort):""}</div></td><td><span class="mdot" style="background:${KCOL[r.kind]}"></span>${r.kind}</td><td class="mono">${r.task?`<a href="#" data-t="${r.task}">${r.task}</a>`:""}</td><td class="n">${r.wreq}</td><td class="n" style="color:${r.wstart>60000?"var(--warn)":"inherit"}">${r.wstart?fmt(r.wstart):"–"}</td><td class="n">${fmt(r.wwork)}</td><td class="n"><b>${fmt(r.wtotal)}</b></td><td class="n" style="color:${r.peak>=275000?"var(--crit)":r.peak>=225000?"var(--warn)":"inherit"}">${fmt(r.peak)}</td><td class="n">${dtf(r.last)}</td></tr>`).join("")}</tbody></table></div>${rows.length>150?`<div class="why">Showing the top 150 of ${rows.length}.</div>`:""}`:`<div class="empty">No sessions in this window.</div>`;
+ const H4=t=>`<div style="font-weight:700;margin:18px 0 8px">${t}</div>`;
+ return ctl+kpis+H4(`Tokens over time <span class="why">per ${hourly?"hour":"day"}</span> <span class="seg" data-f="cr" style="margin-left:8px">${[["with","All"],["without","Without cache reads"]].map(([k,l])=>`<button data-v="${k}" class="${k===TC?"on":""}">${l}</button>`).join("")}</span>`)+svg+`<div class="legend">${CC.map(([,l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join("")}</div>`+
+  `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:20px"><div>${H4("By kind of session")}${hbars(kI,Math.max(1,...kI.map(i=>i.v)),"kind")}${sw}</div><div>${H4("By model")}${hbars(mI,Math.max(1,...mI.map(i=>i.v)))}</div><div>${H4("By W1 task")}${tI.length?hbars(tI,Math.max(1,...tI.map(i=>i.v)),"t")+sw:`<div class="empty">No session in this window names a W1 task.</div>`}</div><div>${H4("Start cost per session")}${dist}</div></div>`+H4("Sessions <span class='why'>tap a row for request-by-request detail; tap a header to sort</span>")+table};
+R.q=()=>{const QC={PASS:"green","PASS-FILTERED":"blue",FAIL:"red"};const p=D.facts.pending;
+ return `<div class="bar-row"><span class="why">pending ${p.pending} · running ${p.running} · held ${p.held}</span></div>`+(D.queue.length?`<div class="scroll"><table><thead><tr><th>At</th><th>Lane</th><th>Branch</th><th>Targets</th><th class="n">Time</th><th>Result</th></tr></thead>${D.queue.map(j=>`<tr><td class="mono">${j.at}</td><td>${esc(j.lane)}</td><td><div class="ell" style="max-width:200px">${esc(j.branch)}</div><span class="mono why">${j.sha}</span></td><td>${esc(j.targets)}</td><td class="n">${j.dur?Math.round(j.dur/60)+"m":""}</td><td>${pill(QC[j.overall]||"grey",j.overall)}</td></tr>`).join("")}</table></div>`:`<div class="empty">No results.</div>`)};
+R.pr=()=>{const F=D.facts;return `<div class="pathlab">Open · ${F.open_prs.length}</div>`+(F.open_prs.length?F.open_prs.map(p=>`<div style="margin:7px 0"><a href="${esc(p.url)}">#${p.n}</a> ${esc(p.t)}<div class="why">${esc(p.b)}</div></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="pathlab" style="margin-top:14px">Merged in 24 h · ${F.merged_24h.length}</div>`+(F.merged_24h.length?F.merged_24h.map(p=>`<div style="margin:7px 0">${pill("green","#"+p.n)} ${esc(p.t)} <span class="why">${p.at}</span></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="why" style="margin-top:8px">main ${F.main.length?`<span class="mono">${esc(F.main[0])}</span> · ${esc(F.main[1])} · ${esc(F.main[2])}`:"unknown"}</div>`};
+R.health=()=>{const rows=[{name:HOSTED?"Published data":"This page",detail:HOSTED?"encrypted on the Mac, pushed to GitHub every 10 min":"built by w1_dashboard.py",age:pageAge,ok:pageAge<=STALE_MIN,why:pageAge>STALE_MIN?(HOSTED?"the Mac has not pushed: asleep, offline or the job stopped":"the updater is not running"):""},...D.health];
+ const ag=a=>a==null?"–":a<1?"just now":a<60?a+" min":a<1440?(a/60).toFixed(1)+" h":(a/1440).toFixed(1)+" d";
+ return `<div class="scroll"><table><thead><tr><th>Source</th><th>What it holds</th><th class="n">Last change</th><th>Status</th></tr></thead>${rows.map(h=>`<tr><td><b>${esc(h.name)}</b></td><td>${esc(h.detail)}${h.why?`<div class="why" style="color:var(--warn)">${esc(h.why)}</div>`:""}</td><td class="n">${ag(h.age)}</td><td>${pill(h.ok?"green":"amber",h.ok?"Fresh":"Check")}</td></tr>`).join("")}</table></div><div class="why" style="margin-top:8px">Not visible from this Mac: cloud sessions (this Cowork chat, claude.ai). The quota reading covers them. Alerts: ${D.facts.alerts.length?esc(D.facts.alerts[D.facts.alerts.length-1]):"none"}</div>`};
+
+/* ---------- module shell ---------- */
+function shell(k){const m=M[k];const wide=(L.wide[k]||m.w)==="full";const col=!!L.col[k];
+ const sub=k==="chg"?(changes.length?`${changes.length} change${changes.length>1?"s":""}`:"No changes"):k==="q"?`${D.queue.length} recent results`:m.s;
+ return `<section class="mod ${wide?"full":""} ${col?"col":""} ${L.hide[k]?"hidden":""}" id="m-${k}" data-k="${k}" aria-labelledby="t-${k}">
+ <div class="mh">${ico(m.i,m.c)}<div class="grow"><div class="mt" id="t-${k}">${m.t}</div><div class="ms ell">${esc(sub)}</div></div>
+ <div class="ctl"><button data-a="help" title="How this is worked out" aria-label="How this is worked out">${svgI('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01"/>')}</button>
+ <button data-a="up" title="Move up" aria-label="Move up">${svgI('<path d="M6 15l6-6 6 6"/>')}</button><button data-a="down" title="Move down" aria-label="Move down">${svgI('<path d="M6 9l6 6 6-6"/>')}</button>
+ <button data-a="wide" title="${wide?"Half width":"Full width"}" aria-label="Toggle width">${svgI(wide?'<path d="M9 4v16M15 4v16M4 9l3 3-3 3M20 9l-3 3 3 3"/>':'<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>')}</button>
+ <button data-a="col" title="${col?"Expand":"Minimise"}" aria-label="${col?"Expand":"Minimise"}" aria-expanded="${!col}">${svgI(col?'<path d="M12 5v14M5 12h14"/>':'<path d="M5 12h14"/>')}</button>
+ <button data-a="hide" class="hide" title="Hide" aria-label="Hide">${svgI('<path d="M3 3l18 18M10.6 6.1A9 9 0 0 1 21 12a12 12 0 0 1-2.2 3M6.3 6.3A12 12 0 0 0 3 12s3.5 7 9 7a8.8 8.8 0 0 0 4.2-1"/>')}</button></div></div>
+ <div class="help">${esc(m.help)}</div><div class="mb"><div><div class="mbi" id="b-${k}">${col?"":R[k]()}</div></div></div></section>`}
+function svgI(p){return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`}
+function renderAll(){$("#mods").innerHTML=L.order.map(shell).join("");renderNav()}
+function rerender(k){const el=$("#b-"+k);if(el&&!L.col[k])el.innerHTML=R[k]()}
+function renderNav(){const custom=document.body.classList.contains("custom");
+ $("#nav").innerHTML=L.order.filter(k=>!L.hide[k]||custom).map(k=>`<a data-go="${k}" style="${L.hide[k]?"opacity:.4":""}">${M[k].nav}${k==="iss"&&nRed?`<span class="badge">${nRed}</span>`:k==="chg"&&changes.length?`<span class="badge" style="background:var(--c4)">${changes.length}</span>`:""}</a>`).join("")+
+ `<span class="sp"></span><button class="tbtn ${custom?"on":""}" id="custom">${custom?"Done":"Customise"}</button>${custom?`<button class="tbtn" id="reset">Reset layout</button>`:""}${custom&&Object.values(L.hide).some(Boolean)?`<button class="tbtn" id="unhide">Show hidden</button>`:""}`}
+
+/* ---------- drill-downs ---------- */
+function openTask(id){const t=T[id];if(!t)return;setH("s",null);setH("t",id);
+ const ss=TK.sessions.map((s,i)=>({...s,i})).filter(s=>s.task===id);const tot=ss.reduce((a,s)=>a+s.total,0),stc=ss.reduce((a,s)=>a+s.start,0);
+ const dep=(t.depends||[]).map(d=>`<a href="#" data-t="${d}" class="mono">${d}</a> ${T[d]?pill(T[d].rag,T[d].status==="done"?"done":T[d].status):""}`).join(" &nbsp; ")||"none";
+ const users=D.tasks.filter(x=>(x.depends||[]).includes(id)).map(x=>`<a href="#" data-t="${x.id}" class="mono">${x.id}</a>`).join(" ")||"none";
+ const ev=[...(t.opened||[]).map(o=>[o.at,"Session opened as "+o.as]),...(t.escalations||[]).map(o=>[o.at||"",esc(JSON.stringify(o))]),...(t.updated?[[t.updated,"State set to "+t.status+(t.state_note?" · "+t.state_note:"")]]:[]),...(t.lane?[[D.today+"T"+t.lane.at,"Lane run ended · "+t.lane.turns+" turns · $"+t.lane.cost+(t.lane.denied.length?" · "+t.lane.denied.length+" command(s) refused":"")]]:[])].sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+ const ln=t.lane;
+ $("#panel").innerHTML=`<button class="x" aria-label="Close">×</button><h3>${t.id} · ${esc(t.title)}</h3>
+ <div class="meta">${ownerTxt(t)} · planned ${dn(t.day)}${t.where?" · "+esc(t.where):""}</div>
+ <div class="callout ${t.rag==="grey"?"":t.rag}">${pill(t.rag,t.status==="done"?"Done":t.status==="doing"?"In progress":t.status==="blocked"?"Blocked":null)}<div style="margin-top:6px">${esc(t.why)}</div>${t.plan?`<div style="margin-top:6px;color:var(--orange2)"><b>Next action:</b> ${esc(t.plan)}</div>`:""}${t.note?`<div style="margin-top:6px"><b>Coordinator note:</b> ${esc(t.note)}</div>`:""}</div>
+ <div class="mini"><div class="tile"><div class="lab">Estimate</div><div class="val">${t.est}<small> min</small></div><div class="foot">${esc(t.slot||"")}</div></div><div class="tile"><div class="lab">${t.status==="done"?"Finished":"Projected"}</div><div class="val">${t.status==="done"?(t.updated||"").slice(11,16):t.finish}</div><div class="foot">${t.status==="done"?(t.updated||"").slice(0,10):dn(t.finish_day)+(t.slip_days?` · <b style="color:var(--warn)">${t.slip_days} day late</b>`:" · on plan")}</div></div><div class="tile"><div class="lab">Tokens</div><div class="val">${fmt(tot)}</div><div class="foot">${ss.length} session(s) · start ${fmt(stc)}</div></div></div>
+ ${t.gates&&t.gates.length?`<h5>Gates</h5><div>${t.gates.map(g=>`<span class="pill r-blue">${esc(g)}</span>`).join(" ")}</div>`:""}
+ <h5>Depends on</h5><div>${dep}</div><h5>Unblocks ${t.ndesc?`<span class="why">(${t.ndesc} later tasks in all)</span>`:""}</h5><div>${users}</div>
+ ${ev.length?`<h5>History</h5><ul>${ev.map(e=>`<li><span class="mono">${esc(String(e[0]).replace("T"," ").slice(0,16))}</span> · ${esc(e[1])}</li>`).join("")}</ul>`:""}
+ ${t.why_opus?`<h5>Why Opus</h5><div class="box">${esc(t.why_opus)}</div>`:""}
+ <h5>Steps</h5><ol>${(t.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
+ <h5>Done when</h5><div class="box mono">${esc(t.done_check||"")}</div>${t.evidence?`<div class="why">evidence file: ${esc(t.evidence)}</div>`:""}
+ ${t.pr?`<h5>Pull request</h5><div>#${t.pr} · ${esc(t.pr_state||"state unknown")}</div>`:""}
+ ${ln?`<h5>Last lane run · ${esc(ln.at)} ${t.lane_running?pill("green","running"):""}</h5>${ln.denied.length?`<div class="box mono" style="border-color:rgba(239,91,91,.5)">Refused: ${ln.denied.map(esc).join("\n")}</div>`:""}<div class="box" style="margin-top:6px">${esc(ln.result)}</div>`:""}
+ ${(t.ev||[]).length?`<h5>Evidence</h5>${t.ev.map(e=>`<div class="why">${esc(e.file)} · ${esc(e.at)}</div><div class="box" style="margin-bottom:8px">${esc(e.text)}</div>`).join("")}`:""}
+ ${ss.length?`<h5>Token sessions</h5><table>${ss.map(s=>`<tr class="click" data-s="${s.i}"><td>${esc(s.title.split(" | ")[0])}</td><td class="n">start ${fmt(s.start)}</td><td class="n"><b>${fmt(s.total)}</b></td></tr>`).join("")}</table>`:""}`;
+ openPanel()}
+function openSess(i){const s=TK.sessions[i];if(!s)return;setH("t",null);setH("s",s.id);
+ const tl=TK.timelines[i]||[],total=s.total,coord=s.kind==="coordinator",lim=coord?[[250000,"250k hand-over","var(--warn)"],[275000,"275k done","var(--crit)"]]:[[225000,"225k hand-over","var(--warn)"],[275000,"275k max","var(--crit)"]];
+ let chart="";if(tl.length>1){const W=560,Hc=200,pl=44,pb=22,mx=Math.max(300000,...tl.map(p=>p[1]))*1.05,t0=tl[0][0],t1=tl[tl.length-1][0]||t0+1;
+  const x=t=>pl+(t-t0)/Math.max(t1-t0,1)*(W-pl-8),y=v=>Hc-pb-v/mx*(Hc-pb-8);
+  chart=`<svg width="100%" viewBox="0 0 ${W} ${Hc}" role="img" aria-label="Context per request">`+[...lim,[50000,"50k","var(--good)"]].map(([v,l,c])=>`<line x1="${pl}" x2="${W-6}" y1="${y(v)}" y2="${y(v)}" stroke="${c}" stroke-dasharray="4 4" opacity=".7"/><text x="${W-8}" y="${y(v)-4}" text-anchor="end">${l}</text>`).join("")+
+  [0,100000,200000,300000].map(v=>`<text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`).join("")+`<polyline fill="none" stroke="var(--c3)" stroke-width="2" points="${tl.filter(p=>!p[3]).map(p=>x(p[0])+","+y(p[1])).join(" ")}"/>`+
+  tl.filter(p=>p[3]).map(p=>`<circle cx="${x(p[0])}" cy="${y(p[1])}" r="2.6" fill="var(--c4)"/>`).join("")+`<text x="${pl}" y="${Hc-6}">${dtf(t0)}</text><text x="${W-8}" y="${Hc-6}" text-anchor="end">${dtf(t1)}</text></svg><div class="legend"><span><i style="background:var(--c3)"></i>Main thread: context per request</span><span><i style="background:var(--c4)"></i>Subagent request</span></div>`}
+ const parts=COMP.map(([c,l,col])=>({l,col,v:s[c]}));
+ $("#panel").innerHTML=`<button class="x" aria-label="Close">×</button><h3>${esc(s.title.split(" | ")[0])}</h3>
+ <div class="meta"><span class="mdot" style="background:${KCOL[s.kind]}"></span>${s.kind}${s.task?` · <a href="#" data-t="${s.task}" class="mono">${s.task}</a>`:""} · ${s.models.map(esc).join(", ")}${s.effort?" · "+esc(s.effort):""} · <span class="mono">${s.id}</span></div>
+ ${s.title.includes(" | ")?`<div class="why" style="margin-bottom:10px">Earlier titles: ${esc(s.title.split(" | ").slice(1).join(" · "))}</div>`:""}
+ <div class="mini"><div class="tile"><div class="lab">Total</div><div class="val">${fmt(total)}</div><div class="foot">${s.req} requests</div></div><div class="tile"><div class="lab">Start cost</div><div class="val" style="color:${s.start>60000?"var(--warn)":"inherit"}">${fmt(s.start)}</div><div class="foot">first request</div></div><div class="tile"><div class="lab">Work</div><div class="val">${fmt(s.work)}</div><div class="foot">${total?Math.round(s.work/total*100):0}% of total</div></div><div class="tile"><div class="lab">Peak context</div><div class="val" style="color:${s.peak>=275000?"var(--crit)":s.peak>=225000?"var(--warn)":"inherit"}">${fmt(s.peak)}</div><div class="foot">now ${fmt(s.last_ctx)}</div></div><div class="tile"><div class="lab">Output</div><div class="val">${fmt(s.out)}</div></div><div class="tile"><div class="lab">Active</div><div class="val" style="font-size:15px">${dtf(s.first)}</div><div class="foot">to ${dtf(s.last)}</div></div></div>
+ <h5>What the tokens were</h5><div class="track" style="height:22px">${parts.filter(p=>p.v).map(p=>`<span style="width:${(p.v/Math.max(total,1)*100).toFixed(2)}%;background:${p.col}" title="${p.l} ${fmt(p.v)}"></span>`).join("")}</div>
+ <div class="legend">${parts.map(p=>`<span><i style="background:${p.col}"></i>${p.l} ${fmt(p.v)} (${total?Math.round(p.v/total*100):0}%)</span>`).join("")}</div>
+ <h5>Context per request</h5>${chart||`<div class="empty">Request detail is kept for sessions active in the last 7 days.</div>`}`;
+ openPanel()}
+let lastFocus=null;
+function openPanel(){lastFocus=document.activeElement;$("#panel").classList.add("on");$("#scrim").classList.add("on");$("#panel").scrollTop=0;$("#panel .x").focus()}
+function closePanel(){$("#panel").classList.remove("on");$("#scrim").classList.remove("on");setH("t",null);setH("s",null);if(lastFocus)lastFocus.focus()}
+
+/* ---------- events ---------- */
+function go(k){if(L.hide[k]){L.hide[k]=false;saveL();renderAll()}if(L.col[k]){L.col[k]=false;saveL();const el=$("#m-"+k);el.classList.remove("col");rerender(k)}const el=$("#m-"+k);if(!el)return;el.scrollIntoView({behavior:"smooth",block:"start"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),1200)}
+document.addEventListener("click",e=>{
+ if(e.target.closest(".x")||e.target===$("#scrim"))return closePanel();
+ const c=e.target.closest(".ctl button");if(c){const k=c.closest(".mod").dataset.k,a=c.dataset.a,i=L.order.indexOf(k);
+  if(a==="help"){c.closest(".mod").classList.toggle("showhelp");return}
+  if(a==="up"&&i>0){[L.order[i-1],L.order[i]]=[L.order[i],L.order[i-1]]}
+  if(a==="down"&&i<L.order.length-1){[L.order[i+1],L.order[i]]=[L.order[i],L.order[i+1]]}
+  if(a==="wide")L.wide[k]=((L.wide[k]||M[k].w)==="full")?"half":"full";
+  if(a==="col")L.col[k]=!L.col[k];
+  if(a==="hide")L.hide[k]=true;
+  saveL();renderAll();const el=$("#m-"+k);if(el&&(a==="up"||a==="down")){el.scrollIntoView({block:"nearest"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),700)}return}
+ if(e.target.id==="custom"){document.body.classList.toggle("custom");renderNav();return}
+ if(e.target.id==="reset"){L={order:DEFAULT_ORDER.slice(),col:{},wide:{},hide:{},f:{}};saveL();renderAll();return}
+ if(e.target.id==="unhide"){L.hide={};saveL();renderAll();return}
+ const tg=e.target.closest("[data-tog]");if(tg){L.f[tg.dataset.tog]=!L.f[tg.dataset.tog];saveL();rerender(tg.closest(".mod").dataset.k);return}
+ if(e.target.id==="markseen"){markSeen();location.reload();return}
+ const sg=e.target.closest(".seg button");if(sg){const f=sg.parentElement.dataset.f;if(f==="hidedone")L.f.hidedone=!L.f.hidedone;else L.f[f]=sg.dataset.v;saveL();rerender(sg.closest(".mod").dataset.k);return}
+ const th=e.target.closest("th.sort");if(th){L.f.sort=th.dataset.sort;saveL();rerender("tok");return}
+ const g=e.target.closest("[data-go]");if(g){e.preventDefault();return go(g.dataset.go)}
+ const kk=e.target.closest("[data-kind]");if(kk){L.f.kind=kk.dataset.kind;saveL();rerender("tok");return}
+ const a=e.target.closest("[data-t]");if(a){e.preventDefault();return openTask(a.dataset.t)}
+ const b=e.target.closest("[data-s]");if(b){e.preventDefault();return openSess(+b.dataset.s)}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closePanel();if((e.key==="Enter"||e.key===" ")&&e.target.matches(".brow,.it,.tile.click")){e.preventDefault();e.target.click()}});
+document.addEventListener("mousemove",e=>{const r=e.target.closest&&e.target.closest("#tokchart rect[data-k]");const tip=$("#tip");if(!r){tip.style.display="none";return}
+ const z=window._series[r.dataset.k]||{inp:0,cw:0,cr:0,out:0},d=new Date(r.dataset.k*1000);
+ tip.innerHTML=`<b>${window._hourly?d.toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</b><br>`+COMP.map(([c,l,col])=>`<span class="mdot" style="background:${col}"></span>${l}: ${fmt(z[c])}`).join("<br>")+`<br><b>Total ${fmt(z.inp+z.cw+z.cr+z.out)}</b>`;
+ tip.style.display="block";tip.style.left=Math.min(e.clientX+14,innerWidth-300)+"px";tip.style.top=(e.clientY+14)+"px"});
+
+/* ---------- boot ---------- */
+$("#foot").innerHTML=`Built by <span class="mono">gen/w1_dashboard.py</span> on JB's Mac from local files${HOSTED?", encrypted there and published to GitHub; your browser decrypts it":""}. Viewing and refreshing cost no model tokens. Layout, filters and the "since you last looked" snapshot live in this browser only. Projections are estimates; status colours follow fixed rules (open a module's ⓘ).<details><summary>Decision-loop log for this version</summary><div class="why" style="margin-top:6px">${esc(D.loop||"")}</div></details>`;
+renderAll();
+try{const y=sessionStorage.getItem("w1dash.y");if(y!=null){scrollTo(0,+y);sessionStorage.removeItem("w1dash.y")}}catch(e){}
+if(H.t)openTask(H.t);else if(H.s){const i=TK.sessions.findIndex(s=>s.id===H.s);if(i>=0)openSess(i)}
+setInterval(()=>{if(!$("#panel").classList.contains("on")&&!document.body.classList.contains("custom")&&document.visibilityState==="visible"){try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload()}},HOSTED?300000:60000);
+}
+
+/* ---------- loader: passphrase, fetch, decrypt (AES-256-CBC + PBKDF2-SHA256, openssl enc format), gunzip ---------- */
+const ITER=200000;
+async function decrypt(b64,pass){
+ const raw=Uint8Array.from(atob(b64.replace(/\s+/g,"")),c=>c.charCodeAt(0));
+ if(new TextDecoder().decode(raw.slice(0,8))!=="Salted__")throw new Error("Unexpected data format");
+ const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveBits"]);
+ const bits=new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2",salt:raw.slice(8,16),iterations:ITER,hash:"SHA-256"},km,384));
+ const key=await crypto.subtle.importKey("raw",bits.slice(0,32),"AES-CBC",false,["decrypt"]);
+ const gz=await crypto.subtle.decrypt({name:"AES-CBC",iv:bits.slice(32,48)},key,raw.slice(16));
+ const txt=await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+ return JSON.parse(txt);
+}
+function lockScreen(msg){
+ document.querySelector(".wrap").style.display="none";
+ const d=document.createElement("div");d.id="lock";
+ d.style.cssText="padding:12vh 16px 0";d.innerHTML=`<div style="max-width:420px;margin:0 auto;padding:28px;border-radius:20px;background:rgba(22,34,58,.8);border:1px solid rgba(255,255,255,.1);text-align:center">
+  <div class="logo" style="margin:0 auto 14px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></div>
+  <div class="wm" style="font-size:22px">London <b>Commuter</b></div><div class="sub" style="margin-bottom:18px">Control Room · the data is encrypted</div>
+  <form id="lf"><input id="lp" type="password" autocomplete="current-password" placeholder="Passphrase" style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0c1424;color:#fff;font-size:15px">
+  <button style="margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;background:#FF6A00;color:#fff;font-weight:700;font-size:15px;cursor:pointer">Open</button></form>
+  <div id="lm" class="why" style="margin-top:12px;color:${msg?"#ffa0a0":"inherit"}">${msg||"Asked once per browser; kept only in this browser."}</div></div>`;
+ document.body.appendChild(d);
+ document.getElementById("lf").onsubmit=e=>{e.preventDefault();const p=document.getElementById("lp").value.trim();if(p){try{localStorage.setItem("w1dash.k",p)}catch(x){}d.remove();document.querySelector(".wrap").style.display="";load()}};
+}
+async function load(){
+ if(EMBED)return app(EMBED);
+ const hp=new URLSearchParams(location.hash.slice(1));
+ if(hp.get("k")){try{localStorage.setItem("w1dash.k",hp.get("k"))}catch(x){}hp.delete("k");history.replaceState(null,"",location.pathname+(hp.toString()?"#"+hp:""));}
+ let pass=null;try{pass=localStorage.getItem("w1dash.k")}catch(x){}
+ if(!pass)return lockScreen("");
+ let txt;try{const r=await fetch(DATA_URL+"?t="+Math.floor(Date.now()/60000),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);txt=await r.text()}
+ catch(e){document.getElementById("mods").innerHTML=`<div class="mod full"><div class="mbi" style="padding:20px">Could not fetch the data (${String(e.message||e)}). The page retries in a minute.</div></div>`;setTimeout(load,60000);return}
+ let D;try{D=await decrypt(txt,pass)}catch(e){try{localStorage.removeItem("w1dash.k")}catch(x){}return lockScreen("That passphrase did not open the data.")}
+ app(D);
+}
+load();
+</script>
+</body>
+</html>
