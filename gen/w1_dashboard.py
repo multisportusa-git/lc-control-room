@@ -299,8 +299,9 @@ def rag(t):
 WHO = {"COORD": "coordinator", "LANE": "a lane", "SCRIPT": "a script", "QUEUE": "the test queue", "COWORK": "Cowork"}
 def who_line(t, R):
     tid = t["id"]; st = status(tid)
-    if t["owner"] == "JB": return {"kind": "JB"}
-    who = WHO.get(t["owner"], t["owner"])
+    own = (notes.get(tid) or {}).get("owner_now") or t["owner"]  # coordinator override: Claude has taken a JB task over
+    if own == "JB": return {"kind": "JB"}
+    who = "coordinator" if own == "Claude" else WHO.get(own, own)
     if t["owner"] == "LANE" and slot.get(tid, "").startswith("LANE "): who = "lane " + slot[tid].split(" ")[1]
     doing = R["plan"] or (state.get(tid) or {}).get("note") or R["note"]
     doing = re.sub(r"^(Coordinator|Claude)\s*:\s*", "", clean(doing, 300))
@@ -326,7 +327,10 @@ for t in T:
                   "pr": pr, "pr_state": (PR.get(pr) or {}).get("state") if pr else None, "lane": {k: v for k, v in (lanes.get(tid) or {}).items() if k != "mt"} or None,
                   "decision": t.get("decision"), "slot": slot.get(tid, ""), "beg_iso": beg[tid].isoformat() if beg.get(tid) else "", "fin_iso": fin[tid].isoformat() if fin.get(tid) else "",
                   "ndesc": NDESC.get(tid, 0), "slip_days": max(0, (fin[tid].date() - dt.date.fromisoformat(t["day"])).days) if fin.get(tid) and status(tid) != "done" else 0,
-                  "lane_running": tid in running_lanes, "impact": IMPACT.get(tid), "act": who_line(t, R), "brief_missing": t["owner"] == "JB" and status(tid) != "done" and not BRIEFS.get(tid), "ev": evidence_excerpt(tid) if status(tid) != "todo" or tid in lanes else [], **R})
+                  "lane_running": tid in running_lanes, "impact": IMPACT.get(tid), "act": who_line(t, R), "brief_missing": t["owner"] == "JB" and not (notes.get(tid) or {}).get("owner_now") and status(tid) != "done" and not BRIEFS.get(tid), "ev": evidence_excerpt(tid) if status(tid) != "todo" or tid in lanes else [], **R})
+
+for x in tasks:  # coordinator took a JB task over (notes owner_now): the page shows Claude as the owner, never "You"
+    if (notes.get(x["id"]) or {}).get("owner_now") and x["owner"] == "JB": x["plan_owner"] = "JB"; x["owner"] = "COORD"
 
 # ---------- queue, usage, facts ----------
 queue = []
