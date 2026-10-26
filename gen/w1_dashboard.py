@@ -2,7 +2,7 @@
 """London Commuter v3 Week 1 control room: one self-contained HTML page built from files on disk. 0 model tokens.
 Reads: W1_TASKS.json (origin/main, else the kit worktree), w1/state.json, w1/evidence/*, testq/results/*, ALERTS.txt,
 COORDINATOR.json, git origin/main, and a 10-minute gh cache. Optional coordinator overrides: w1/dashboard_notes.json
-  {"W1-07": {"note": "...", "plan": "...", "rag": "amber", "est_min": 60}}
+  {"W1-07": {"note": "...", "plan": "...", "rag": "amber", "why": "...", "est_min": 60}}
 Writes: w1/W1_DASHBOARD.html (atomic). Python 3.9 stdlib. Run by launchd every 2 minutes.
 Usage: w1_dashboard.py [--notes DIR] [--repo DIR] [--out FILE] [--json FILE] [--now YYYY-MM-DDTHH:MM]
   --out writes the self-contained page (data embedded) for local viewing; --json writes the data alone, which push.sh
@@ -285,6 +285,7 @@ def rag(t):
     if t["owner"] == "JB" and r[1] == "Ready: needs JB" and not BRIEFS.get(tid):
         r = ("amber", "Brief missing", "Coordinator: write the plain-English ask for JB in jb_briefs.json")
     if n.get("rag"): r = (n["rag"], r[1], r[2])
+    if n.get("why"): r = (r[0], n["why"], r[2])  # coordinator override when the computed reason is out of date
     im = IMPACT.get(tid)
     # JB 26 Oct 15:06: a task that reaches a critical-path point is never amber; it is red.
     if st != "done" and im and im["critical"]:
