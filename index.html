@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>W1 Control Room</title>
+<title>LC Control Room</title>
 <style>
 :root{
   --ink:#0A0A0C;--navy:#1B2B44;--surface:#14213A;--card:rgba(22,34,58,.72);--card-solid:#131e34;--card2:#0f182b;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);
@@ -36,10 +36,20 @@ nav a .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;b
 nav .sp{flex:1}
 .tbtn{flex:none;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer}
 .tbtn.on{background:var(--orange);border-color:var(--orange);color:#fff}
+.mod.p-V2 .tbtn.on{background:var(--v2);border-color:var(--v2);color:#0A0A0C}
 /* modules */
 #mods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .mod{grid-column:span 1;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);min-width:0;scroll-margin-top:64px;transition:box-shadow .2s}
 .mod.full{grid-column:1/-1}
+:root{--v3:#FF8A3D;--v3bg:rgba(255,138,61,.14);--v2:#9B7BEA;--v2bg:rgba(155,123,234,.16);--vb:#8A93A6;--vbbg:rgba(138,147,166,.14)}
+.mod.p-V3{box-shadow:inset 4px 0 0 var(--v3),var(--shadow)}.mod.p-V2{box-shadow:inset 4px 0 0 var(--v2),var(--shadow)}
+.pg{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:6px;font:800 11px/18px -apple-system,system-ui,sans-serif;letter-spacing:.04em;color:#0A0A0C;white-space:nowrap;vertical-align:middle}
+.pg-V3{background:var(--v3)}.pg-V2{background:var(--v2)}.pg-Both{background:var(--vb)}.pg-Other{background:#5d667a;color:#fff}
+.rowV3{box-shadow:inset 3px 0 0 var(--v3)}.rowV2{box-shadow:inset 3px 0 0 var(--v2)}.rowBoth{box-shadow:inset 3px 0 0 var(--vb)}
+.sl.pV2{border-left:4px solid var(--v2)}.sl.pV3{border-left:4px solid var(--v3)}
+nav a.nV3{border-bottom:2px solid var(--v3)}nav a.nV2{border-bottom:2px solid var(--v2)}
+.progseg button[data-v="V3"].on{background:var(--v3);color:#0A0A0C}.progseg button[data-v="V2"].on{background:var(--v2);color:#0A0A0C}
+.v2step{width:104px}.v2step .dot{border-color:var(--v2)}.v2line .st:before{background:var(--v2)}.v2line .st.done:before{background:#4d5667}
 .mod.hidden{display:none}
 .mod.flash{box-shadow:0 0 0 2px var(--orange2),var(--shadow)}
 .mh{display:flex;align-items:center;gap:12px;padding:14px 16px 12px}
@@ -200,7 +210,7 @@ footer details{margin-top:8px}footer summary{cursor:pointer;color:var(--text2)}
 <header>
   <div class="brand">
     <div class="logo" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></div>
-    <div><div class="wm">London <b>Commuter</b></div><div class="sub">v3 Week 1 Control Room · <span id="week"></span></div></div>
+    <div><div class="wm">London <b>Commuter</b></div><div class="sub">Control Room · <span class="pg pg-V3">V3</span> Week 1 <span id="week"></span> · <span class="pg pg-V2">V2</span> Roadmap to Beta</div></div>
   </div>
   <div class="hright"><div id="status"></div><div class="stamp" id="stamp"></div></div>
 </header>
@@ -254,12 +264,14 @@ const ICON={
  pr:'<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5v7M18 15.5V9a3 3 0 0 0-3-3h-4"/>',
  health:'<path d="M12 21s-8-4.5-8-11a5 5 0 0 1 8-4 5 5 0 0 1 8 4c0 6.5-8 11-8 11z"/><path d="M8 12h2l1.5-3 2 6 1.5-3h1"/>',
 };
+const pg=p=>p?`<span class="pg pg-${p}">${p==="Both"?"V2+V3":p}</span>`:"";
+const PROG=()=>L.f.prog||"all";const showP=p=>PROG()==="all"||!p||p===PROG()||p==="Both";
 const ico=(k,c)=>`<div class="mi" style="background:${c}22;color:${c}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg></div>`;
 
 /* ---------- state: hash for drill-downs, localStorage for layout ---------- */
 const H=Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
 function setH(k,v){if(v==null)delete H[k];else H[k]=v;history.replaceState(null,"","#"+new URLSearchParams(H).toString())}
-const DEFAULT_ORDER=["dec","you","sit","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health"];
+const DEFAULT_ORDER=["dec","you","sit","v2","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health"];
 let L=LS.get("w1dash.layout",{});L.order=(L.order||[]).filter(k=>DEFAULT_ORDER.includes(k));DEFAULT_ORDER.forEach((k,i)=>{if(!L.order.includes(k))L.order.splice(Math.min(i,L.order.length),0,k)});
 L.col=L.col||{};L.wide=L.wide||{};L.hide=L.hide||{};L.f=L.f||{};
 const saveL=()=>LS.set("w1dash.layout",L);
@@ -283,25 +295,25 @@ $("#stamp").innerHTML=`Data ${esc(D.gen)} · <a href="#" data-go="health" style=
 
 /* ---------- module registry ---------- */
 const M={
- dec:{t:"Your decisions",s:"",i:"dec",c:"#FF6A00",w:"full",nav:"Decide",
+ dec:{prog:"",t:"Your decisions",s:"",i:"dec",c:"#FF6A00",w:"full",nav:"Decide",
   help:"Each decision shows the situation, the options with their trade-offs and a recommendation. Approve opens a GitHub issue already filled in (DECISION D-n: X); press Submit. The Mac reads it within a minute, records it, closes the issue, and the coordinator acts at its next step. Issues are public, so they carry only the number, the letter and any note you add. Only your GitHub account can record a decision."},
  sit:{t:"Situation report",s:"Where things stand, in a few lines",i:"sit",c:"#FF8A3D",w:"full",nav:"SITREP",
   help:"Written by the generator from task state, the schedule and the gates. Red lines first, then what is running, what starts next, what waits on you, and the projected finish times."},
  kpi:{t:"At a glance",s:"Progress, gates, tokens and quota",i:"kpi",c:"#3DA5FF",w:"full",nav:"Glance",
   help:"Rings show tasks done out of the total. Gate rings count the tasks tagged GO-build or G1 in W1_TASKS.json. Projected times come from the schedule (see Today's timeline)."},
- chg:{t:"Since you last looked",s:"",i:"chg",c:"#9B7BEA",w:"full",nav:"Changes",
+ chg:{prog:"V3",t:"Since you last looked",s:"",i:"chg",c:"#9B7BEA",w:"full",nav:"Changes",
   help:"Compares task status and colour with a snapshot kept in this browser. Press 'Mark as seen' to start a new comparison. Automatic reloads do not reset it."},
- iss:{t:"Problems and attention",s:"Red first; each with the next action and who owns it",i:"iss",c:"#EF5B5B",w:"full",nav:"Problems",
+ iss:{prog:"V3",t:"Problems and attention",s:"Red first; each with the next action and who owns it",i:"iss",c:"#EF5B5B",w:"full",nav:"Problems",
   help:"Red: blocked, a lane refused or stopped, overdue and not started, or running past twice its estimate. Amber: needs you, past 1.5x its estimate, a merged PR not yet closed, or projected to finish after its planned day."},
  you:{t:"Waiting on you",s:"Steps only you can do; report them here",i:"you",c:"#FFB000",w:"full",nav:"You",
   help:"Tasks owned by JB in W1_TASKS.json that are not done. 'Now' means nothing blocks it."},
- tl:{t:"Today's timeline",s:"Who is doing what, when; the orange line is now",i:"tl",c:"#19C3B1",w:"full",nav:"Timeline",
+ tl:{prog:"V3",t:"Today's timeline",s:"Who is doing what, when; the orange line is now",i:"tl",c:"#19C3B1",w:"full",nav:"Timeline",
   help:"Each row is a worker: you, the coordinator, up to 3 code lanes, 2 test runners, Cowork, scripts. Bars are scheduled from dependencies, the planned day, worker limits and estimates (Script 5 min, Queue 45, Haiku lane 45, Sonnet lane 90/150, Opus 180, review 45-60, Cowork 60-90, JB 15, coordinator 20). Faded bars are done; diamonds are scripts."},
- board:{t:"Departure board",s:"Every task for today, with its expected time",i:"board",c:"#FFB000",w:"full",nav:"Board",
+ board:{prog:"V3",t:"Departure board",s:"Every task for today, with its expected time",i:"board",c:"#FFB000",w:"full",nav:"Board",
   help:"Expected = projected finish (done tasks show when they finished). The small line under a time shows the planned day when it is projected to slip."},
- path:{t:"Critical paths",s:"The chains that decide the install and the end of the week",i:"path",c:"#FF6A00",w:"full",nav:"Paths",
+ path:{prog:"V3",t:"Critical paths",s:"The chains that decide the install and the end of the week",i:"path",c:"#FF6A00",w:"full",nav:"Paths",
   help:"GO-build path: the open tasks leading to the last GO-build gate task. Critical path: the open chain that finishes last. Each walks back through the dependency that finishes latest."},
- week:{t:"The week",s:"Planned vs done vs projected, then every task by day",i:"week",c:"#3DA5FF",w:"full",nav:"Week",
+ week:{prog:"V3",t:"The week",s:"Planned vs done vs projected, then every task by day",i:"week",c:"#3DA5FF",w:"full",nav:"Week",
   help:"Burn-up: cumulative tasks planned by each day, done by each day, and projected by each day. The gap between planned and projected is the slip."},
  live:{t:"Live sessions",s:"Active in the last 15 minutes; context used",i:"live",c:"#3FB98A",w:"half",nav:"Live",
   help:"From the transcript index. Context = tokens sent with the session's last request. Coordinator limits: 250k start hand-over, 275k done, 300k never. Lanes: 225k, 250k, 275k."},
@@ -311,6 +323,8 @@ const M={
   help:"Indexed from ~/.claude/projects transcripts (subagents count in their parent session) and local Cowork logs. Start cost = context of a session's first request. Work = everything after. Cache reads are the re-read prefix: the cheapest tokens but most of the count."},
  q:{t:"Test queue",s:"",i:"q",c:"#19C3B1",w:"half",nav:"Queue",help:"The ten newest result files in testq/results. PASS-FILTERED is never merge evidence."},
  pr:{t:"Pull requests",s:"Open, and merged in the last 24 h",i:"pr",c:"#9B7BEA",w:"half",nav:"PRs",help:"From gh pr list, cached for 10 minutes."},
+ v2:{prog:"V2",t:"Roadmap to Beta",s:"The V2 app: steps A to M, run by the K coordinator",i:"path",c:"#9B7BEA",w:"full",nav:"V2 roadmap",
+  help:"Read from ROADMAP_TO_BETA.html, which the V2 coordinator keeps with roadmap.py. Steps A-M, the current step, what V2 needs from you, and the coordinator's live updates. V2 work is the field-test build of today's app; V3 is the rebuild planned in Week 1."},
  health:{t:"Data health",s:"Can you trust this page? Every source and its age",i:"health",c:"#3FB98A",w:"full",nav:"Health",
   help:"Each source the page reads, when it last changed, and whether that is fresh enough. If the page itself is older than 6 minutes, the 2-minute updater has stopped."},
 };
@@ -319,7 +333,7 @@ const M={
 function ring(done,total,col,size=62){const r=size/2-6,c=2*Math.PI*r,p=total?done/total:0;
 return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${done} of ${total}" style="flex:none"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c*p} ${c}" transform="rotate(-90 ${size/2} ${size/2})"/><text x="50%" y="54%" text-anchor="middle" style="fill:#fff;font-weight:800;font-size:12.5px">${Math.round(p*100)}%</text></svg>`}
 const R={};
-const OPEN_DEC=(D.decisions||[]).filter(d=>d.status==="open");
+const OPEN_DEC=(D.decisions||[]).filter(d=>d.status==="open"&&showP(d.programme||"V3"));
 const ISSUE_NEW="https://github.com/multisportusa-git/lc-control-room/issues/new";
 const ISSUE_API="https://api.github.com/repos/multisportusa-git/lc-control-room/issues";
 const TOKEN_NEW="https://github.com/settings/personal-access-tokens/new?name=LC+control+room+approvals&description=One-click+approvals+from+the+London+Commuter+control+room+(issues+on+lc-control-room+only)&issues=write";
@@ -345,7 +359,7 @@ R.dec=()=>{const sent=LS.get("w1dash.sent",{});const RISK={low:"green",med:"ambe
   <div style="margin-top:10px"><button class="tbtn" data-undo="${esc(d.id)}">Change my answer</button></div></div>`};
  const card=d=>{const s=sent[d.id];if(s)return answered(d);const rec=(d.recommend||"").toUpperCase();
   return `<div class="tile" style="padding:16px;border-color:${s?"rgba(61,165,255,.45)":"rgba(255,106,0,.45)"};margin-bottom:12px">
-  <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span class="pill r-amber">${esc(d.id)}</span><b style="font-size:16px;flex:1;min-width:200px">${esc(d.title)}</b><span class="why">${d.deadline?"decide by "+esc(d.deadline.replace("T"," "))+" · "+left(d.deadline):""}</span></div>
+  <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">${pg(d.programme||"V3")}<span class="pill r-amber">${esc(d.id)}</span><b style="font-size:16px;flex:1;min-width:200px">${esc(d.title)}</b><span class="why">${d.deadline?"decide by "+esc(d.deadline.replace("T"," "))+" · "+left(d.deadline):""}</span></div>
   <div style="margin-top:10px;color:var(--text2)">${link(d.situation||"")}</div>${d.why_now?`<div class="why" style="margin-top:6px"><b>Why now:</b> ${link(d.why_now)}</div>`:""}
   ${(d.tasks||[]).length?`<div class="why" style="margin-top:6px">Tasks: ${d.tasks.map(t=>T[t]?`<a href="#" data-t="${t}" class="mono">${t}</a>`:esc(t)).join(" ")}</div>`:""}
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));margin-top:12px">${(d.options||[]).map(o=>{const k=(o.key||"").toUpperCase(),isr=k===rec;return `<div class="tile" style="${isr?"border-color:var(--orange2);box-shadow:0 0 0 1px var(--orange2) inset":""}">
@@ -367,15 +381,16 @@ R.dec=()=>{const sent=LS.get("w1dash.sent",{});const RISK={low:"green",med:"ambe
  return tokCard+notif+(OPEN_DEC.length?OPEN_DEC.map(card).join(""):`<div class="empty">Nothing needs your decision right now.</div>`)+
   (done.length?`<div class="pathlab" style="margin-top:14px">Decided</div><table>${done.map(d=>`<tr><td class="mono" style="white-space:nowrap"><b>${esc(d.id)}</b></td><td>${esc(d.title)}</td><td>${d.decided?pill("green",d.decided.choice):pill("grey",d.status)}</td><td class="why">${d.decided?esc((d.decided.at||"").replace("T"," ")+" · "+(d.decided.via||"")):""}${d.acted?`<br>${esc(d.acted)}`:""}</td></tr>`).join("")}</table>`:"")};
 R.sit=()=>{const IC={red:["✕","var(--crit)"],now:["▶","var(--info)"],next:["→","var(--c1)"],you:["●","var(--amber)"],plan:["◷","var(--orange2)"]};
- return `<div class="sit">${D.sit.map(l=>`<div class="sl ${l.k==="red"?"red":""}"><div class="ic" style="background:${IC[l.k][1]}22;color:${IC[l.k][1]}" aria-hidden="true">${IC[l.k][0]}</div><div>${link(l.text)}</div></div>`).join("")}</div>`};
+ return `<div class="sit">${D.sit.filter(l=>showP(l.prog)).map(l=>`<div class="sl ${l.k==="red"?"red":""} p${l.prog||""}"><div class="ic" style="background:${IC[l.k][1]}22;color:${IC[l.k][1]}" aria-hidden="true">${IC[l.k][0]}</div><div>${pg(l.prog)} ${link(l.text)}</div></div>`).join("")}</div>`};
 R.kpi=()=>{const done=D.tasks.filter(t=>t.status==="done").length;const tdy=D.today_ids.map(i=>T[i]);const td=tdy.filter(t=>t.status==="done").length;
  const s0=(()=>{const d=new Date(D.gen_iso);d.setHours(0,0,0,0);return d/1000})();let tt=0,tx=0;TK.buckets.forEach(b=>{if(b[1]>=s0){tt+=b[3]+b[4]+b[5]+b[6];tx+=b[3]+b[4]+b[6]}});
  const q=D.usage.length?D.usage[D.usage.length-1]:null;const g=D.gates;
- const k=[["Week",ring(done,D.tasks.length,"var(--orange)"),`${done}<small> / ${D.tasks.length}</small>`,`projected end ${D.week_finish}`,"week"],
-  ["Today",ring(td,tdy.length,"var(--info)"),`${td}<small> / ${tdy.length}</small>`,`projected finish ${D.day_finish}`,"board"],
-  ["GO-build gate",ring(g["GO-build"].done,g["GO-build"].total,"var(--good)"),`${g["GO-build"].done}<small> / ${g["GO-build"].total}</small>`,`install + v2 tag ${g["GO-build"].eta}`,"path"],
-  ["G1 gate",ring(g.G1.done,g.G1.total,"var(--c4)"),`${g.G1.done}<small> / ${g.G1.total}</small>`,`projected ${g.G1.eta}`,"week"],
+ const k=[["<span class='pg pg-V3'>V3</span> Week",ring(done,D.tasks.length,"var(--orange)"),`${done}<small> / ${D.tasks.length}</small>`,`projected end ${D.week_finish}`,"week"],
+  ["<span class='pg pg-V3'>V3</span> Today",ring(td,tdy.length,"var(--info)"),`${td}<small> / ${tdy.length}</small>`,`projected finish ${D.day_finish}`,"board"],
+  ["<span class='pg pg-V3'>V3</span> GO-build gate",ring(g["GO-build"].done,g["GO-build"].total,"var(--good)"),`${g["GO-build"].done}<small> / ${g["GO-build"].total}</small>`,`install + v2 tag ${g["GO-build"].eta}`,"path"],
+  ["<span class='pg pg-V3'>V3</span> G1 gate",ring(g.G1.done,g.G1.total,"var(--c4)"),`${g.G1.done}<small> / ${g.G1.total}</small>`,`projected ${g.G1.eta}`,"week"],
   ["Tokens today","",fmt(tt),`${fmt(tx)} without cache reads · ${TK.sessions.filter(s=>s.last>=genEpoch-900).length} live now`,"tok"],
+  ...(D.v2&&showP("V2")?[["<span class='pg pg-V2'>V2</span> Roadmap",ring(D.v2.steps.filter(x=>x.state==="done").length,D.v2.steps.length,"var(--v2)"),`${esc(D.v2.current)}<small> now</small>`,`${D.v2.steps.filter(x=>x.state==="done").length} of ${D.v2.steps.length} steps done`,"v2"]]:[]),
   ["Weekly quota","",q?`${q.week}<small>%</small>`:"–",q?`read ${q.at.slice(5,16).replace("T"," ")} · forecast ${QF.text}`:"no reading (W1-05)","quota"]];
  return `<div class="grid k6">${k.map(([l,r,v,f,go])=>`<div class="tile click" data-go="${go}" role="button" tabindex="0"><div class="lab">${l}</div><div class="ringrow" style="margin-top:6px">${r}<div class="val" style="margin:0">${v}</div></div><div class="foot">${f}</div></div>`).join("")}</div>`};
 R.chg=()=>{const since=seen?new Date(seen.at).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}):"now";
@@ -388,7 +403,9 @@ R.iss=()=>{const L2=D.tasks.filter(t=>t.rag==="red"||t.rag==="amber").sort((a,b)
 R.you=()=>{const n=D.tasks.filter(t=>t.status!=="done"&&t.owner==="JB").sort((a,b)=>(a.why.startsWith("Waiting")-b.why.startsWith("Waiting"))||a.beg_iso.localeCompare(b.beg_iso));const sent=LS.get("w1dash.sentact",{});
  const form=t=>t.id==="W1-05"?`<div class="bar-row" style="margin:8px 0 0"><input id="u-w" inputmode="decimal" placeholder="Week %" style="width:90px" class="inp"><input id="u-c" inputmode="decimal" placeholder="Claude Code %" style="width:120px" class="inp"><input id="u-k" inputmode="decimal" placeholder="Cowork %" style="width:100px" class="inp"><button class="tbtn on" data-act="W1-05">Send reading${ghTok()?"":" → GitHub, press Create"}</button></div>`
   :`<div class="bar-row" style="margin:8px 0 0"><input id="a-${t.id}" placeholder="What you did or found (e.g. works / fails: …)" style="flex:1;min-width:200px" class="inp"><button class="tbtn on" data-act="${t.id}">Report done${ghTok()?"":" → GitHub, press Create"}</button></div>`;
- return n.length?`<table>${n.map(t=>{const now=!t.why.startsWith("Waiting");return `<tr><td class="mono" style="white-space:nowrap"><a href="#" data-t="${t.id}"><b>${t.id}</b></a></td><td><a href="#" data-t="${t.id}" style="color:inherit">${esc(t.title)}</a><div class="why">${now?"Ready now · about "+t.est+" min · tap the title for the steps":esc(t.why)}</div>${now?(sent[t.id]?`<div class="callout blue" style="margin:8px 0 0">Sent at ${esc(sent[t.id])}; the Mac records it within a minute.</div>`:form(t)):""}</td><td class="n" style="white-space:nowrap">${now?pill("amber","Now"):`<span class="why">${t.start_day===D.today?"from "+t.start:dn(t.start_day)+" "+t.start}</span>`}</td></tr>`}).join("")}</table><div class="why" style="margin-top:8px">Report done opens a GitHub issue already filled in; press Submit. Your words become the task's evidence and close it. Issues are public: keep keys and private details out.</div>`:`<div class="empty">Nothing waits on you.</div>`};
+ const v2need=D.v2&&D.v2.need&&showP("V2")?`<tr class="rowV2"><td class="mono" style="white-space:nowrap">${pg("V2")}</td><td>${esc(D.v2.need)}<div class="why">From the V2 Roadmap to Beta (coordinator ${esc(D.facts.coordinator)})</div>${LS.get("w1dash.sentact",{})["V2"]?`<div class="callout blue" style="margin:8px 0 0">Sent at ${esc(LS.get("w1dash.sentact",{})["V2"])}; the Mac passes it to the V2 coordinator.</div>`:`<div class="bar-row" style="margin:8px 0 0"><input id="a-V2" placeholder="Reply to the V2 coordinator (e.g. phone connected / Standard / 3-line cap OK)" style="flex:1;min-width:200px" class="inp"><button class="tbtn" style="background:var(--v2);border-color:var(--v2);color:#0A0A0C" data-act="V2">Send to the V2 coordinator</button></div>`}</td><td class="n">${pill("amber","Now")}</td></tr>`:"";
+ const n3=showP("V3")?n:[];
+ return (n3.length||v2need)?`<table>${v2need}${n3.map(t=>{const now=!t.why.startsWith("Waiting");return `<tr class="rowV3"><td class="mono" style="white-space:nowrap">${pg("V3")} <a href="#" data-t="${t.id}"><b>${t.id}</b></a></td><td><a href="#" data-t="${t.id}" style="color:inherit">${esc(t.title)}</a><div class="why">${now?"Ready now · about "+t.est+" min · tap the title for the steps":esc(t.why)}</div>${now?(sent[t.id]?`<div class="callout blue" style="margin:8px 0 0">Sent at ${esc(sent[t.id])}; the Mac records it within a minute.</div>`:form(t)):""}</td><td class="n" style="white-space:nowrap">${now?pill("amber","Now"):`<span class="why">${t.start_day===D.today?"from "+t.start:dn(t.start_day)+" "+t.start}</span>`}</td></tr>`}).join("")}</table><div class="why" style="margin-top:8px">${ghTok()?"Your report goes straight to GitHub.":"Report done opens a GitHub issue already filled in; press Create."} Your words become the task's evidence and close it. Issues are public: keep keys and private details out.</div>`:`<div class="empty">Nothing waits on you.</div>`};
 R.tl=()=>{const d0=new Date(D.now_iso);d0.setHours(0,0,0,0);const day0=d0/1000,day1=day0+86400;
  const bars=D.tasks.map(t=>({t,b:Date.parse(t.beg_iso)/1000,f:Date.parse(t.fin_iso)/1000})).filter(x=>x.b<day1&&x.f>=day0);
  if(!bars.length)return `<div class="empty">Nothing scheduled today.</div>`;
@@ -423,8 +440,8 @@ R.week=()=>{const B=D.burn,W=900,Hh=200,pl=36,pb=24,mx=D.tasks.length,x=i=>pl+i*
 function gauge(v,lim,cols){const mx=lim[lim.length-1]*1.05;const c=v>=lim[1]?"var(--crit)":v>=lim[0]?"var(--warn)":"var(--good)";return `<div class="gauge"><span style="width:${Math.min(v/mx*100,100)}%;background:${c}"></span>${lim.map(l=>`<i style="left:${l/mx*100}%" title="${fmt(l)}"></i>`).join("")}</div>`}
 R.live=()=>{const lv=TK.sessions.map((s,i)=>({...s,i})).filter(s=>s.last>=genEpoch-900).sort((a,b)=>(b.sid===D.coord_sid)-(a.sid===D.coord_sid)||b.last-a.last);
  const co=TK.sessions.findIndex(s=>s.sid===D.coord_sid);const C=co>=0?TK.sessions[co]:null;
- const head=C?`<div class="tile click" data-s="${co}" style="margin-bottom:10px"><div class="lab">Coordinator ${esc(D.facts.coordinator)} · context now</div><div style="display:flex;align-items:baseline;gap:10px;margin-top:4px"><div class="val" style="margin:0">${fmt(C.last_ctx)}</div><div class="why">of 250k hand-over · 300k never · last active ${Math.max(0,Math.round((genEpoch-C.last)/60))} min ago</div></div>${gauge(C.last_ctx,[250000,275000,300000])}</div>`:`<div class="why" style="margin-bottom:8px">Coordinator session not found in the index (COORDINATOR.json names ${esc(D.facts.coordinator||"none")}).</div>`;
- return head+(lv.length?`<table>${lv.filter(s=>s.sid!==D.coord_sid).slice(0,10).map(s=>`<tr class="click" data-s="${s.i}"><td style="width:46%"><div class="ell" style="max-width:260px">${esc(s.title.split(" | ")[0])}</div><div class="why">${s.kind}${s.task?" · "+s.task:""} · ${Math.max(0,Math.round((genEpoch-s.last)/60))} min ago</div></td><td>${gauge(s.last_ctx,s.kind==="coordinator"?[250000,275000,300000]:[225000,250000,275000])}</td><td class="n">${fmt(s.last_ctx)}</td></tr>`).join("")}</table>`:`<div class="empty">No other session active in the last 15 minutes.</div>`)};
+ const head=C?`<div class="tile click" data-s="${co}" style="margin-bottom:10px"><div class="lab">${pg("V2")} Coordinator ${esc(D.facts.coordinator)} · context now</div><div style="display:flex;align-items:baseline;gap:10px;margin-top:4px"><div class="val" style="margin:0">${fmt(C.last_ctx)}</div><div class="why">of 250k hand-over · 300k never · last active ${Math.max(0,Math.round((genEpoch-C.last)/60))} min ago</div></div>${gauge(C.last_ctx,[250000,275000,300000])}</div>`:`<div class="why" style="margin-bottom:8px">Coordinator session not found in the index (COORDINATOR.json names ${esc(D.facts.coordinator||"none")}).</div>`;
+ return head+(lv.length?`<table>${lv.filter(s=>s.sid!==D.coord_sid&&showP(s.prog)).slice(0,10).map(s=>`<tr class="click row${s.prog}" data-s="${s.i}"><td style="width:46%"><div class="ell" style="max-width:260px">${pg(s.prog)} ${esc(s.title.split(" | ")[0])}</div><div class="why">${s.kind}${s.task?" · "+s.task:""} · ${Math.max(0,Math.round((genEpoch-s.last)/60))} min ago</div></td><td>${gauge(s.last_ctx,s.kind==="coordinator"?[250000,275000,300000]:[225000,250000,275000])}</td><td class="n">${fmt(s.last_ctx)}</td></tr>`).join("")}</table>`:`<div class="empty">No other session active in the last 15 minutes.</div>`)};
 const QF=(()=>{const u=D.usage;if(!u.length)return{text:"needs a reading",ok:null};const l=u[u.length-1];const at=Date.parse(l.at.length<=16?l.at+":00Z":l.at)/1000;
  const lastReset=(e=>{const d=new Date(e*1000);const back=(d.getDay()-5+7)%7;const r=new Date(d);r.setDate(d.getDate()-back);r.setHours(16,0,0,0);if(r/1000>e)r.setDate(r.getDate()-7);return r/1000})(at);const next=lastReset+7*86400;
  let tokSince=0,tok24=0;TK.buckets.forEach(b=>{const v=b[3]+b[4]+b[5]+b[6];if(b[1]>=lastReset&&b[1]<at)tokSince+=v;if(b[1]>=genEpoch-86400)tok24+=v});
@@ -452,7 +469,7 @@ const mfam=m=>{m=(m||"").toLowerCase();return m.includes("opus")?"opus":m.includ
 function hbars(items,total,attr){return items.length?items.map(it=>`<div class="hbar ${attr?"click":""}" ${attr?`data-${attr}="${esc(it.key)}"`:""}><div class="ell">${it.label}</div><div class="track">${it.parts.filter(p=>p.v>0).map(p=>`<span style="width:${(p.v/total*100).toFixed(2)}%;background:${p.c}" title="${esc(p.tip||"")}"></span>`).join("")}</div><div class="v">${fmt(it.v)}</div></div>`).join(""):`<div class="empty">No sessions in this window.</div>`}
 R.tok=()=>{const TW=L.f.win||"today",TP=L.f.proj||"lc",TC=L.f.cr||"with",TS=L.f.sort||"wtotal",KF=L.f.kind||"all";
  const s0=since(TW),hourly=["today","48h","72h"].includes(TW);const per=TK.sessions.map(()=>({inp:0,cw:0,cr:0,out:0,req:0}));const series={},bym={};
- const okS=s=>(TP!=="lc"||s.project==="London Commuter")&&(KF==="all"||s.kind===KF);
+ const okS=s=>(TP!=="lc"||s.project==="London Commuter")&&(KF==="all"||s.kind===KF)&&(PROG()==="all"||s.prog===PROG());
  TK.buckets.forEach(b=>{const s=TK.sessions[b[0]];if(b[1]<s0||!okS(s))return;const p=per[b[0]];p.inp+=b[3];p.cw+=b[4];p.cr+=b[5];p.out+=b[6];p.req+=b[7];
   let k=b[1];if(!hourly){const d=new Date(b[1]*1000);d.setHours(0,0,0,0);k=d/1000}const z=series[k]||(series[k]={inp:0,cw:0,cr:0,out:0});z.inp+=b[3];z.cw+=b[4];z.cr+=b[5];z.out+=b[6];
   const f=mfam(TK.models[b[2]]);bym[f]=(bym[f]||0)+b[3]+b[4]+b[5]+b[6]});
@@ -489,13 +506,23 @@ R.tok=()=>{const TW=L.f.win||"today",TP=L.f.proj||"lc",TC=L.f.cr||"with",TS=L.f.
   Object.entries({coordinator:36,lane:62,subagent:88,"cowork / other":114}).map(([k,yy])=>`<text x="4" y="${yy+4}">${k}</text>`).join("")+`<text x="100" y="${H2-6}">0</text><text x="${W2-14}" y="${H2-6}" text-anchor="end">${fmt(mx)}</text></svg><div class="why">median ${fmt(sd[Math.floor(sd.length/2)].v)} · best ${fmt(sd[0].v)} · worst ${fmt(sd[sd.length-1].v)} · ${sd.filter(d=>d.v<=60000).length}/${sd.length} within the 60k gate</div>`}
  const cols=[["title","Session",0],["kind","Kind",0],["task","Task",0],["wreq","Req",1],["wstart","Start",1],["wwork","Work",1],["wtotal","Total",1],["peak","Peak ctx",1],["last","Last",1]];
  const sorted=rows.slice().sort((a,b)=>["title","kind","task"].includes(TS)?String(a[TS]||"").localeCompare(String(b[TS]||"")):(b[TS]||0)-(a[TS]||0)).slice(0,150);
- const table=sorted.length?`<div class="scroll"><table><thead><tr>${cols.map(([k,l,n])=>`<th class="sort ${n?"n":""}" data-sort="${k}" aria-sort="${TS===k?"descending":"none"}">${l}${TS===k?" ▾":""}</th>`).join("")}</tr></thead><tbody>${sorted.map(r=>`<tr class="click" data-s="${r.i}"><td><div class="ell" style="max-width:360px">${esc(r.title.split(" | ")[0])}</div><div class="why">${[...new Set(r.models.map(mfam))].join(", ")}${r.effort?" · "+esc(r.effort):""}</div></td><td><span class="mdot" style="background:${KCOL[r.kind]}"></span>${r.kind}</td><td class="mono">${r.task?`<a href="#" data-t="${r.task}">${r.task}</a>`:""}</td><td class="n">${r.wreq}</td><td class="n" style="color:${r.wstart>60000?"var(--warn)":"inherit"}">${r.wstart?fmt(r.wstart):"–"}</td><td class="n">${fmt(r.wwork)}</td><td class="n"><b>${fmt(r.wtotal)}</b></td><td class="n" style="color:${r.peak>=275000?"var(--crit)":r.peak>=225000?"var(--warn)":"inherit"}">${fmt(r.peak)}</td><td class="n">${dtf(r.last)}</td></tr>`).join("")}</tbody></table></div>${rows.length>150?`<div class="why">Showing the top 150 of ${rows.length}.</div>`:""}`:`<div class="empty">No sessions in this window.</div>`;
+ const table=sorted.length?`<div class="scroll"><table><thead><tr>${cols.map(([k,l,n])=>`<th class="sort ${n?"n":""}" data-sort="${k}" aria-sort="${TS===k?"descending":"none"}">${l}${TS===k?" ▾":""}</th>`).join("")}</tr></thead><tbody>${sorted.map(r=>`<tr class="click row${r.prog}" data-s="${r.i}"><td><div class="ell" style="max-width:360px">${pg(r.prog)} ${esc(r.title.split(" | ")[0])}</div><div class="why">${[...new Set(r.models.map(mfam))].join(", ")}${r.effort?" · "+esc(r.effort):""}</div></td><td><span class="mdot" style="background:${KCOL[r.kind]}"></span>${r.kind}</td><td class="mono">${r.task?`<a href="#" data-t="${r.task}">${r.task}</a>`:""}</td><td class="n">${r.wreq}</td><td class="n" style="color:${r.wstart>60000?"var(--warn)":"inherit"}">${r.wstart?fmt(r.wstart):"–"}</td><td class="n">${fmt(r.wwork)}</td><td class="n"><b>${fmt(r.wtotal)}</b></td><td class="n" style="color:${r.peak>=275000?"var(--crit)":r.peak>=225000?"var(--warn)":"inherit"}">${fmt(r.peak)}</td><td class="n">${dtf(r.last)}</td></tr>`).join("")}</tbody></table></div>${rows.length>150?`<div class="why">Showing the top 150 of ${rows.length}.</div>`:""}`:`<div class="empty">No sessions in this window.</div>`;
  const H4=t=>`<div style="font-weight:700;margin:18px 0 8px">${t}</div>`;
  return ctl+kpis+H4(`Tokens over time <span class="why">per ${hourly?"hour":"day"}</span> <span class="seg" data-f="cr" style="margin-left:8px">${[["with","All"],["without","Without cache reads"]].map(([k,l])=>`<button data-v="${k}" class="${k===TC?"on":""}">${l}</button>`).join("")}</span>`)+svg+`<div class="legend">${CC.map(([,l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join("")}</div>`+
   `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:20px"><div>${H4("By kind of session")}${hbars(kI,Math.max(1,...kI.map(i=>i.v)),"kind")}${sw}</div><div>${H4("By model")}${hbars(mI,Math.max(1,...mI.map(i=>i.v)))}</div><div>${H4("By W1 task")}${tI.length?hbars(tI,Math.max(1,...tI.map(i=>i.v)),"t")+sw:`<div class="empty">No session in this window names a W1 task.</div>`}</div><div>${H4("Start cost per session")}${dist}</div></div>`+H4("Sessions <span class='why'>tap a row for request-by-request detail; tap a header to sort</span>")+table};
+R.v2=()=>{const V=D.v2;if(!V)return `<div class="empty">ROADMAP_TO_BETA.html not found on the Mac.</div>`;
+ const SC={done:"var(--good)",now:"var(--v2)",todo:"var(--grey)"},SI={done:"✓",now:"▶",todo:"○"};
+ const cur=V.steps.find(x=>x.id===V.current);
+ return `${V.stale?`<div class="callout amber" style="margin-top:0"><b>The V2 roadmap is out of date.</b> <span class="why">${esc(V.stale)}</span></div>`:""}
+ <div class="why" style="margin-bottom:8px">${esc(V.owner)} · SITREP as of ${esc(V.asof)}</div>
+ <div class="tube"><div class="tline v2line">${V.steps.map(x=>`<div class="st v2step ${x.state==="done"?"done":""}" title="${esc(x.title)}"><div class="dot" style="border-color:${SC[x.state]};${x.id===V.current?"box-shadow:0 0 0 4px var(--v2bg)":""}">${SI[x.state]}</div><div class="nm">${x.id}</div><div class="tt">${esc(x.title)}</div><div class="tm" style="color:${x.id===V.current?"var(--v2)":"var(--muted)"}">${esc(x.state==="done"?"done":x.dur.slice(0,22))}</div></div>`).join("")}</div></div>
+ <div class="callout" style="border-color:var(--v2);background:var(--v2bg);margin-top:12px"><b>SITREP</b> · ${esc(V.sitrep)}</div>
+ ${cur?`<div class="tile" style="margin-top:10px"><div class="lab" style="color:var(--v2)">Current step ${esc(cur.id)} · ${esc(cur.title)}</div><div style="margin-top:6px">${esc(cur.what)}</div><div class="why" style="margin-top:4px">started ${esc(cur.start)} · ${esc(cur.dur)}</div></div>`:""}
+ ${V.need?`<div class="callout amber" style="margin-top:10px"><b>V2 needs you:</b> ${esc(V.need)} <span class="why">(also under Waiting on you)</span></div>`:""}
+ ${V.live.length?`<div class="pathlab" style="margin-top:14px">Live updates</div>${V.live.map(l=>`<div style="margin:5px 0"><span class="mono" style="color:var(--v2)">${esc(l.at)}</span> ${esc(l.text)}</div>`).join("")}`:""}`};
 R.q=()=>{const QC={PASS:"green","PASS-FILTERED":"blue",FAIL:"red"};const p=D.facts.pending;
- return `<div class="bar-row"><span class="why">pending ${p.pending} · running ${p.running} · held ${p.held}</span></div>`+(D.queue.length?`<div class="scroll"><table><thead><tr><th>At</th><th>Lane</th><th>Branch</th><th>Targets</th><th class="n">Time</th><th>Result</th></tr></thead>${D.queue.map(j=>`<tr><td class="mono">${j.at}</td><td>${esc(j.lane)}</td><td><div class="ell" style="max-width:200px">${esc(j.branch)}</div><span class="mono why">${j.sha}</span></td><td>${esc(j.targets)}</td><td class="n">${j.dur?Math.round(j.dur/60)+"m":""}</td><td>${pill(QC[j.overall]||"grey",j.overall)}</td></tr>`).join("")}</table></div>`:`<div class="empty">No results.</div>`)};
-R.pr=()=>{const F=D.facts;return `<div class="pathlab">Open · ${F.open_prs.length}</div>`+(F.open_prs.length?F.open_prs.map(p=>`<div style="margin:7px 0"><a href="${esc(p.url)}">#${p.n}</a> ${esc(p.t)}<div class="why">${esc(p.b)}</div></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="pathlab" style="margin-top:14px">Merged in 24 h · ${F.merged_24h.length}</div>`+(F.merged_24h.length?F.merged_24h.map(p=>`<div style="margin:7px 0">${pill("green","#"+p.n)} ${esc(p.t)} <span class="why">${p.at}</span></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="why" style="margin-top:8px">main ${F.main.length?`<span class="mono">${esc(F.main[0])}</span> · ${esc(F.main[1])} · ${esc(F.main[2])}`:"unknown"}</div>`};
+ return `<div class="bar-row"><span class="why">pending ${p.pending} · running ${p.running} · held ${p.held}</span></div>`+(D.queue.length?`<div class="scroll"><table><thead><tr><th>At</th><th>Lane</th><th>Branch</th><th>Targets</th><th class="n">Time</th><th>Result</th></tr></thead>${D.queue.filter(j=>showP(j.prog)).map(j=>`<tr class="row${j.prog}"><td class="mono">${j.at}</td><td>${pg(j.prog)} ${esc(j.lane)}</td><td><div class="ell" style="max-width:200px">${esc(j.branch)}</div><span class="mono why">${j.sha}</span></td><td>${esc(j.targets)}</td><td class="n">${j.dur?Math.round(j.dur/60)+"m":""}</td><td>${pill(QC[j.overall]||"grey",j.overall)}</td></tr>`).join("")}</table></div>`:`<div class="empty">No results.</div>`)};
+R.pr=()=>{const F=D.facts;return `<div class="pathlab">Open · ${F.open_prs.length}</div>`+(F.open_prs.length?F.open_prs.filter(p=>showP(p.prog)).map(p=>`<div style="margin:7px 0;padding-left:8px" class="row${p.prog}">${pg(p.prog)} <a href="${esc(p.url)}">#${p.n}</a> ${esc(p.t)}<div class="why">${esc(p.b)}</div></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="pathlab" style="margin-top:14px">Merged in 24 h · ${F.merged_24h.length}</div>`+(F.merged_24h.length?F.merged_24h.filter(p=>showP(p.prog)).map(p=>`<div style="margin:7px 0;padding-left:8px" class="row${p.prog}">${pg(p.prog)} ${pill("green","#"+p.n)} ${esc(p.t)} <span class="why">${p.at}</span></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="why" style="margin-top:8px">main ${F.main.length?`<span class="mono">${esc(F.main[0])}</span> · ${esc(F.main[1])} · ${esc(F.main[2])}`:"unknown"}</div>`};
 R.health=()=>{const rows=[{name:HOSTED?"Published data":"This page",detail:HOSTED?"encrypted on the Mac, pushed to GitHub every 10 min":"built by w1_dashboard.py",age:pageAge,ok:pageAge<=STALE_MIN,why:pageAge>STALE_MIN?(HOSTED?"the Mac has not pushed: asleep, offline or the job stopped":"the updater is not running"):""},...D.health];
  const ag=a=>a==null?"–":a<1?"just now":a<60?a+" min":a<1440?(a/60).toFixed(1)+" h":(a/1440).toFixed(1)+" d";
  return `<div class="scroll"><table><thead><tr><th>Source</th><th>What it holds</th><th class="n">Last change</th><th>Status</th></tr></thead>${rows.map(h=>`<tr><td><b>${esc(h.name)}</b></td><td>${esc(h.detail)}${h.why?`<div class="why" style="color:var(--warn)">${esc(h.why)}</div>`:""}</td><td class="n">${ag(h.age)}</td><td>${pill(h.ok?"green":"amber",h.ok?"Fresh":"Check")}</td></tr>`).join("")}</table></div><div class="why" style="margin-top:8px">Not visible from this Mac: cloud sessions (this Cowork chat, claude.ai). The quota reading covers them. Alerts: ${D.facts.alerts.length?esc(D.facts.alerts[D.facts.alerts.length-1]):"none"}</div>`};
@@ -503,8 +530,8 @@ R.health=()=>{const rows=[{name:HOSTED?"Published data":"This page",detail:HOSTE
 /* ---------- module shell ---------- */
 function shell(k){const m=M[k];const wide=(L.wide[k]||m.w)==="full";const col=!!L.col[k];
  const sub=k==="dec"?(OPEN_DEC.length?`${OPEN_DEC.length} waiting for you`:"Nothing waiting"):k==="chg"?(changes.length?`${changes.length} change${changes.length>1?"s":""}`:"No changes"):k==="q"?`${D.queue.length} recent results`:m.s;
- return `<section class="mod ${wide?"full":""} ${col?"col":""} ${L.hide[k]?"hidden":""}" id="m-${k}" data-k="${k}" aria-labelledby="t-${k}">
- <div class="mh">${ico(m.i,m.c)}<div class="grow"><div class="mt" id="t-${k}">${m.t}</div><div class="ms ell">${esc(sub)}</div></div>
+ const mp=m.prog||"";return `<section class="mod ${mp?"p-"+mp:""} ${wide?"full":""} ${col?"col":""} ${L.hide[k]||(mp&&!showP(mp))?"hidden":""}" id="m-${k}" data-k="${k}" aria-labelledby="t-${k}">
+ <div class="mh">${ico(m.i,m.c)}<div class="grow"><div class="mt" id="t-${k}">${mp?pg(mp)+" ":""}${m.t}${mp==="V3"&&["tl","board","path","week","iss","chg"].includes(k)?' <span class="why" style="font-weight:500">Week 1</span>':""}</div><div class="ms ell">${esc(sub)}</div></div>
  <div class="ctl"><button data-a="help" title="How this is worked out" aria-label="How this is worked out">${svgI('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01"/>')}</button>
  <button data-a="up" title="Move up" aria-label="Move up">${svgI('<path d="M6 15l6-6 6 6"/>')}</button><button data-a="down" title="Move down" aria-label="Move down">${svgI('<path d="M6 9l6 6 6-6"/>')}</button>
  <button data-a="wide" title="${wide?"Half width":"Full width"}" aria-label="Toggle width">${svgI(wide?'<path d="M9 4v16M15 4v16M4 9l3 3-3 3M20 9l-3 3 3 3"/>':'<path d="M4 12h16M7 9l-3 3 3 3M17 9l3 3-3 3"/>')}</button>
@@ -515,7 +542,7 @@ function svgI(p){return `<svg width="15" height="15" viewBox="0 0 24 24" fill="n
 function renderAll(){$("#mods").innerHTML=L.order.map(shell).join("");renderNav()}
 function rerender(k){const el=$("#b-"+k);if(el&&!L.col[k])el.innerHTML=R[k]()}
 function renderNav(){const custom=document.body.classList.contains("custom");
- $("#nav").innerHTML=L.order.filter(k=>!L.hide[k]||custom).map(k=>`<a data-go="${k}" style="${L.hide[k]?"opacity:.4":""}">${M[k].nav}${k==="dec"&&OPEN_DEC.length?`<span class="badge" style="background:var(--orange)">${OPEN_DEC.length}</span>`:k==="iss"&&nRed?`<span class="badge">${nRed}</span>`:k==="chg"&&changes.length?`<span class="badge" style="background:var(--c4)">${changes.length}</span>`:""}</a>`).join("")+
+ $("#nav").innerHTML=`<div class="seg progseg" data-f="prog" style="flex:none">${[["all","All"],["V3","V3"],["V2","V2"]].map(([k,l])=>`<button data-v="${k}" class="${PROG()===k?"on":""}">${l}</button>`).join("")}</div>`+L.order.filter(k=>(!L.hide[k]||custom)&&(!M[k].prog||showP(M[k].prog))).map(k=>`<a data-go="${k}" class="${M[k].prog?"n"+M[k].prog:""}" style="${L.hide[k]?"opacity:.4":""}">${M[k].nav}${k==="dec"&&OPEN_DEC.length?`<span class="badge" style="background:var(--orange)">${OPEN_DEC.length}</span>`:k==="iss"&&nRed?`<span class="badge">${nRed}</span>`:k==="chg"&&changes.length?`<span class="badge" style="background:var(--c4)">${changes.length}</span>`:""}</a>`).join("")+
  `<span class="sp"></span>${HOSTED?`<button class="tbtn" id="phone" title="Show a QR code that opens this page on your phone, already unlocked">Phone link</button>`:""}<button class="tbtn ${custom?"on":""}" id="custom">${custom?"Done":"Customise"}</button>${custom?`<button class="tbtn" id="reset">Reset layout</button>`:""}${custom&&Object.values(L.hide).some(Boolean)?`<button class="tbtn" id="unhide">Show hidden</button>`:""}`}
 
 /* ---------- drill-downs ---------- */
@@ -600,7 +627,8 @@ document.addEventListener("click",e=>{
  if(e.target.id==="unhide"){L.hide={};saveL();renderAll();return}
  const tg=e.target.closest("[data-tog]");if(tg){L.f[tg.dataset.tog]=!L.f[tg.dataset.tog];saveL();rerender(tg.closest(".mod").dataset.k);return}
  if(e.target.id==="markseen"){markSeen();location.reload();return}
- const sg=e.target.closest(".seg button");if(sg){const f=sg.parentElement.dataset.f;if(f==="hidedone")L.f.hidedone=!L.f.hidedone;else L.f[f]=sg.dataset.v;saveL();rerender(sg.closest(".mod").dataset.k);return}
+ const sg=e.target.closest(".seg button");if(sg&&sg.parentElement.dataset.f==="prog"){L.f.prog=sg.dataset.v;saveL();renderAll();return}
+ if(sg){const f=sg.parentElement.dataset.f;if(f==="hidedone")L.f.hidedone=!L.f.hidedone;else L.f[f]=sg.dataset.v;saveL();rerender(sg.closest(".mod").dataset.k);return}
  const th=e.target.closest("th.sort");if(th){L.f.sort=th.dataset.sort;saveL();rerender("tok");return}
  const g=e.target.closest("[data-go]");if(g){e.preventDefault();return go(g.dataset.go)}
  const kk=e.target.closest("[data-kind]");if(kk){L.f.kind=kk.dataset.kind;saveL();rerender("tok");return}

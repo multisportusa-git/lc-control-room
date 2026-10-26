@@ -275,7 +275,7 @@ for p in glob.glob(os.path.join(W1, "decisions", "D-*.json")):
     d = js(p)
     if not isinstance(d, dict) or not d.get("id"): continue
     has_run = bool(d.get("run"))
-    d = {k: d.get(k) for k in ("id", "created", "title", "situation", "why_now", "options", "recommend", "because", "tasks", "deadline", "status", "decided", "notified", "links", "acted", "thread", "question_pending")}
+    d = {k: d.get(k) for k in ("id", "created", "title", "situation", "why_now", "options", "recommend", "because", "tasks", "deadline", "status", "decided", "notified", "links", "acted", "thread", "question_pending", "programme")}
     d["has_run"] = has_run  # the commands themselves never leave the Mac
     for k in ("title", "situation", "why_now", "because"): d[k] = clean(d.get(k) or "", 4000)
     d["thread"] = [{"from": m.get("from", ""), "at": m.get("at", ""), "text": clean(m.get("text", ""), 3000)} for m in (d.get("thread") or []) if isinstance(m, dict)]
@@ -283,6 +283,67 @@ for p in glob.glob(os.path.join(W1, "decisions", "D-*.json")):
     decisions.append(d)
 decisions.sort(key=lambda d: (d["status"] != "open", d.get("deadline") or "9", d["id"]))
 ntfy = rd(os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")).strip()
+
+# ---------- V2: the Roadmap to Beta (ROADMAP_TO_BETA.html, edited by the V2 coordinator with roadmap.py) ----------
+import html as _html
+def _txt(x): return _html.unescape(re.sub(r"\s+", " ", re.sub(r"(?s)<[^>]+>", " ", x or ""))).strip()
+def parse_roadmap(path):
+    h = rd(path)
+    if not h: return None
+    out = {"age": age_min(path) if "age_min" in globals() else None}
+    m = re.search(r'<p id="owner">(.*?)</p>', h, re.S); out["owner"] = clean(_txt(m.group(1)) if m else "", 300)
+    m = re.search(r'<p id="sitrep">(.*?)</p>', h, re.S); out["sitrep"] = clean(_txt(m.group(1)) if m else "", 1500)
+    m = re.search(r'<span id="asof">(.*?)</span>', h, re.S); out["asof"] = _txt(m.group(1)) if m else ""
+    m = re.search(r'<!--STALE--><div class="stale">(.*?)</div>', h, re.S); out["stale"] = clean(_txt(m.group(1)) if m else "", 400)
+    m = re.search(r'<span id="need">(.*?)</span></p>', h, re.S); out["need"] = clean(_txt(m.group(1)) if m else "", 1200)
+    steps = []
+    for row in re.findall(r'<tr><td>([A-Z])</td><td>(.*?)</td><td id="what-[A-Z]">(.*?)</td><td>(.*?)</td><td>(.*?)</td></tr>', h, re.S):
+        sid, title, what, start, dur = row
+        items = [{"state": "done" if cls == "done" else "now", "text": clean(_txt(t), 400)} for cls, t in re.findall(r'<span class="(done|now)">(.*?)</span>', what, re.S)]
+        has_now = 'class="now"' in what; all_done = items and all(i["state"] == "done" for i in items) and not _txt(re.sub(r'(?s)<span class="done">.*?</span>', "", what))
+        st = "done" if all_done else "now" if has_now else "todo"
+        steps.append({"id": sid, "title": clean(_txt(title), 120), "state": st, "what": clean(_txt(what), 900), "items": items[-6:],
+                      "start": clean(_txt(start), 60), "dur": clean(_txt(re.sub(r"(?s)<time.*?</time>", "", dur)), 120)})
+    # the step the SITREP names as current wins
+    m = re.search(r"Current step:\s*<b>([A-Z])</b>", h)
+    out["current"] = m.group(1) if m else next((x["id"] for x in steps if x["state"] == "now"), "")
+    for x in steps:
+        if x["id"] == out["current"] and x["state"] == "todo": x["state"] = "now"
+    out["steps"] = steps
+    out["live"] = [{"at": a_, "text": clean(_txt(t), 300)} for a_, t in re.findall(r'<li data-ts="[^"]*"><b>(.*?)</b>(.*?)</li>', h, re.S)][:8]
+    return out
+v2 = parse_roadmap(os.path.join(NOTES, "ROADMAP_TO_BETA.html"))
+
+# ---------- programme of each item: V3 (the W1 plan), V2 (Roadmap to Beta), Both (main) ----------
+v3_branches, v3_prs = set(), set()
+for line in sh(["git", "worktree", "list", "--porcelain"], cwd=REPO).split("\n\n") if os.path.isdir(REPO) else []:
+    if "/.worktrees/w1-" in line or "/.worktrees/v3-" in line:
+        m = re.search(r"^branch refs/heads/(.+)$", line, re.M)
+        if m: v3_branches.add(m.group(1))
+for f in glob.glob(os.path.join(EV, "*_pr.txt")):
+    t_ = rd(f)
+    m = re.search(r"^pr=(\d+)", t_, re.M)
+    if m: v3_prs.add(int(m.group(1)))
+    m = re.search(r"^branch=(\S+)", t_, re.M)
+    if m: v3_branches.add(m.group(1))
+V3_WORDS = re.compile(r"\b(v3|V3|W1-\d+|W1 )", re.I)
+def prog_branch(b):
+    if not b: return "V2"
+    if b in ("main",) or b.startswith("train/"): return "Both"
+    return "V3" if (b in v3_branches or b.startswith(("v3", "docs/w1", "w1-"))) else "V2"
+for j in queue: j["prog"] = prog_branch(j.get("branch", ""))
+for p_ in prs: p_["prog"] = "V3" if (p_.get("number") in v3_prs or V3_WORDS.search(p_.get("title", "")) or p_.get("headRefName", "") in v3_branches) else "V2"
+facts["open_prs"] = [{"n": p["number"], "t": clean(p["title"], 90), "b": p.get("headRefName", ""), "url": p.get("url", ""), "prog": p["prog"]} for p in prs if p.get("state") == "OPEN"]
+facts["merged_24h"] = [{"n": p["number"], "t": clean(p["title"], 90), "at": hm(ts(p.get("mergedAt"))), "prog": p["prog"]} for p in prs if p.get("state") == "MERGED" and ts(p.get("mergedAt")) and NOW - ts(p["mergedAt"]) < dt.timedelta(hours=24)]
+K_COORD = re.compile(r"\bK\d{1,3}\b")
+for s_ in tok.get("sessions", []):
+    t_ = s_.get("title", "")
+    if s_.get("task") or V3_WORDS.search(t_) or t_.startswith(("lane W1", "Q D-")): s_["prog"] = "V3"
+    elif s_.get("project") == "London Commuter": s_["prog"] = "V2"
+    else: s_["prog"] = "Other"
+m_ = re.search(r"✱\s*(K\d{1,3})", (v2 or {}).get("owner", ""))
+if m_: facts["coordinator"] = m_.group(1)  # the roadmap's Owner line is newer than COORDINATOR.json
+if v2: v2["sitrep"] = re.sub(r"\s*Current step:\s*[A-Z]\s*\([^)]*\)\.?", "", v2["sitrep"]).strip()
 
 # ---------- data health: every source, its age and whether to trust it ----------
 def age_min(p):
@@ -306,6 +367,8 @@ health = [
     {"name": "GitHub pull requests", "detail": "%d PRs cached" % len(prs), "age": age_min(ghc), "ok": age_min(ghc) is not None and age_min(ghc) < 30, "why": "gh not reachable" if age_min(ghc) is None else ""},
     {"name": "Token ledger (transcripts)", "detail": "%s requests indexed%s" % ((tok.get("index") or {}).get("msgs", "?"), ", %s files still to read" % tok["index"]["files_left"] if (tok.get("index") or {}).get("files_left") else ""),
      "age": 0 if not tok.get("error") else None, "ok": not tok.get("error"), "why": tok.get("error", "")},
+    {"name": "V2 Roadmap to Beta", "detail": ("step %s · owner %s" % (v2["current"], (v2["owner"] or "")[:60])) if v2 else "ROADMAP_TO_BETA.html not found",
+     "age": age_min(os.path.join(NOTES, "ROADMAP_TO_BETA.html")), "ok": bool(v2) and not (v2 or {}).get("stale"), "why": (v2 or {}).get("stale", "")[:200]},
     {"name": "Weekly quota reading (W1-05)", "detail": ("%s%% at %s" % (usage[-1]["week"], usage[-1]["at"].replace("T", " "))) if usage else "no reading", "age": int(last_usage_h * 60) if last_usage_h is not None else None,
      "ok": last_usage_h is not None and last_usage_h < 14, "why": "older than 14 h: W1-05 is morning and evening" if last_usage_h is not None and last_usage_h >= 14 else ""},
 ]
@@ -338,6 +401,13 @@ sit.append({"k": "plan", "ids": [], "text": "Today projected to finish %s. GO-bu
     max((fin[i] for i in [x["id"] for x in tasks if x["day"] <= TODAY and x["status"] != "done"]), default=NOW).strftime("%a %H:%M"),
     gates["GO-build"]["eta"], gates["G1"]["eta"], ("%d tasks are projected to finish after their planned day." % len(slips)) if slips else "Every task is projected within its planned day.")})
 
+for l in sit: l.setdefault("prog", "V3")
+if v2:
+    cur = next((x for x in v2["steps"] if x["id"] == v2["current"]), None)
+    sit.append({"k": "now", "prog": "V2", "ids": [], "text": "Roadmap to Beta: step %s%s. %s" % (v2["current"], (" (" + cur["title"] + ")") if cur else "", short(v2["sitrep"], 420))})
+    if v2.get("need"): sit.append({"k": "you", "prog": "V2", "ids": [], "text": "V2 needs you: " + short(v2["need"], 400)})
+    if v2.get("stale"): sit.append({"k": "red", "prog": "V2", "ids": [], "text": "The V2 roadmap is out of date: " + short(v2["stale"], 240)})
+
 # ---------- burn-up: planned vs done vs projected, per day ----------
 days_all = sorted({t["day"] for t in T})
 burn = [{"day": d, "planned": sum(t["day"] <= d for t in T),
@@ -348,7 +418,7 @@ today_ids = [t["id"] for t in tasks if t["day"] == TODAY or (t["day"] < TODAY an
 reds = [t for t in tasks if t["rag"] == "red"]; ambers = [t for t in tasks if t["rag"] == "amber"]
 overall = "red" if reds else "amber" if ambers else "green"
 data = {"gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
-        "decisions": decisions, "ntfy": ntfy, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
+        "decisions": decisions, "ntfy": ntfy, "v2": v2, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
         "loop": rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LOOP_LOG.md"), 6000),
         "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
         "day_finish": max((fin[i] for i in today_ids if status(i) != "done"), default=NOW).strftime("%a %H:%M"),

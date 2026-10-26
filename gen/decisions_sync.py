@@ -27,7 +27,7 @@ GH = shutil.which("gh") or next((p for p in ("/opt/homebrew/bin/gh", "/usr/local
 TOPIC_FILE = os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")
 PAGE = "https://%s.github.io/%s/" % (OWNER, REPO.split("/")[1])
 TITLE = re.compile(r"^\s*DECISION\s+(D-\d+)\s*:\s*(OTHER|[A-Z])\b", re.I)
-ACTION = re.compile(r"^\s*ACTION\s+(W1-\d{2}[A-Z]{0,2})\b\s*:?\s*(.*)$", re.I)
+ACTION = re.compile(r"^\s*ACTION\s+(W1-\d{2}[A-Z]{0,2}|V2)\b\s*:?\s*(.*)$", re.I)
 LC = arg("--lc-repo", os.path.join(HOME, "Claude_London Commuter"))
 EV = os.path.join(NOTES, "w1", "evidence")
 PY = sys.executable
@@ -94,6 +94,15 @@ def action(it):
     who = (it.get("author") or {}).get("login", "")
     if who.lower() != OWNER.lower():
         log("ignored action #%d from %s" % (n, who)); gh("issue", "close", str(n), "-R", REPO, "-c", "Only the repo owner can report tasks."); return
+    if tid == "V2":
+        # a reply to the V2 coordinator: appended where it reads JB's answers
+        text = (rest + "\n" + re.sub(r"(?s)<!--.*?-->", "", it.get("body") or "").strip()).strip()
+        f = os.path.join(NOTES, "status", "JB-to-V2-coordinator.md")
+        if not DRY:
+            os.makedirs(os.path.dirname(f), exist_ok=True)
+            with open(f, "a") as fh: fh.write("%s JB (issue #%d): %s\n" % (now(), n, text))
+        gh("issue", "close", str(n), "-R", REPO, "-c", "Passed to the V2 coordinator.")
+        log("V2 REPLY via issue #%d: %s" % (n, text[:200].replace("\n", " "))); return
     T = task_defs(); t = T.get(tid)
     if not t or t.get("owner") != "JB":
         gh("issue", "close", str(n), "-R", REPO, "-c", "%s is not one of JB's tasks; nothing recorded." % tid); log("action #%d: %s not a JB task" % (n, tid)); return
