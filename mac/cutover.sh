@@ -18,7 +18,8 @@ running() { pgrep -f "lc-cutover-lane" | wc -l | tr -d ' '; }
 for b in "$C"/*.md(N); do
   L=${b:t:r}; [[ $L == COORDINATOR ]] && continue
   [[ -f "$C/$L.started" ]] && { echo "$L: already started"; continue; }
-  W=$(grep -oE '/Users/[^ `]*\.worktrees/[^ `/]+' "$b" | head -1); [[ -d ${W:-/nonexistent} ]] || W="$R"
+  W=$(grep -oE '/Users/[^`]*\.worktrees/[^ `/)]+' "$b" | head -1)
+  [[ -d ${W:-/nonexistent} ]] || { echo "$L: no existing .worktrees/ path in the brief; not started (never the main checkout)"; continue; }
   M=$(grep -oiE 'claude-(haiku|sonnet|opus)-5-5' "$b" | head -1); M=${M:-claude-sonnet-5-5}
   echo "$L: worktree $W model $M"
   [[ ${1:-} == --go ]] || continue
