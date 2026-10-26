@@ -5,7 +5,10 @@ Installed in ~/.claude/settings.json by mac/install_fuel_guard.py, so it runs in
 (desktop-app sessions, terminal sessions, headless lanes). After each tool call it reads the session's own transcript tail,
 takes the context size of the last main-thread request (input + cache read + cache write) and compares it with the
 CLAUDE.md rule-2 thresholds:
-  lanes and all other sessions: 225k start hand-over, 250k hand-over complete, 275k stop
+  (JB 26 Oct 12:42/12:45 decision A; same for V2 and V3)
+  lean Sonnet lanes (started with a lane-settings profile): 175k start hand-over, 200k complete, 225k stop
+  Haiku lanes: 80k, 90k, 95k (never send a 100k prompt)
+  desktop-app and other non-lean sessions: 225k, 250k, 275k
   the coordinator (COORDINATOR.json cli_uuid, or LC_ROLE=coordinator): 250k, 275k, 300k
 If a model has auto-compacted earlier than that on this Mac (a compact_boundary seen in any transcript), the thresholds
 drop to 80/88/94 % of the lowest compaction point seen for that model, so a smaller context window is covered too.
@@ -18,8 +21,23 @@ HOME = os.path.expanduser("~")
 CFG = os.path.join(HOME, ".config", "lc-fuel")
 NOTES = os.path.join(HOME, "Library/Application Support/Claude/side-session-notes/local_eb83ac5f-2636-437e-a24c-fdb172ad7c08")
 TOPIC_FILE = os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")
-LANE = (225000, 250000, 275000)
+DESKTOP = (225000, 250000, 275000)
+LEAN = (175000, 200000, 225000)
+HAIKU = (80000, 90000, 95000)
 COORD = (250000, 275000, 300000)
+TH = {"coordinator": COORD, "lean": LEAN, "haiku": HAIKU, "desktop": DESKTOP}
+
+
+def parent_lean():
+    """True when the Claude process that ran this hook was started with a lane-settings profile (lean lane)."""
+    try:
+        out = subprocess.run(["/bin/ps", "-o", "command=", "-p", str(os.getppid())], capture_output=True, text=True, timeout=2).stdout
+        if "claude" not in out:  # hook ran via a shell: look one level up
+            pp = subprocess.run(["/bin/ps", "-o", "ppid=", "-p", str(os.getppid())], capture_output=True, text=True, timeout=2).stdout.strip()
+            out = subprocess.run(["/bin/ps", "-o", "command=", "-p", pp], capture_output=True, text=True, timeout=2).stdout
+        return "lane-settings" in out
+    except Exception:
+        return False
 TAIL = 400000
 
 
@@ -70,7 +88,7 @@ def jsave(p, d):
 
 
 def thresholds(role, model, compact_points):
-    base = COORD if role == "coordinator" else LANE
+    base = TH.get(role, DESKTOP)
     low = compact_points.get(model)
     if low:
         base = tuple(min(b, int(low * k)) for b, k in zip(base, (0.80, 0.88, 0.94)))
@@ -80,7 +98,7 @@ def thresholds(role, model, compact_points):
 def message(band, ctx, th, role, sid, cwd):
     k = ctx // 1000
     brief = os.path.join(NOTES, "handoffs", "%s-%s.md" % (time.strftime("%Y%m%d"), sid[:8]))
-    who = "coordinator" if role == "coordinator" else "session"
+    who = {"coordinator": "coordinator", "lean": "lean lane", "haiku": "Haiku lane"}.get(role, "session")
     if band == 1:
         act = ("Start hand-over now (CLAUDE.md rule 2): finish only the current step, reach a safe point (committed and pushed, "
                "no git op half done, no slot held, nothing in flight), write the hand-over brief (<= ~2k tokens: task, branch/worktree, "
@@ -127,7 +145,14 @@ def main():
     if not ctx:
         return
     coord = jload(os.path.join(NOTES, "COORDINATOR.json"), {})
-    role = "coordinator" if (os.environ.get("LC_ROLE") == "coordinator" or coord.get("cli_uuid") == sid) else "lane"
+    if os.environ.get("LC_ROLE") == "coordinator" or coord.get("cli_uuid") == sid:
+        role = "coordinator"
+    elif "haiku" in model:
+        role = "haiku"
+    else:
+        if "lean" not in st:
+            st["lean"] = parent_lean()
+        role = "lean" if st["lean"] else "desktop"
     th = thresholds(role, model, cps)
     band = 3 if ctx >= th[2] else 2 if ctx >= th[1] else 1 if ctx >= th[0] else 0
     st["calls"] = st.get("calls", 0) + 1
