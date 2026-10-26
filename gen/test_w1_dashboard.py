@@ -82,7 +82,7 @@ with tempfile.TemporaryDirectory() as tmp:
     check("data health lists the sources", len(D["health"]) >= 6)
     check("secrets are redacted", "SHOULD_NOT_APPEAR" not in html and "SHOULD_NOT_APPEAR" not in js)
     check("evidence text cannot close the script tag", html.count("</script>") == 1, html.count("</script>"))
-    check("the page fetches only its data (and the QR library on demand)", set(re.findall(r'https?://[^"\'`\s)]+', html)) <= {"https://raw.githubusercontent.com/multisportusa-git/lc-control-room/data/w1.enc", "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"}, set(re.findall(r'https?://[^"\'`\s)]+', html)))
+    check("the page fetches only its data (and the QR library on demand)", {u for u in re.findall(r'https?://[^"\'`\s)]+', html) if not u.startswith("https://ntfy.sh/")} <= {"https://raw.githubusercontent.com/multisportusa-git/lc-control-room/data/w1.enc", "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js", "https://github.com/multisportusa-git/lc-control-room/issues/new"}, set(re.findall(r'https?://[^"\'`\s)]+', html)))
     check("JSON output equals the embedded data", json.loads(js) == D)
 
     # encryption round trip in the exact format the page decrypts
@@ -99,6 +99,28 @@ with tempfile.TemporaryDirectory() as tmp:
 with tempfile.TemporaryDirectory() as tmp2:
     html2, D2, _ = build(tmp2, tasks, {}, {"w1/gh_cache.json": "not json", "w1/evidence/lane-W1-03.json": "{bad"})
     check("page still builds from empty state and bad files", len(D2["tasks"]) == len(tasks))
+
+# decisions: shown on the page, and recorded only from the owner's issues
+with tempfile.TemporaryDirectory() as tmp3:
+    dec = {"id": "D-7", "title": "Pick a thing", "situation": "S", "options": [{"key": "A", "label": "a"}, {"key": "B", "label": "b"}], "recommend": "A", "status": "open"}
+    html3, D3, _ = build(tmp3, tasks, state, {"w1/decisions/D-7.json": dec, "w1/decisions/D-8.json": dict(dec, id="D-8")})
+    check("open decisions reach the page data", [d["id"] for d in D3["decisions"]] == ["D-7", "D-8"])
+    check("SITREP leads with waiting decisions", D3["sit"][0]["k"] == "you" and "D-7" in D3["sit"][0]["text"])
+    bindir = os.path.join(tmp3, "bin"); os.makedirs(bindir)
+    issues = [{"number": 11, "title": "DECISION D-7: B", "body": "go with B", "author": {"login": "multisportusa-git"}},
+              {"number": 12, "title": "DECISION D-8: A", "body": "", "author": {"login": "someone-else"}},
+              {"number": 13, "title": "DECISION D-8: Z", "body": "", "author": {"login": "multisportusa-git"}}]
+    open(os.path.join(bindir, "gh"), "w").write("#!/bin/sh\nif [ \"$1 $2\" = \"issue list\" ]; then cat '%s'; else echo \"$@\" >> '%s'; fi\n" % (os.path.join(tmp3, "issues.json"), os.path.join(tmp3, "gh.log")))
+    os.chmod(os.path.join(bindir, "gh"), 0o755); json.dump(issues, open(os.path.join(tmp3, "issues.json"), "w"))
+    r = subprocess.run([sys.executable, os.path.join(HERE, "decisions_sync.py"), "--notes", tmp3], capture_output=True, text=True,
+                       env=dict(os.environ, HOME=os.path.join(tmp3, "home"), PATH=bindir + os.pathsep + os.environ["PATH"]), timeout=60)
+    d7 = json.load(open(os.path.join(tmp3, "w1/decisions/D-7.json"))); d8 = json.load(open(os.path.join(tmp3, "w1/decisions/D-8.json")))
+    check("owner's issue records the choice and its note", d7["status"] == "decided" and d7["decided"]["choice"] == "B" and d7["decided"]["note"] == "go with B", r.stdout + r.stderr)
+    check("someone else's issue records nothing", d8["status"] == "open", d8.get("decided"))
+    check("an option that does not exist records nothing", d8["status"] == "open")
+    ghlog = open(os.path.join(tmp3, "gh.log")).read()
+    check("every DECISION issue is answered and closed", all(("close %d" % n) in ghlog for n in (11, 12, 13)), ghlog)
+    check("each new open decision is notified once", "notified D-8" in open(os.path.join(tmp3, "w1/decisions/decisions.log")).read() and json.load(open(os.path.join(tmp3, "w1/decisions/D-8.json"))).get("notified"))
 
 print("ALL PASS" if not FAILS else "%d FAILED: %s" % (len(FAILS), ", ".join(FAILS)))
 sys.exit(1 if FAILS else 0)

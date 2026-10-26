@@ -236,6 +236,7 @@ const dtf=(e,o)=>new Date(e*1000).toLocaleString("en-GB",o||{weekday:"short",hou
 const link=s=>esc(s).replace(/\bW1-\d{2}[A-Z]{0,2}\b/g,m=>T[m]?`<a href="#" data-t="${m}">${m}</a>`:m);
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const ICON={
+ dec:'<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
  sit:'<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/>',
  kpi:'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
  chg:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
@@ -257,8 +258,8 @@ const ico=(k,c)=>`<div class="mi" style="background:${c}22;color:${c}"><svg widt
 /* ---------- state: hash for drill-downs, localStorage for layout ---------- */
 const H=Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
 function setH(k,v){if(v==null)delete H[k];else H[k]=v;history.replaceState(null,"","#"+new URLSearchParams(H).toString())}
-const DEFAULT_ORDER=["sit","kpi","chg","iss","you","tl","board","path","week","live","quota","tok","q","pr","health"];
-let L=LS.get("w1dash.layout",{});L.order=(L.order||[]).filter(k=>DEFAULT_ORDER.includes(k));DEFAULT_ORDER.forEach(k=>{if(!L.order.includes(k))L.order.push(k)});
+const DEFAULT_ORDER=["dec","sit","kpi","chg","iss","you","tl","board","path","week","live","quota","tok","q","pr","health"];
+let L=LS.get("w1dash.layout",{});L.order=(L.order||[]).filter(k=>DEFAULT_ORDER.includes(k));DEFAULT_ORDER.forEach((k,i)=>{if(!L.order.includes(k))L.order.splice(Math.min(i,L.order.length),0,k)});
 L.col=L.col||{};L.wide=L.wide||{};L.hide=L.hide||{};L.f=L.f||{};
 const saveL=()=>LS.set("w1dash.layout",L);
 
@@ -281,6 +282,8 @@ $("#stamp").innerHTML=`Data ${esc(D.gen)} · <a href="#" data-go="health" style=
 
 /* ---------- module registry ---------- */
 const M={
+ dec:{t:"Your decisions",s:"",i:"dec",c:"#FF6A00",w:"full",nav:"Decide",
+  help:"Each decision shows the situation, the options with their trade-offs and a recommendation. Approve opens a GitHub issue already filled in (DECISION D-n: X); press Submit. The Mac reads it within 10 minutes, records it, closes the issue, and the coordinator acts at its next step. Issues are public, so they carry only the number, the letter and any note you add. Only your GitHub account can record a decision."},
  sit:{t:"Situation report",s:"Where things stand, in a few lines",i:"sit",c:"#FF8A3D",w:"full",nav:"SITREP",
   help:"Written by the generator from task state, the schedule and the gates. Red lines first, then what is running, what starts next, what waits on you, and the projected finish times."},
  kpi:{t:"At a glance",s:"Progress, gates, tokens and quota",i:"kpi",c:"#3DA5FF",w:"full",nav:"Glance",
@@ -315,6 +318,28 @@ const M={
 function ring(done,total,col,size=62){const r=size/2-6,c=2*Math.PI*r,p=total?done/total:0;
 return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${done} of ${total}" style="flex:none"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c*p} ${c}" transform="rotate(-90 ${size/2} ${size/2})"/><text x="50%" y="54%" text-anchor="middle" style="fill:#fff;font-weight:800;font-size:12.5px">${Math.round(p*100)}%</text></svg>`}
 const R={};
+const OPEN_DEC=(D.decisions||[]).filter(d=>d.status==="open");
+const ISSUE_NEW="https://github.com/multisportusa-git/lc-control-room/issues/new";
+function left(iso){if(!iso)return"";const m=Math.round((Date.parse(iso)-Date.now())/60000);if(m<0)return`<b style="color:var(--crit)">overdue by ${m>-90?-m+" min":Math.round(-m/60)+" h"}</b>`;return m<90?`${m} min left`:m<2880?`${Math.round(m/60)} h left`:`${Math.round(m/1440)} days left`}
+R.dec=()=>{const sent=LS.get("w1dash.sent",{});const RISK={low:"green",med:"amber",medium:"amber",high:"red"};
+ const notif=D.ntfy&&!LS.get("w1dash.ntfyok",false)?`<div class="callout blue" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><b>Get a phone alert when a decision is waiting.</b><div class="why">Install the free ntfy app, then open this link on the phone and subscribe. The alert carries only the decision number and a link back here.</div></div><a class="tbtn" href="https://ntfy.sh/${esc(D.ntfy)}" target="_blank" rel="noopener">Subscribe link</a><button class="tbtn" data-ntfyok="1">Done</button></div>`:"";
+ const card=d=>{const s=sent[d.id];const rec=(d.recommend||"").toUpperCase();
+  return `<div class="tile" style="padding:16px;border-color:${s?"rgba(61,165,255,.45)":"rgba(255,106,0,.45)"};margin-bottom:12px">
+  <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span class="pill r-amber">${esc(d.id)}</span><b style="font-size:16px;flex:1;min-width:200px">${esc(d.title)}</b><span class="why">${d.deadline?"decide by "+esc(d.deadline.replace("T"," "))+" · "+left(d.deadline):""}</span></div>
+  <div style="margin-top:10px;color:var(--text2)">${link(d.situation||"")}</div>${d.why_now?`<div class="why" style="margin-top:6px"><b>Why now:</b> ${link(d.why_now)}</div>`:""}
+  ${(d.tasks||[]).length?`<div class="why" style="margin-top:6px">Tasks: ${d.tasks.map(t=>T[t]?`<a href="#" data-t="${t}" class="mono">${t}</a>`:esc(t)).join(" ")}</div>`:""}
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));margin-top:12px">${(d.options||[]).map(o=>{const k=(o.key||"").toUpperCase(),isr=k===rec;return `<div class="tile" style="${isr?"border-color:var(--orange2);box-shadow:0 0 0 1px var(--orange2) inset":""}">
+   <div style="display:flex;gap:8px;align-items:center"><span class="mi" style="width:26px;height:26px;background:${isr?"var(--orange)":"rgba(255,255,255,.1)"};color:#fff;font-weight:800">${esc(k)}</span><b style="flex:1">${esc(o.label)}</b>${isr?pill("amber","Recommended"):""}</div>
+   ${o.detail?`<div class="why" style="margin-top:6px">${link(o.detail)}</div>`:""}
+   ${(o.pros||[]).map(x=>`<div style="margin-top:4px;font-size:12.5px"><span style="color:var(--good)">✓</span> ${esc(x)}</div>`).join("")}${(o.cons||[]).map(x=>`<div style="margin-top:4px;font-size:12.5px"><span style="color:var(--crit)">✕</span> ${esc(x)}</div>`).join("")}
+   <div class="why" style="margin-top:6px">${o.cost?"Cost: "+esc(o.cost):""}${o.risk?` · risk ${pill(RISK[(o.risk||"").toLowerCase()]||"grey",o.risk)}`:""}</div>
+   <button class="tbtn ${isr?"on":""}" style="margin-top:10px;width:100%" data-approve="${esc(d.id)}" data-choice="${esc(k)}">Approve ${esc(k)}</button></div>`}).join("")}</div>
+  ${d.because?`<div class="callout amber" style="margin-top:12px"><b>Recommendation ${esc(rec)}:</b> ${link(d.because)}</div>`:""}
+  <details style="margin-top:8px"><summary class="why" style="cursor:pointer">Add a note to your answer (public on GitHub)</summary><textarea id="note-${esc(d.id)}" rows="2" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid var(--line2);background:#0c1424;color:var(--text);padding:8px" placeholder="Optional. Do not include anything private."></textarea></details>
+  ${s?`<div class="callout blue" style="margin-top:10px">Sent ${esc(s.choice)} at ${esc(s.at)}. The Mac records it within 10 minutes; this card moves to Decided then. <a href="${esc(s.url)}" target="_blank" rel="noopener">Open the issue again</a> if you did not press Submit.</div>`:""}</div>`};
+ const done=(D.decisions||[]).filter(d=>d.status!=="open").slice(0,8);
+ return notif+(OPEN_DEC.length?OPEN_DEC.map(card).join(""):`<div class="empty">Nothing needs your decision right now.</div>`)+
+  (done.length?`<div class="pathlab" style="margin-top:14px">Decided</div><table>${done.map(d=>`<tr><td class="mono" style="white-space:nowrap"><b>${esc(d.id)}</b></td><td>${esc(d.title)}</td><td>${d.decided?pill("green",d.decided.choice):pill("grey",d.status)}</td><td class="why" style="white-space:nowrap">${d.decided?esc((d.decided.at||"").replace("T"," ")+" · "+(d.decided.via||"")):""}</td></tr>`).join("")}</table>`:"")};
 R.sit=()=>{const IC={red:["✕","var(--crit)"],now:["▶","var(--info)"],next:["→","var(--c1)"],you:["●","var(--amber)"],plan:["◷","var(--orange2)"]};
  return `<div class="sit">${D.sit.map(l=>`<div class="sl ${l.k==="red"?"red":""}"><div class="ic" style="background:${IC[l.k][1]}22;color:${IC[l.k][1]}" aria-hidden="true">${IC[l.k][0]}</div><div>${link(l.text)}</div></div>`).join("")}</div>`};
 R.kpi=()=>{const done=D.tasks.filter(t=>t.status==="done").length;const tdy=D.today_ids.map(i=>T[i]);const td=tdy.filter(t=>t.status==="done").length;
@@ -449,7 +474,7 @@ R.health=()=>{const rows=[{name:HOSTED?"Published data":"This page",detail:HOSTE
 
 /* ---------- module shell ---------- */
 function shell(k){const m=M[k];const wide=(L.wide[k]||m.w)==="full";const col=!!L.col[k];
- const sub=k==="chg"?(changes.length?`${changes.length} change${changes.length>1?"s":""}`:"No changes"):k==="q"?`${D.queue.length} recent results`:m.s;
+ const sub=k==="dec"?(OPEN_DEC.length?`${OPEN_DEC.length} waiting for you`:"Nothing waiting"):k==="chg"?(changes.length?`${changes.length} change${changes.length>1?"s":""}`:"No changes"):k==="q"?`${D.queue.length} recent results`:m.s;
  return `<section class="mod ${wide?"full":""} ${col?"col":""} ${L.hide[k]?"hidden":""}" id="m-${k}" data-k="${k}" aria-labelledby="t-${k}">
  <div class="mh">${ico(m.i,m.c)}<div class="grow"><div class="mt" id="t-${k}">${m.t}</div><div class="ms ell">${esc(sub)}</div></div>
  <div class="ctl"><button data-a="help" title="How this is worked out" aria-label="How this is worked out">${svgI('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01"/>')}</button>
@@ -462,7 +487,7 @@ function svgI(p){return `<svg width="15" height="15" viewBox="0 0 24 24" fill="n
 function renderAll(){$("#mods").innerHTML=L.order.map(shell).join("");renderNav()}
 function rerender(k){const el=$("#b-"+k);if(el&&!L.col[k])el.innerHTML=R[k]()}
 function renderNav(){const custom=document.body.classList.contains("custom");
- $("#nav").innerHTML=L.order.filter(k=>!L.hide[k]||custom).map(k=>`<a data-go="${k}" style="${L.hide[k]?"opacity:.4":""}">${M[k].nav}${k==="iss"&&nRed?`<span class="badge">${nRed}</span>`:k==="chg"&&changes.length?`<span class="badge" style="background:var(--c4)">${changes.length}</span>`:""}</a>`).join("")+
+ $("#nav").innerHTML=L.order.filter(k=>!L.hide[k]||custom).map(k=>`<a data-go="${k}" style="${L.hide[k]?"opacity:.4":""}">${M[k].nav}${k==="dec"&&OPEN_DEC.length?`<span class="badge" style="background:var(--orange)">${OPEN_DEC.length}</span>`:k==="iss"&&nRed?`<span class="badge">${nRed}</span>`:k==="chg"&&changes.length?`<span class="badge" style="background:var(--c4)">${changes.length}</span>`:""}</a>`).join("")+
  `<span class="sp"></span>${HOSTED?`<button class="tbtn" id="phone" title="Show a QR code that opens this page on your phone, already unlocked">Phone link</button>`:""}<button class="tbtn ${custom?"on":""}" id="custom">${custom?"Done":"Customise"}</button>${custom?`<button class="tbtn" id="reset">Reset layout</button>`:""}${custom&&Object.values(L.hide).some(Boolean)?`<button class="tbtn" id="unhide">Show hidden</button>`:""}`}
 
 /* ---------- drill-downs ---------- */
@@ -524,6 +549,10 @@ document.addEventListener("click",e=>{
   if(a==="col")L.col[k]=!L.col[k];
   if(a==="hide")L.hide[k]=true;
   saveL();renderAll();const el=$("#m-"+k);if(el&&(a==="up"||a==="down")){el.scrollIntoView({block:"nearest"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),700)}return}
+ const ap=e.target.closest("[data-approve]");if(ap){const id=ap.dataset.approve,ch=ap.dataset.choice,nt=(document.getElementById("note-"+id)||{}).value||"";
+  const url=ISSUE_NEW+"?title="+encodeURIComponent("DECISION "+id+": "+ch)+"&body="+encodeURIComponent((nt.trim()||"Approved from the control room.")+"\n\n<!-- recorded by the Mac within 10 minutes -->");
+  window.open(url,"_blank","noopener");const sv=LS.get("w1dash.sent",{});sv[id]={choice:ch,at:new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),url};LS.set("w1dash.sent",sv);rerender("dec");return}
+ if(e.target.closest("[data-ntfyok]")){LS.set("w1dash.ntfyok",true);rerender("dec");return}
  if(e.target.id==="phone"){showQR();return}
  if(e.target.id==="forget"){try{localStorage.removeItem("w1dash.k")}catch(x){}location.reload();return}
  if(e.target.id==="custom"){document.body.classList.toggle("custom");renderNav();return}

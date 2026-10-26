@@ -269,6 +269,18 @@ try:
 except Exception as e:  # the page must still build
     tok = {"sessions": [], "buckets": [], "models": [], "timelines": {}, "error": str(e)[:200]}
 
+# ---------- decisions waiting on JB (gen/decisions_sync.py records the answers) ----------
+decisions = []
+for p in glob.glob(os.path.join(W1, "decisions", "D-*.json")):
+    d = js(p)
+    if not isinstance(d, dict) or not d.get("id"): continue
+    d = {k: d.get(k) for k in ("id", "created", "title", "situation", "why_now", "options", "recommend", "because", "tasks", "deadline", "status", "decided", "notified", "links")}
+    for k in ("title", "situation", "why_now", "because"): d[k] = clean(d.get(k) or "", 4000)
+    d["status"] = d.get("status") or "open"
+    decisions.append(d)
+decisions.sort(key=lambda d: (d["status"] != "open", d.get("deadline") or "9", d["id"]))
+ntfy = rd(os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")).strip()
+
 # ---------- data health: every source, its age and whether to trust it ----------
 def age_min(p):
     try: return int((time.time() - os.path.getmtime(p)) / 60)
@@ -314,6 +326,8 @@ doing = [t["id"] for t in tasks if t["status"] in ("doing",) and t["rag"] != "re
 if doing: sit.append({"k": "now", "ids": doing, "text": "In progress: " + "; ".join("%s %s" % (i, short(BY[i]["title"], 56)) for i in doing)})
 nxt = sorted([t for t in tasks if t["status"] == "todo" and not t["why"].startswith("Waiting") and t["owner"] != "JB"], key=lambda t: (t["beg_iso"], -t["ndesc"]))[:4]
 if nxt: sit.append({"k": "next", "ids": [t["id"] for t in nxt], "text": "Next to start: " + "; ".join("%s at %s" % (t["id"], t["start"]) for t in nxt)})
+opend = [d for d in decisions if d["status"] == "open"]
+if opend: sit.insert(0, {"k": "you", "ids": [], "text": "Decision%s waiting for you: %s. Approve them in Your decisions at the top of the page." % ("s" if len(opend) > 1 else "", "; ".join("%s %s" % (d["id"], short(d.get("title") or "", 60)) for d in opend))})
 mine = [t for t in tasks if t["status"] != "done" and t["owner"] == "JB" and not t["why"].startswith("Waiting")]
 if mine: sit.append({"k": "you", "ids": [t["id"] for t in mine], "text": "Waiting on you (%d): " % len(mine) + "; ".join("%s %s" % (t["id"], short(BY[t["id"]]["title"], 56)) for t in mine)})
 slips = [t for t in tasks if t["slip_days"] > 0]
@@ -331,7 +345,7 @@ today_ids = [t["id"] for t in tasks if t["day"] == TODAY or (t["day"] < TODAY an
 reds = [t for t in tasks if t["rag"] == "red"]; ambers = [t for t in tasks if t["rag"] == "amber"]
 overall = "red" if reds else "amber" if ambers else "green"
 data = {"gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
-        "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
+        "decisions": decisions, "ntfy": ntfy, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
         "loop": rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LOOP_LOG.md"), 6000),
         "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
         "day_finish": max((fin[i] for i in today_ids if status(i) != "done"), default=NOW).strftime("%a %H:%M"),

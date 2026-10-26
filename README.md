@@ -17,6 +17,9 @@ passphrase once per browser, or takes it from a `#k=` link and removes it from t
 - If the Mac is asleep or offline the page says so (Data health turns red after 25 minutes without a push).
 - The same generator also writes a local copy with the data embedded: `<notes>/w1/W1_DASHBOARD.html`.
 
+## Decisions
+Sessions raise decisions as files; JB approves on the page; the Mac records the answer. See DECISIONS.md.
+
 ## Change it
 Edit `index.html` (page) or `gen/` (data), run `python3 gen/test_w1_dashboard.py`, push to `main`. The Mac picks the
 change up on its next run. The coordinator can override a task's note, plan, colour or estimate in
