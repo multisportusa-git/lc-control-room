@@ -508,7 +508,7 @@ function openPanel(){lastFocus=document.activeElement;$("#panel").classList.add(
 function closePanel(){$("#panel").classList.remove("on");$("#scrim").classList.remove("on");setH("t",null);setH("s",null);if(lastFocus)lastFocus.focus()}
 
 /* ---------- events ---------- */
-function go(k){if(L.hide[k]){L.hide[k]=false;saveL();renderAll()}if(L.col[k]){L.col[k]=false;saveL();const el=$("#m-"+k);el.classList.remove("col");rerender(k)}const el=$("#m-"+k);if(!el)return;el.scrollIntoView({behavior:"smooth",block:"start"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),1200)}
+function go(k,instant){if(L.hide[k]){L.hide[k]=false;saveL();renderAll()}if(L.col[k]){L.col[k]=false;saveL();const el=$("#m-"+k);el.classList.remove("col");rerender(k)}const el=$("#m-"+k);if(!el)return;el.scrollIntoView({behavior:instant?"auto":"smooth",block:"start"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),1200)}
 document.addEventListener("click",e=>{
  if(e.target.closest(".x")||e.target===$("#scrim"))return closePanel();
  const c=e.target.closest(".ctl button");if(c){const k=c.closest(".mod").dataset.k,a=c.dataset.a,i=L.order.indexOf(k);
@@ -540,7 +540,7 @@ document.addEventListener("mousemove",e=>{const r=e.target.closest&&e.target.clo
 $("#foot").innerHTML=`Built by <span class="mono">gen/w1_dashboard.py</span> on JB's Mac from local files${HOSTED?", encrypted there and published to GitHub; your browser decrypts it":""}. Viewing and refreshing cost no model tokens. Layout, filters and the "since you last looked" snapshot live in this browser only. Projections are estimates; status colours follow fixed rules (open a module's ⓘ).<details><summary>Decision-loop log for this version</summary><div class="why" style="margin-top:6px">${esc(D.loop||"")}</div></details>`;
 renderAll();
 try{const y=sessionStorage.getItem("w1dash.y");if(y!=null){scrollTo(0,+y);sessionStorage.removeItem("w1dash.y")}}catch(e){}
-if(H.go&&M[H.go])setTimeout(()=>go(H.go),50);
+if(H.go&&M[H.go])go(H.go,true);
 if(H.t)openTask(H.t);else if(H.s){const i=TK.sessions.findIndex(s=>s.id===H.s);if(i>=0)openSess(i)}
 setInterval(()=>{if(!$("#panel").classList.contains("on")&&!document.body.classList.contains("custom")&&document.visibilityState==="visible"){try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload()}},HOSTED?300000:60000);
 }
