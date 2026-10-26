@@ -110,7 +110,8 @@ with tempfile.TemporaryDirectory() as tmp3:
     bindir = os.path.join(tmp3, "bin"); os.makedirs(bindir)
     issues = [{"number": 11, "title": "DECISION D-7: B", "body": "go with B", "author": {"login": "multisportusa-git"}},
               {"number": 12, "title": "DECISION D-8: A", "body": "", "author": {"login": "someone-else"}},
-              {"number": 13, "title": "DECISION D-8: Z", "body": "", "author": {"login": "multisportusa-git"}}]
+              {"number": 13, "title": "DECISION D-8: Z", "body": "", "author": {"login": "multisportusa-git"}},
+              {"number": 14, "title": "DECISION D-8: OTHER", "body": "Why not B? <!-- x -->", "author": {"login": "multisportusa-git"}}]
     open(os.path.join(bindir, "gh"), "w").write("#!/bin/sh\nif [ \"$1 $2\" = \"issue list\" ]; then cat '%s'; else echo \"$@\" >> '%s'; fi\n" % (os.path.join(tmp3, "issues.json"), os.path.join(tmp3, "gh.log")))
     os.chmod(os.path.join(bindir, "gh"), 0o755); json.dump(issues, open(os.path.join(tmp3, "issues.json"), "w"))
     r = subprocess.run([sys.executable, os.path.join(HERE, "decisions_sync.py"), "--notes", tmp3], capture_output=True, text=True,
@@ -119,8 +120,10 @@ with tempfile.TemporaryDirectory() as tmp3:
     check("owner's issue records the choice and its note", d7["status"] == "decided" and d7["decided"]["choice"] == "B" and d7["decided"]["note"] == "go with B", r.stdout + r.stderr)
     check("someone else's issue records nothing", d8["status"] == "open", d8.get("decided"))
     check("an option that does not exist records nothing", d8["status"] == "open")
+    d8b = json.load(open(os.path.join(tmp3, "w1/decisions/D-8.json")))
+    check("Other adds JB's text to the thread and keeps the decision open", d8b["status"] == "open" and d8b["thread"][-1]["text"] == "Why not B?" and d8b.get("question_pending") is True, d8b.get("thread"))
     ghlog = open(os.path.join(tmp3, "gh.log")).read()
-    check("every DECISION issue is answered and closed", all(("close %d" % n) in ghlog for n in (11, 12, 13)), ghlog)
+    check("every DECISION issue is answered and closed", all(("close %d" % n) in ghlog for n in (11, 12, 13, 14)), ghlog)
     check("each new open decision is notified once", "notified D-8" in open(os.path.join(tmp3, "w1/decisions/decisions.log")).read() and json.load(open(os.path.join(tmp3, "w1/decisions/D-8.json"))).get("notified"))
 
 # JB task reports: evidence written, task closed through lc_state.py with his words as the note

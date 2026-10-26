@@ -26,7 +26,7 @@ import shutil
 GH = shutil.which("gh") or next((p for p in ("/opt/homebrew/bin/gh", "/usr/local/bin/gh") if os.path.exists(p)), "gh")
 TOPIC_FILE = os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")
 PAGE = "https://%s.github.io/%s/" % (OWNER, REPO.split("/")[1])
-TITLE = re.compile(r"^\s*DECISION\s+(D-\d+)\s*:\s*([A-Z])\b", re.I)
+TITLE = re.compile(r"^\s*DECISION\s+(D-\d+)\s*:\s*(OTHER|[A-Z])\b", re.I)
 ACTION = re.compile(r"^\s*ACTION\s+(W1-\d{2}[A-Z]{0,2})\b\s*:?\s*(.*)$", re.I)
 LC = arg("--lc-repo", os.path.join(HOME, "Claude_London Commuter"))
 EV = os.path.join(NOTES, "w1", "evidence")
@@ -67,6 +67,8 @@ def sync_issues(decs):
         if did not in decs:
             gh("issue", "close", str(n), "-R", REPO, "-c", "Unknown decision %s; nothing recorded." % did); log("issue #%d: unknown %s" % (n, did)); continue
         p, d = decs[did]
+        if choice == "OTHER":
+            other(it, p, d); continue
         keys = [o.get("key", "").upper() for o in d.get("options", [])]
         if choice not in keys:
             gh("issue", "close", str(n), "-R", REPO, "-c", "%s has no option %s; nothing recorded." % (did, choice)); log("issue #%d: %s has no option %s" % (n, did, choice)); continue
@@ -78,6 +80,7 @@ def sync_issues(decs):
         if not DRY: save(p, d)
         gh("issue", "close", str(n), "-R", REPO, "-c", "Recorded: %s = %s. The coordinator acts on it at its next step." % (did, choice))
         log("DECIDED %s = %s by %s via issue #%d%s" % (did, choice, who, n, (" note: " + note[:200].replace("\n", " ")) if note else ""))
+        run_action(p, d, choice)
 
 def task_defs():
     out = subprocess.run(["git", "-C", LC, "show", "origin/main:docs/handover/v3/W1_TASKS.json"], capture_output=True, text=True).stdout
@@ -115,6 +118,49 @@ def action(it):
     msg = ("Recorded in %s and %s closed." % (os.path.basename(ev), tid)) if ok else ("Recorded in %s; %s not closed yet: %s" % (os.path.basename(ev), tid, ((r.stdout + r.stderr).strip()[-200:] if r else "dry run")))
     gh("issue", "close", str(n), "-R", REPO, "-c", msg)
     log("ACTION %s via issue #%d: %s" % (tid, n, msg))
+
+CLAUDE = next((x for x in (os.path.join(HOME, ".local/bin/claude"), "/opt/homebrew/bin/claude") if os.path.exists(x)), "claude")
+LANE_SETTINGS = os.path.join(NOTES, "w1", "evidence", "lane-settings-v2.json")
+
+def other(it, p, d):
+    """DECISION D-n: OTHER — JB asks a question or proposes something else. The text joins the decision's thread and a
+    background Claude session (Opus high: decision briefs are judgement work) answers on the card, revising the options
+    or recommendation if he asked for that. The decision stays open for his final answer."""
+    n = it["number"]; who = (it.get("author") or {}).get("login", "")
+    text = re.sub(r"(?s)<!--.*?-->", "", it.get("body") or "").strip()[:3000]
+    if not text:
+        gh("issue", "close", str(n), "-R", REPO, "-c", "Empty question; nothing recorded."); return
+    d.setdefault("thread", []).append({"from": "JB", "at": now(), "text": text, "via": "issue #%d" % n})
+    d["question_pending"] = True; d["status"] = "open"
+    if not DRY: save(p, d)
+    gh("issue", "close", str(n), "-R", REPO, "-c", "Question recorded on %s; the answer appears on the card." % d["id"])
+    log("QUESTION %s via issue #%d: %s" % (d["id"], n, text[:200].replace("\n", " ")))
+    if DRY or not os.path.exists(CLAUDE): return
+    prompt = ("You answer JB's question on decision %(id)s of the London Commuter project, in the background (JB is not in this chat; zero chat). "
+              "Read CLAUDE.md at the repo root and the decision file %(path)s (JSON). JB's newest message is the last item of \"thread\". "
+              "Check any fact against the repo, the notes folder (%(notes)s) or the task state before stating it. Then edit ONLY that file: "
+              "append {\"from\": \"Claude\", \"at\": \"<YYYY-MM-DDTHH:MM local>\", \"text\": \"<answer, plain English, at most 150 words>\"} to \"thread\"; "
+              "if JB asked for a change (different recommendation, a new or reworded option, other facts), make it in \"options\", \"recommend\" and \"because\" "
+              "and say what changed in your answer; set \"question_pending\" to false; keep \"status\" \"open\"; keep every other field; write valid JSON. "
+              "Change nothing else and run nothing that changes anything else.") % {"id": d["id"], "path": p, "notes": NOTES}
+    out = os.path.join(DDIR, "%s.answer.json" % d["id"])
+    cmd = [CLAUDE, "-p", prompt, "--model", "opus", "--effort", "high", "--permission-mode", "auto", "-n", "Q %s" % d["id"], "--output-format", "json"]
+    if os.path.exists(LANE_SETTINGS): cmd[1:1] = ["--settings", LANE_SETTINGS]
+    with open(out, "w") as f:
+        subprocess.Popen(cmd, cwd=LC if os.path.isdir(LC) else HOME, stdout=f, stderr=subprocess.STDOUT, start_new_session=True)
+    log("ANSWERING %s in the background (opus high)" % d["id"])
+
+def run_action(p, d, choice):
+    """A decision file may name what to do for each answer: "run": {"A": "<shell command>"}. Only the local file (written
+    by a session on this Mac) names commands; nothing from the issue is ever executed. Runs in the background from the
+    London Commuter checkout; output goes to <decisions>/<id>.run.log."""
+    cmd = (d.get("run") or {}).get(choice)
+    if not cmd or DRY: return
+    logf = os.path.join(DDIR, "%s.run.log" % d["id"])
+    f = open(logf, "a"); f.write("%s start %s: %s\n" % (now(), choice, cmd)); f.flush()
+    subprocess.Popen(["/bin/zsh", "-c", cmd], cwd=LC if os.path.isdir(LC) else HOME, stdout=f, stderr=f, start_new_session=True)
+    d["acted"] = "%s started the action for %s" % (now(), choice)
+    save(p, d); log("ACTED %s: started the action for %s" % (d["id"], choice))
 
 def topic():
     if os.path.exists(TOPIC_FILE): return open(TOPIC_FILE).read().strip()

@@ -13,7 +13,7 @@ cat > "$PL" <<PLIST
 <plist version="1.0"><dict>
 <key>Label</key><string>$LABEL</string>
 <key>ProgramArguments</key><array><string>/bin/zsh</string><string>$ROOT/mac/push.sh</string></array>
-<key>StartInterval</key><integer>600</integer>
+<key>StartInterval</key><integer>60</integer>
 <key>RunAtLoad</key><true/>
 <key>ProcessType</key><string>Background</string>
 <key>LowPriorityIO</key><true/>
@@ -23,4 +23,4 @@ PLIST
 plutil -lint "$PL" >/dev/null
 launchctl bootout gui/$(id -u)/$LABEL 2>/dev/null || true
 launchctl bootstrap gui/$(id -u) "$PL"
-echo "installed $LABEL (every 10 min); log: <notes>/w1/control-room/push.log"
+echo "installed $LABEL (every minute; full publish on change or every 10 min); log: <notes>/w1/control-room/push.log"

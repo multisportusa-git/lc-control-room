@@ -19,6 +19,12 @@ note goes in the issue body, which is public). `gen/decisions_sync.py` on the Ma
 the repo owner, writes `status: decided` and `decided: {choice, by, at, via, note}` into the file, comments, closes the
 issue, and appends a line to `<notes>/w1/decisions/decisions.log`.
 
+Other (every decision): JB can ask a question or propose a change instead of choosing. The page files
+`DECISION D-3: OTHER` with his text; the Mac adds it to the decision's `thread`, closes the issue, and starts a background
+Claude session (Opus high) that answers on the card and, if asked, revises `options` / `recommend` / `because`. The
+decision stays open. Actions: a decision file may name `"run": {"A": "<command>"}`; the Mac starts it when that answer is
+recorded (commands come only from the local file, never from an issue).
+
 Act (coordinator): read `decisions.log` (or the files with `status: decided` and no `acted`) at each step, carry the
 choice out, then add `"acted": "<time> <what was done>"` to the file. Withdraw a decision with `"status": "withdrawn"`.
 Never put secrets in a decision: the page data is encrypted, but notes JB adds are public issues.

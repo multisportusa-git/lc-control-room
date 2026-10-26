@@ -274,8 +274,11 @@ decisions = []
 for p in glob.glob(os.path.join(W1, "decisions", "D-*.json")):
     d = js(p)
     if not isinstance(d, dict) or not d.get("id"): continue
-    d = {k: d.get(k) for k in ("id", "created", "title", "situation", "why_now", "options", "recommend", "because", "tasks", "deadline", "status", "decided", "notified", "links")}
+    has_run = bool(d.get("run"))
+    d = {k: d.get(k) for k in ("id", "created", "title", "situation", "why_now", "options", "recommend", "because", "tasks", "deadline", "status", "decided", "notified", "links", "acted", "thread", "question_pending")}
+    d["has_run"] = has_run  # the commands themselves never leave the Mac
     for k in ("title", "situation", "why_now", "because"): d[k] = clean(d.get(k) or "", 4000)
+    d["thread"] = [{"from": m.get("from", ""), "at": m.get("at", ""), "text": clean(m.get("text", ""), 3000)} for m in (d.get("thread") or []) if isinstance(m, dict)]
     d["status"] = d.get("status") or "open"
     decisions.append(d)
 decisions.sort(key=lambda d: (d["status"] != "open", d.get("deadline") or "9", d["id"]))
