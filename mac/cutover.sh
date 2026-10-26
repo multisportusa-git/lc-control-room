@@ -9,7 +9,11 @@ N="$HOME/Library/Application Support/Claude/side-session-notes/local_eb83ac5f-26
 C="$N/cutover"; EV="$N/w1/evidence"; R="$HOME/Claude_London Commuter"
 CL=$(ls -t "$HOME"/.local/share/claude/versions/* | head -1)
 mkdir -p "$C"
-[[ ${1:-} == --go ]] && { mkdir "$C/.lock" 2>/dev/null || exit 0; trap 'rmdir "$C/.lock"' EXIT; }
+if [[ ${1:-} == --go ]]; then
+  [[ -d "$C/.lock" ]] && (( $(date +%s) - $(stat -f %m "$C/.lock") > 900 )) && rmdir "$C/.lock"
+  mkdir "$C/.lock" 2>/dev/null || exit 0
+  trap 'rmdir "$C/.lock" 2>/dev/null' EXIT INT TERM
+fi
 running() { pgrep -f "lc-cutover-lane" | wc -l | tr -d ' '; }
 for b in "$C"/*.md(N); do
   L=${b:t:r}; [[ $L == COORDINATOR ]] && continue
