@@ -82,7 +82,7 @@ with tempfile.TemporaryDirectory() as tmp:
     check("data health lists the sources", len(D["health"]) >= 6)
     check("secrets are redacted", "SHOULD_NOT_APPEAR" not in html and "SHOULD_NOT_APPEAR" not in js)
     check("evidence text cannot close the script tag", html.count("</script>") == 1, html.count("</script>"))
-    check("the page makes one request only, to the data branch", set(re.findall(r'https?://[^"\'`\s)]+', html)) <= {"https://raw.githubusercontent.com/multisportusa-git/lc-control-room/data/w1.enc"}, set(re.findall(r'https?://[^"\'`\s)]+', html)))
+    check("the page fetches only its data (and the QR library on demand)", set(re.findall(r'https?://[^"\'`\s)]+', html)) <= {"https://raw.githubusercontent.com/multisportusa-git/lc-control-room/data/w1.enc", "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"}, set(re.findall(r'https?://[^"\'`\s)]+', html)))
     check("JSON output equals the embedded data", json.loads(js) == D)
 
     # encryption round trip in the exact format the page decrypts

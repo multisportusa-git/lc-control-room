@@ -318,13 +318,13 @@ const R={};
 R.sit=()=>{const IC={red:["✕","var(--crit)"],now:["▶","var(--info)"],next:["→","var(--c1)"],you:["●","var(--amber)"],plan:["◷","var(--orange2)"]};
  return `<div class="sit">${D.sit.map(l=>`<div class="sl ${l.k==="red"?"red":""}"><div class="ic" style="background:${IC[l.k][1]}22;color:${IC[l.k][1]}" aria-hidden="true">${IC[l.k][0]}</div><div>${link(l.text)}</div></div>`).join("")}</div>`};
 R.kpi=()=>{const done=D.tasks.filter(t=>t.status==="done").length;const tdy=D.today_ids.map(i=>T[i]);const td=tdy.filter(t=>t.status==="done").length;
- const s0=(()=>{const d=new Date(D.gen_iso);d.setHours(0,0,0,0);return d/1000})();let tt=0;TK.buckets.forEach(b=>{if(b[1]>=s0)tt+=b[3]+b[4]+b[5]+b[6]});
+ const s0=(()=>{const d=new Date(D.gen_iso);d.setHours(0,0,0,0);return d/1000})();let tt=0,tx=0;TK.buckets.forEach(b=>{if(b[1]>=s0){tt+=b[3]+b[4]+b[5]+b[6];tx+=b[3]+b[4]+b[6]}});
  const q=D.usage.length?D.usage[D.usage.length-1]:null;const g=D.gates;
  const k=[["Week",ring(done,D.tasks.length,"var(--orange)"),`${done}<small> / ${D.tasks.length}</small>`,`projected end ${D.week_finish}`,"week"],
   ["Today",ring(td,tdy.length,"var(--info)"),`${td}<small> / ${tdy.length}</small>`,`projected finish ${D.day_finish}`,"board"],
   ["GO-build gate",ring(g["GO-build"].done,g["GO-build"].total,"var(--good)"),`${g["GO-build"].done}<small> / ${g["GO-build"].total}</small>`,`install + v2 tag ${g["GO-build"].eta}`,"path"],
   ["G1 gate",ring(g.G1.done,g.G1.total,"var(--c4)"),`${g.G1.done}<small> / ${g.G1.total}</small>`,`projected ${g.G1.eta}`,"week"],
-  ["Tokens today","",fmt(tt),`${TK.sessions.filter(s=>s.last>=genEpoch-900).length} sessions live now`,"tok"],
+  ["Tokens today","",fmt(tt),`${fmt(tx)} without cache reads · ${TK.sessions.filter(s=>s.last>=genEpoch-900).length} live now`,"tok"],
   ["Weekly quota","",q?`${q.week}<small>%</small>`:"–",q?`read ${q.at.slice(5,16).replace("T"," ")} · forecast ${QF.text}`:"no reading (W1-05)","quota"]];
  return `<div class="grid k6">${k.map(([l,r,v,f,go])=>`<div class="tile click" data-go="${go}" role="button" tabindex="0"><div class="lab">${l}</div><div class="ringrow" style="margin-top:6px">${r}<div class="val" style="margin:0">${v}</div></div><div class="foot">${f}</div></div>`).join("")}</div>`};
 R.chg=()=>{const since=seen?new Date(seen.at).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}):"now";
@@ -463,7 +463,7 @@ function renderAll(){$("#mods").innerHTML=L.order.map(shell).join("");renderNav(
 function rerender(k){const el=$("#b-"+k);if(el&&!L.col[k])el.innerHTML=R[k]()}
 function renderNav(){const custom=document.body.classList.contains("custom");
  $("#nav").innerHTML=L.order.filter(k=>!L.hide[k]||custom).map(k=>`<a data-go="${k}" style="${L.hide[k]?"opacity:.4":""}">${M[k].nav}${k==="iss"&&nRed?`<span class="badge">${nRed}</span>`:k==="chg"&&changes.length?`<span class="badge" style="background:var(--c4)">${changes.length}</span>`:""}</a>`).join("")+
- `<span class="sp"></span><button class="tbtn ${custom?"on":""}" id="custom">${custom?"Done":"Customise"}</button>${custom?`<button class="tbtn" id="reset">Reset layout</button>`:""}${custom&&Object.values(L.hide).some(Boolean)?`<button class="tbtn" id="unhide">Show hidden</button>`:""}`}
+ `<span class="sp"></span>${HOSTED?`<button class="tbtn" id="phone" title="Show a QR code that opens this page on your phone, already unlocked">Phone link</button>`:""}<button class="tbtn ${custom?"on":""}" id="custom">${custom?"Done":"Customise"}</button>${custom?`<button class="tbtn" id="reset">Reset layout</button>`:""}${custom&&Object.values(L.hide).some(Boolean)?`<button class="tbtn" id="unhide">Show hidden</button>`:""}`}
 
 /* ---------- drill-downs ---------- */
 function openTask(id){const t=T[id];if(!t)return;setH("s",null);setH("t",id);
@@ -504,6 +504,11 @@ function openSess(i){const s=TK.sessions[i];if(!s)return;setH("t",null);setH("s"
  <h5>Context per request</h5>${chart||`<div class="empty">Request detail is kept for sessions active in the last 7 days.</div>`}`;
  openPanel()}
 let lastFocus=null;
+function showQR(){let k="";try{k=localStorage.getItem("w1dash.k")||""}catch(x){}
+ const url=location.origin+location.pathname+"#k="+encodeURIComponent(k);
+ $("#panel").innerHTML=`<button class="x" aria-label="Close">×</button><h3>Open on your phone</h3><div class="meta">Point the phone camera at the code. The page opens already unlocked and remembers the passphrase on that phone.</div><div id="qr" style="background:#fff;border-radius:16px;padding:18px;width:max-content;margin:16px auto"></div><div class="callout amber">Anyone who scans this code can read the dashboard. Close this panel when you are done.</div><h5>On this device</h5><button class="tbtn" id="forget">Forget the passphrase here</button>`;openPanel();
+ const draw=()=>{const q=qrcode(0,"M");q.addData(url);q.make();$("#qr").innerHTML=q.createSvgTag({cellSize:6,margin:0,scalable:false})};
+ if(window.qrcode)return draw();const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";sc.onload=draw;sc.onerror=()=>{$("#qr").outerHTML=`<div class="why">Could not load the QR code generator. On the phone, open this page and type the passphrase once.</div>`};document.head.appendChild(sc)}
 function openPanel(){lastFocus=document.activeElement;$("#panel").classList.add("on");$("#scrim").classList.add("on");$("#panel").scrollTop=0;$("#panel .x").focus()}
 function closePanel(){$("#panel").classList.remove("on");$("#scrim").classList.remove("on");setH("t",null);setH("s",null);if(lastFocus)lastFocus.focus()}
 
@@ -519,6 +524,8 @@ document.addEventListener("click",e=>{
   if(a==="col")L.col[k]=!L.col[k];
   if(a==="hide")L.hide[k]=true;
   saveL();renderAll();const el=$("#m-"+k);if(el&&(a==="up"||a==="down")){el.scrollIntoView({block:"nearest"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),700)}return}
+ if(e.target.id==="phone"){showQR();return}
+ if(e.target.id==="forget"){try{localStorage.removeItem("w1dash.k")}catch(x){}location.reload();return}
  if(e.target.id==="custom"){document.body.classList.toggle("custom");renderNav();return}
  if(e.target.id==="reset"){L={order:DEFAULT_ORDER.slice(),col:{},wide:{},hide:{},f:{}};saveL();renderAll();return}
  if(e.target.id==="unhide"){L.hide={};saveL();renderAll();return}

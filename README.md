@@ -4,7 +4,7 @@ Live view of the v3 Week 1 plan: what is done, running and next, an ETA and gree
 and next action) for every task, the critical paths, token use per session and task, and the quota forecast.
 
 **Page:** https://multisportusa-git.github.io/lc-control-room/ (the data is encrypted; the page asks for the
-passphrase once per browser, or takes it from a `#k=` link and removes it from the address bar).
+passphrase once per browser, or takes it from a `#k=` link and removes it from the address bar). On a phone: open the page on the Mac, press "Phone link" and scan the QR code.
 
 ## How it works (no model tokens to view or refresh)
 - `mac/push.sh` runs on JB's Mac every 10 minutes (launchd, `mac/install.sh`). It pulls this repo, runs
