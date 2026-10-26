@@ -27,6 +27,8 @@ header{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;justify-cont
 .sub{color:var(--text2);font-size:13px;margin-top:5px}
 .hright{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .status{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px}
+.sbtns{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}.sbtn{border:2px solid transparent;cursor:pointer;font-family:inherit;font-size:15px;font-weight:800;padding:10px 18px;letter-spacing:.2px;box-shadow:0 4px 14px rgba(0,0,0,.45);transition:transform .12s,filter .12s}.sbtn.r-red{background:#E5484D;color:#fff;border-color:#ff8f8f;box-shadow:0 0 0 3px rgba(229,72,77,.28),0 4px 14px rgba(0,0,0,.45)}.sbtn.r-amber{background:#F5A524;color:#1a1200;border-color:#ffd27a;box-shadow:0 0 0 3px rgba(245,165,36,.25),0 4px 14px rgba(0,0,0,.45)}.sbtn:hover{filter:brightness(1.12);transform:translateY(-1px)}.sbtn::after{content:"›";font-size:18px;line-height:0;margin-left:2px}.sbtn:focus-visible{outline:2px solid var(--orange2);outline-offset:2px}
+.it.flash{box-shadow:0 0 0 2px var(--orange2)}
 .stamp{color:var(--muted);font-size:12px;text-align:right}
 nav{position:sticky;top:0;z-index:20;background:rgba(10,10,12,.78);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line);margin:0 -16px 16px;padding:10px 16px;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
@@ -345,7 +347,8 @@ if(!seen)markSeen();
 /* ---------- header ---------- */
 $("#week").textContent=D.week;
 const trust=pageAge>STALE_MIN?["red",HOSTED?`Data is ${pageAge} min old: the Mac has not pushed (asleep, offline or the job stopped)`:`Page is ${pageAge} min old: the updater may have stopped`]:staleSrc.length?["amber",`${staleSrc.length} data source${staleSrc.length>1?"s":""} stale`]:["green","All sources fresh"];
-$("#status").innerHTML=`<span class="status r-${D.overall}">${RAG[D.overall][0]} ${D.overall==="red"?nRed+" problem"+(nRed>1?"s":""):D.overall==="amber"?nAmb+" need attention":"All on track"}${D.overall==="red"&&nAmb?" · "+nAmb+" attention":""}</span>`;
+{const sb=(rag,n,lab)=>`<button class="status sbtn r-${rag}" data-jump="${rag}" title="Go to ${lab} in Problems and attention">${RAG[rag][0]} ${n} ${lab}</button>`;
+ $("#status").innerHTML=(nRed||nAmb)?`<div class="sbtns">${nRed?sb("red",nRed,"problem"+(nRed>1?"s":"")):""}${nAmb?sb("amber",nAmb,"attention"):""}</div>`:`<span class="status r-green">${RAG.green[0]} All on track</span>`}
 $("#stamp").innerHTML=`Data ${esc(D.gen)} · <a href="#" data-go="health" style="color:${RCOL[trust[0]]}">${RAG[trust[0]][0]} ${esc(trust[1])}</a><br>${HOSTED?"Answers picked up within a minute · data at least every 10 min":"Rebuilt every minute"}`;
 
 /* ---------- module registry ---------- */
@@ -701,6 +704,13 @@ function closePanel(){$("#panel").classList.remove("on");$("#scrim").classList.r
 
 /* ---------- events ---------- */
 function go(k,instant){if(L.hide[k]){L.hide[k]=false;saveL();renderAll()}if(L.col[k]){L.col[k]=false;saveL();const el=$("#m-"+k);el.classList.remove("col");rerender(k)}const el=$("#m-"+k);if(!el)return;el.scrollIntoView({behavior:instant?"auto":"smooth",block:"start"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),1200)}
+/* header alert buttons: open Problems and attention at the first row of that colour (JB 26 Oct 14:46) */
+function jumpIss(rag){if(!showP(M.iss.prog)){L.f.prog="all";saveL();renderAll()}
+ if(rag==="amber"&&!L.f.issall&&nAmb>4){L.f.issall=true;saveL();rerender("iss")}
+ go("iss",true);
+ const rows=[...document.querySelectorAll("#m-iss .it."+rag)];if(!rows.length)return;
+ rows[0].scrollIntoView({behavior:"smooth",block:"center"});rows.forEach(r=>r.classList.add("flash"));setTimeout(()=>rows.forEach(r=>r.classList.remove("flash")),1600);
+ if(rows.length===1)rows[0].focus({preventScroll:true})}
 document.addEventListener("click",e=>{
  if(e.target.closest(".x")||e.target===$("#scrim"))return closePanel();
  const c=e.target.closest(".ctl button");if(c){const k=c.closest(".mod").dataset.k,a=c.dataset.a,i=L.order.indexOf(k);
@@ -738,6 +748,7 @@ document.addEventListener("click",e=>{
  if(sg){const f=sg.parentElement.dataset.f;if(f==="hidedone")L.f.hidedone=!L.f.hidedone;else L.f[f]=sg.dataset.v;saveL();rerender(sg.closest(".mod").dataset.k);return}
  const th=e.target.closest("th.sort");if(th){L.f.sort=th.dataset.sort;saveL();rerender("tok");return}
  const vv=e.target.closest("[data-v2v]");if(vv){L.f.v2v=vv.dataset.v2v;saveL();rerender("v2")}
+ const jb=e.target.closest("[data-jump]");if(jb){e.preventDefault();return jumpIss(jb.dataset.jump)}
  const g=e.target.closest("[data-go]");if(g){e.preventDefault();return go(g.dataset.go)}
  const kk=e.target.closest("[data-kind]");if(kk){L.f.kind=kk.dataset.kind;saveL();rerender("tok");return}
  const a=e.target.closest("[data-t]");if(a){e.preventDefault();return openTask(a.dataset.t)}
