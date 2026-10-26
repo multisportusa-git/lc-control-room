@@ -16,14 +16,19 @@ LOCK="$STATE/run.lock"; mkdir "$LOCK" 2>/dev/null || { [[ $(( $(date +%s) - $(st
 trap 'rm -rf "$LOCK"' EXIT
 [[ -s $KEY ]] || { echo "no passphrase file at $KEY: run mac/install.sh"; exit 1; }
 STAMP="$STATE/last_push"; DLOG="$NOTES/w1/decisions/decisions.log"
-fp() { stat -f %m "$NOTES/w1/state.json" "$DLOG" "$NOTES/w1/decisions" "$NOTES/w1/evidence" "$NOTES/testq/results" 2>/dev/null | tr '\n' ' '; }
+fp() { stat -f %m "$NOTES/w1/state.json" "$DLOG" "$NOTES/w1/decisions" "$NOTES/w1/evidence" "$NOTES/testq/results" "$NOTES/w1/chat" 2>/dev/null | tr '\n' ' '; }
 T="$HOME/.config/lc-control-room/ntfy_topic"
 [[ -s $T ]] || { echo "lc-$(/usr/bin/openssl rand -hex 12)" > "$T"; chmod 600 "$T"; }
 "$PY" "$ROOT/gen/decisions_sync.py" || echo "decisions sync failed"
+[[ -f "$ROOT/gen/chat_sync.py" ]] && { "$PY" "$ROOT/gen/chat_sync.py" || echo "chat sync failed"; }
 age=$(( $(date +%s) - $( [[ -f $STAMP ]] && stat -f %m "$STAMP" || echo 0 ) ))
 [[ "$(fp)" == "$(cat "$STATE/last_fp" 2>/dev/null)" && $age -lt 570 ]] && exit 0
 echo "$(date '+%F %T') build (last publish ${age}s ago)"
 git -C "$ROOT" pull -q --ff-only origin main || echo "code pull failed; kept the current code"
+# session fuel: the guard's per-session state, adaptive compaction points and the newest events (gen embeds a fuel block)
+FU="$STATE/fuel"; rm -rf "$FU.tmp"; mkdir -p "$FU.tmp/state"
+find "$HOME/.config/lc-fuel/state" -name '*.json' -mmin -1440 -exec cp {} "$FU.tmp/state/" \; 2>/dev/null; cp "$HOME/.config/lc-fuel/compact_points.json" "$FU.tmp/" 2>/dev/null
+tail -n 200 "$NOTES/w1/fuel/events.jsonl" > "$FU.tmp/events.jsonl" 2>/dev/null; rm -rf "$FU"; mv "$FU.tmp" "$FU"
 nice -n 15 "$PY" "$ROOT/gen/w1_dashboard.py" --json "$STATE/w1.json" --out "$NOTES/w1/W1_DASHBOARD.html" || { echo "build failed"; exit 1; }
 gzip -9nc "$STATE/w1.json" | /usr/bin/openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -md sha256 -salt -pass file:"$KEY" -base64 -A > "$STATE/w1.enc.tmp" \
   && [[ -s "$STATE/w1.enc.tmp" ]] && mv "$STATE/w1.enc.tmp" "$STATE/pub/w1.enc" || { echo "encrypt failed"; exit 1; }

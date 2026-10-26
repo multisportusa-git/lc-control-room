@@ -303,7 +303,9 @@ def parse_roadmap(path):
         items = [{"state": "done" if cls == "done" else "now", "text": clean(_txt(t), 400)} for cls, t in re.findall(r'<span class="(done|now)">(.*?)</span>', what, re.S)]
         has_now = 'class="now"' in what; all_done = items and all(i["state"] == "done" for i in items) and not _txt(re.sub(r'(?s)<span class="done">.*?</span>', "", what))
         st = "done" if all_done else "now" if has_now else "todo"
-        steps.append({"id": sid, "title": clean(_txt(title), 120), "state": st, "what": clean(_txt(what), 900), "items": items[-6:],
+        m_e = re.search(r'data-eta="(\d{4}-\d\d-\d\dT\d\d:\d\d)', dur)
+        steps.append({"id": sid, "title": clean(_txt(title), 120), "state": st, "what": clean(_txt(what), 900), "items": items[-6:], "eta": m_e.group(1) if m_e else "",
+                      "n_now": len([1 for i in items if i["state"] == "now"]) + (1 if st == "now" and not items else 0),
                       "start": clean(_txt(start), 60), "dur": clean(_txt(re.sub(r"(?s)<time.*?</time>", "", dur)), 120)})
     # the step the SITREP names as current wins
     m = re.search(r"Current step:\s*<b>([A-Z])</b>", h)
@@ -311,7 +313,7 @@ def parse_roadmap(path):
     for x in steps:
         if x["id"] == out["current"] and x["state"] == "todo": x["state"] = "now"
     out["steps"] = steps
-    out["live"] = [{"at": a_, "text": clean(_txt(t), 300)} for a_, t in re.findall(r'<li data-ts="[^"]*"><b>(.*?)</b>(.*?)</li>', h, re.S)][:8]
+    out["live"] = [{"at": a_, "ts": t0, "text": clean(_txt(t), 300)} for t0, a_, t in re.findall(r'<li data-ts="([^"]*)"><b>(.*?)</b>(.*?)</li>', h, re.S)][:40]
     return out
 v2 = parse_roadmap(os.path.join(NOTES, "ROADMAP_TO_BETA.html"))
 
@@ -345,6 +347,144 @@ for s_ in tok.get("sessions", []):
 m_ = re.search(r"✱\s*(K\d{1,3})", (v2 or {}).get("owner", ""))
 if m_: facts["coordinator"] = m_.group(1)  # the roadmap's Owner line is newer than COORDINATOR.json
 if v2: v2["sitrep"] = re.sub(r"\s*Current step:\s*[A-Z]\s*\([^)]*\)\.?", "", v2["sitrep"]).strip()
+
+# ---------- session fuel: context per active session vs the rule-2 thresholds (mac/fuel_guard.py state, copied by push.sh) ----------
+FUEL_IN = arg("--fuel", os.path.join(W1, "control-room", "fuel"))
+NOW_TS = NOW.timestamp() if "--now" in A else time.time()
+# same table as mac/fuel_guard.py: lean Sonnet lanes, Haiku lanes, desktop/non-lean sessions, the coordinator
+FUEL_TH = {"coordinator": (250000, 275000, 300000), "lean": (175000, 200000, 225000), "haiku": (80000, 90000, 95000), "desktop": (225000, 250000, 275000)}
+FROLE = {"coordinator": "coordinator", "lean": "lean lane", "haiku": "Haiku lane", "desktop": "desktop session"}
+FWORDS = ["fine", "start hand-over", "hand-over due", "STOP"]
+cps = js(os.path.join(FUEL_IN, "compact_points.json"), {}) or {}
+def fuel_role(role, model):
+    if role in FUEL_TH: return role
+    return "haiku" if "haiku" in (model or "") else "desktop"   # older state files said "lane"
+def fuel_th(role, model):
+    base = FUEL_TH[fuel_role(role, model)]
+    low = cps.get(model) if isinstance(cps, dict) else None
+    if isinstance(low, (int, float)) and low > 0: base = tuple(min(b, int(low * k)) for b, k in zip(base, (0.80, 0.88, 0.94)))
+    return list(base)
+TKS = {s_.get("sid"): s_ for s_ in tok.get("sessions", [])}
+fevents = []
+for ln in rd(os.path.join(FUEL_IN, "events.jsonl")).splitlines()[-200:]:
+    try: e_ = json.loads(ln)
+    except ValueError: continue
+    if isinstance(e_, dict) and e_.get("sid"): fevents.append(e_)
+def fuel_row(sid, ctx, role, model, at, cwd, src):
+    t_ = TKS.get(sid) or {}
+    role = fuel_role(role, model)
+    th = fuel_th(role, model)
+    band = 3 if ctx >= th[2] else 2 if ctx >= th[1] else 1 if ctx >= th[0] else 0
+    title = (t_.get("title") or "").split(" | ")[0] or os.path.basename(cwd or "") or sid[:8]
+    prog = t_.get("prog") or ("V3" if V3_WORDS.search(title) else "V2" if "London Commuter" in (cwd or "") or "side-session-notes" in (cwd or "") else "Other")
+    comp = [{"at": e_.get("at"), "ctx": e_.get("ctx"), "model": e_.get("model", "")} for e_ in fevents if e_.get("sid") == sid and (e_.get("band") == -1 or e_.get("note") == "compacted")][-3:]
+    return {"sid": sid, "id": sid[:8], "title": clean(title, 120), "role": role, "role_txt": FROLE[role], "prog": prog, "model": model or "", "ctx": int(ctx or 0), "th": th,
+            "band": band, "words": FWORDS[band], "at": at, "age_min": max(0, int((NOW_TS - (at or 0)) / 60)), "src": src, "compactions": comp}
+fuel_rows = {}
+for p_ in glob.glob(os.path.join(FUEL_IN, "state", "*.json")):
+    st_ = js(p_, {}) or {}
+    sid = os.path.basename(p_)[:-5]
+    if not isinstance(st_, dict) or not isinstance(st_.get("at"), (int, float)) or NOW_TS - st_["at"] > 1800: continue
+    role = "coordinator" if (st_.get("role") == "coordinator" or sid == coord.get("cli_uuid")) else str(st_.get("role") or "lane")
+    fuel_rows[sid] = fuel_row(sid, st_.get("ctx") or 0, role, st_.get("model") or "", int(st_["at"]), st_.get("cwd") or "", "hook")
+for s_ in tok.get("sessions", []):
+    sid = s_.get("sid") or ""
+    if not sid or sid in fuel_rows or not isinstance(s_.get("last"), (int, float)) or NOW_TS - s_["last"] > 1800: continue
+    role = "coordinator" if (sid == coord.get("cli_uuid") or s_.get("kind") == "coordinator") else "desktop"
+    fuel_rows[sid] = fuel_row(sid, s_.get("last_ctx") or 0, role, (s_.get("models") or [""])[-1], int(s_["last"]), "", "index")
+fuel = {"sessions": sorted(fuel_rows.values(), key=lambda r: (-r["band"], r["role"] != "coordinator", -r["ctx"])),
+        "events": [{"at": e_.get("at"), "id": str(e_.get("sid", ""))[:8], "title": clean(((TKS.get(e_.get("sid")) or {}).get("title") or e_.get("cwd") or "").split(" | ")[0], 80),
+                    "ctx": e_.get("ctx"), "band": e_.get("band"), "note": clean(str(e_.get("note", "")), 40), "model": e_.get("model", "")} for e_ in fevents[-12:]][::-1],
+        "compact_points": cps if isinstance(cps, dict) else {}}
+
+# ---------- chat threads (gen/chat_sync.py writes them; replies come from short read-only headless runs) ----------
+CHAT_DIR = os.path.join(W1, "chat")
+threads = {}
+for p_ in glob.glob(os.path.join(CHAT_DIR, "*.json")):
+    t_ = os.path.basename(p_)[:-5]
+    if not re.match(r"^(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$", t_): continue
+    d_ = js(p_, {}) or {}
+    threads[t_] = [{"id": str(m.get("id", ""))[:40], "re": str(m.get("re", ""))[:40], "from": "JB" if m.get("from") == "JB" else "Claude", "at": str(m.get("at", ""))[:19],
+                    "text": clean(str(m.get("text", "")), 6000), "depth": m.get("depth", ""), "model": str(m.get("model", ""))[:60], "pending": bool(m.get("pending")),
+                    "error": bool(m.get("error")), "start": m.get("start_tokens") if isinstance(m.get("start_tokens"), int) else None} for m in (d_.get("msgs") or [])[-40:] if isinstance(m, dict)]
+lanes_ = {}
+for p_ in glob.glob(os.path.join(NOTES, "*-status.md")) + glob.glob(os.path.join(NOTES, "status", "*.md")):
+    m = re.match(r"^([A-Z][A-Za-z0-9]{0,5}(?:-[A-Z][A-Za-z0-9]{0,4})?)-", os.path.basename(p_))
+    if not m or m.group(1).startswith("JB") or re.match(r"^K\d+$", m.group(1)): continue
+    a_ = os.path.getmtime(p_)
+    if NOW_TS - a_ < 12 * 3600: lanes_[m.group(1)] = max(lanes_.get(m.group(1), 0), a_)
+chat = {"threads": threads, "lanes": [{"id": k, "age_min": max(0, int((NOW_TS - v) / 60))} for k, v in sorted(lanes_.items(), key=lambda kv: -kv[1])][:16], "limit": 20}
+
+# ---------- V2 mirror KPIs: the same tiles as V3, read from ROADMAP_TO_BETA.html, V2 status files, PRs, the queue, tokens ----------
+def _eta(x):
+    try: return dt.datetime.strptime(x, "%Y-%m-%dT%H:%M")
+    except (TypeError, ValueError): return None
+def _when(d): return d.strftime("%a %H:%M") if d else ""
+def _proj(d): return ("overdue (planned %s)" % _when(d)) if d and d < NOW else _when(d)   # never show a past time as a projection
+def v2_kpis(V):
+    if not V: return None
+    S = V.get("steps") or []
+    for x in S:
+        if x["state"] == "now" and not x.get("n_now"): x["n_now"] = 1
+        e = _eta(x.get("eta"))
+        if x["state"] == "done": x["rag"], x["why"] = "green", "Done."
+        elif x["state"] == "now" and not e: x["rag"], x["why"] = "amber", "In progress, but the roadmap gives no finish time for it."
+        elif x["state"] == "now" and e < NOW: x["rag"], x["why"] = "red", "Running past its planned finish (%s) by %s." % (_when(e), _dur(NOW - e))
+        elif x["state"] == "now": x["rag"], x["why"] = "green", "In progress; planned to finish %s." % _when(e)
+        else: x["rag"], x["why"] = "grey", "Not started; follows the current step."
+        x["eta_txt"] = _when(e) if e else ""
+    open_ = [x for x in S if x["state"] != "done"]
+    def gate(prefix):
+        G = [x for x in S if x["title"].startswith(prefix)]
+        if not G: return {"done": 0, "total": 0, "eta": "", "why": "no estimate: no %s steps in the roadmap table" % prefix, "rag": "grey", "steps": []}
+        op = [x for x in G if x["state"] != "done"]
+        es = [_eta(x["eta"]) for x in op]
+        if not op: eta, why, rag = "done", "All %d %s steps are done." % (len(G), prefix), "green"
+        elif all(es): eta, why = _proj(max(es)), "Latest planned finish of the open %s steps (%s)." % (prefix, ", ".join(x["id"] for x in op))
+        else: eta, why = "", "no estimate: step %s has no finish time in the roadmap" % ", ".join(x["id"] for x, e in zip(op, es) if not e)
+        if op: rag = "red" if any(x.get("rag") == "red" for x in op) else "amber" if not all(es) else "green"
+        return {"done": len(G) - len(op), "total": len(G), "eta": eta, "why": why, "rag": rag, "steps": [x["id"] for x in G]}
+    gates_ = {g: gate(g) for g in ("L0", "L1", "L2")}
+    es = [_eta(x["eta"]) for x in open_]
+    if not open_: end, end_why = "done", "Every step is done."
+    elif all(es): end, end_why = _proj(max(es)), "Latest planned finish among the open steps (%s)." % ", ".join(x["id"] for x in open_)
+    else: end, end_why = "", "no estimate: step %s has no finish time in the roadmap" % ", ".join(x["id"] for x, e in zip(open_, es) if not e)
+    plan_rag = "red" if any(x["rag"] == "red" for x in open_) else "amber" if not end else "green"
+    live_today = [l for l in V.get("live") or [] if str(l.get("ts", "")).startswith(TODAY)]
+    n_open = sum(x.get("n_now", 0) for x in open_ if x["state"] == "now")
+    cur = next((x for x in S if x["id"] == V.get("current")), None)
+    ce = _eta(cur["eta"]) if cur else None
+    today = {"done": len(live_today), "total": len(live_today) + n_open, "eta": _proj(ce) if ce else "",
+             "why": ("Done = the coordinator's live updates dated today; open = items still marked 'now' in the current step(s). Finish = the current step's planned finish."
+                     if ce else "no estimate: the current step %s has no finish time in the roadmap" % (V.get("current") or "?")),
+             "rag": cur["rag"] if cur else "grey"}
+    sess = [s_ for s_ in tok.get("sessions", []) if s_.get("prog") == "V2"]
+    idx = {i for i, s_ in enumerate(tok.get("sessions", [])) if s_.get("prog") == "V2"}
+    d0 = dt.datetime.combine(NOW.date(), dt.time()).timestamp()
+    tt = sum(b[3] + b[4] + b[5] + b[6] for b in tok.get("buckets", []) if b[0] in idx and b[1] >= d0)
+    live_n = sum(1 for s_ in sess if isinstance(s_.get("last"), (int, float)) and NOW_TS - s_["last"] < 900)
+    prs_ = [p for p in facts.get("open_prs", []) if p.get("prog") == "V2"]
+    trains = [j for j in queue if str(j.get("branch", "")).startswith("train/")]
+    tr = trains[0] if trains else None
+    train = {"text": ("%s %s at %s" % (tr["branch"], tr["overall"], tr["at"])) if tr else "no train result in the last ten queue results",
+             "rag": ("red" if tr and tr["overall"] == "FAIL" else "green") if tr else "grey"}
+    need_txt = V.get("need") or ""
+    need_items = [x for x in re.split(r";\s+|\.\s+(?=[A-Z])", need_txt) if x.strip() and not re.match(r"(?i)^(none|nothing)\b", x.strip())]
+    stale = V.get("age") is not None and V["age"] > 180
+    return {"plan": {"done": len(S) - len(open_), "total": len(S), "eta": end, "why": end_why, "rag": plan_rag},
+            "today": today, "gates": gates_,
+            "tokens": {"today": tt, "live": live_n, "sessions": len(sess), "rag": "amber" if live_n > 3 else "green",
+                       "why": "Tokens today across sessions classed V2 (London Commuter project, not V3 work). Amber when more than 3 V2 sessions are live."},
+            "prs": {"open": len(prs_), "list": prs_[:8], "train": train, "rag": "red" if train["rag"] == "red" else "amber" if len(prs_) > 6 else "green",
+                    "why": "Open V2 pull requests and the newest merge-train result in the test queue. Red when the newest train failed; amber with more than 6 open PRs."},
+            "need": {"n": len(need_items), "items": [clean(x, 300) for x in need_items][:8], "rag": "amber" if need_items else "green",
+                     "why": "Items in the roadmap's NEED line (what only JB can do). Amber while any are open."},
+            "stale": stale, "stale_why": "The roadmap file is %s min old: the V2 coordinator has not updated it for over 3 hours." % V.get("age") if stale else "",
+            "live_today": live_today[:20]}
+def _dur(d):
+    m = int(d.total_seconds() // 60)
+    return "%d min" % m if m < 90 else "%d h" % round(m / 60) if m < 2880 else "%d days" % round(m / 1440)
+v2k = v2_kpis(v2)
 
 # ---------- data health: every source, its age and whether to trust it ----------
 def age_min(p):
@@ -419,7 +559,7 @@ today_ids = [t["id"] for t in tasks if t["day"] == TODAY or (t["day"] < TODAY an
 reds = [t for t in tasks if t["rag"] == "red"]; ambers = [t for t in tasks if t["rag"] == "amber"]
 overall = "red" if reds else "amber" if ambers else "green"
 data = {"gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
-        "decisions": decisions, "ntfy": ntfy, "v2": v2, "jb": jb, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
+        "decisions": decisions, "ntfy": ntfy, "fuel": fuel, "chat": chat, "v2": v2, "v2k": v2k, "jb": jb, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
         "loop": rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LOOP_LOG.md"), 6000),
         "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
         "day_finish": max((fin[i] for i in today_ids if status(i) != "done"), default=NOW).strftime("%a %H:%M"),

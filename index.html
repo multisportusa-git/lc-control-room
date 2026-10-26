@@ -73,7 +73,7 @@ nav a.nV3{border-bottom:2px solid var(--v3)}nav a.nV2{border-bottom:2px solid va
 @media (prefers-reduced-motion:reduce){.mb,.panel{transition:none!important}}
 /* generic */
 .grid{display:grid;gap:12px}
-.k6{grid-template-columns:repeat(auto-fit,minmax(168px,1fr))}
+.k6{grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))}
 .tile{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:var(--r2);padding:14px;position:relative;overflow:hidden}
 .tile .lab{color:var(--text2);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
 .tile .val{font:800 30px/1.1 -apple-system,"SF Pro Display",system-ui,sans-serif;letter-spacing:-.025em;margin-top:6px}
@@ -203,6 +203,61 @@ footer details{margin-top:8px}footer summary{cursor:pointer;color:var(--text2)}
   .wm{font-size:22px}.tile .val{font-size:24px}.mini{grid-template-columns:repeat(2,1fr)}
   .hright{align-items:flex-start}.stamp{text-align:left}
 }
+/* ---------- session fuel ---------- */
+.fuel{display:grid;gap:8px}
+.frow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr) auto;gap:6px 14px;align-items:center;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid var(--line)}
+.frow .nm{font-weight:650;min-width:0}.frow .sub{margin:2px 0 0;font-size:11.5px;color:var(--muted)}
+.gauge{position:relative;height:10px;border-radius:6px;background:rgba(255,255,255,.07);overflow:visible}
+.gauge .fill{position:absolute;inset:0 auto 0 0;border-radius:6px}
+.gauge .tk{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:1px;background:rgba(255,255,255,.35)}
+.gauge .tk.t2{background:var(--warn)}.gauge .tk.t3{background:var(--crit)}
+.glab{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+@media (max-width:640px){.frow{grid-template-columns:1fr auto}.frow .gw{grid-column:1/-1;order:3}}
+/* ---------- KPI rows ---------- */
+.krow{display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em}
+.krow+.grid{margin-bottom:16px}
+.tile .rag{position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%}
+.tile.v2t{box-shadow:inset 0 2px 0 var(--v2)}.tile.v3t{box-shadow:inset 0 2px 0 var(--v3)}
+.tile .foot.noest{color:var(--warn)}
+/* ---------- chat ---------- */
+.fab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:35;width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;display:grid;place-items:center;color:#fff;
+ background:linear-gradient(135deg,#FF6A00,#ff9a4d);box-shadow:0 14px 30px -8px rgba(255,106,0,.6),0 0 0 1px rgba(255,255,255,.12) inset;transition:transform .18s}
+.fab:hover{transform:translateY(-2px)}.fab .dotp{position:absolute;top:6px;right:6px;width:12px;height:12px;border-radius:50%;background:var(--v2);border:2px solid #0A0A0C;animation:pulse 1.4s infinite}
+body.chaton .fab{display:none}
+@keyframes pulse{50%{opacity:.35}}
+.chat{position:fixed;top:0;right:0;height:100%;height:100dvh;width:min(440px,100%);z-index:55;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);
+ background:linear-gradient(180deg,rgba(19,30,52,.97),rgba(11,18,33,.98));-webkit-backdrop-filter:saturate(1.6) blur(24px);backdrop-filter:saturate(1.6) blur(24px);border-left:1px solid #2b3a57;box-shadow:-30px 0 60px -30px rgba(0,0,0,.7)}
+.chat.on{transform:none}
+@media (prefers-reduced-motion:reduce){.chat{transition:none}}
+@media (max-width:640px){.chat{width:100%;border-left:0;border-radius:0}}
+.chh{display:flex;align-items:center;gap:10px;padding:max(14px,env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
+.chh .ttl{font:700 17px/1.2 -apple-system,"SF Pro Display",system-ui,sans-serif;letter-spacing:-.01em;flex:1}
+.chh .x{width:32px;height:32px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:var(--text2);cursor:pointer;display:grid;place-items:center}
+.cht{display:flex;gap:6px;padding:10px 16px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.cht button,.cht select{border:1px solid var(--line2);background:rgba(255,255,255,.04);color:var(--text2);padding:6px 11px;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:600;line-height:1.2;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.cht select{appearance:none;-webkit-appearance:none;padding-right:24px;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 13px) 50%,calc(100% - 9px) 50%;background-size:4px 4px;background-repeat:no-repeat}
+.cht .d{width:8px;height:8px;border-radius:50%}
+.cht button.on[data-ct="V3"]{background:var(--v3);border-color:var(--v3);color:#0A0A0C}.cht button.on[data-ct="V2"]{background:var(--v2);border-color:var(--v2);color:#0A0A0C}
+.cht select.on{background-color:#3a465e;border-color:#6F7890;color:#fff}
+.chm{flex:1;overflow-y:auto;padding:14px 16px 8px;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain}
+.bub{max-width:86%;padding:9px 13px;border-radius:18px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere;font-size:14px;line-height:1.42}
+.bub.me{align-self:flex-end;border-bottom-right-radius:6px;color:#0A0A0C;background:var(--cc,#FF8A3D)}
+.bub.cl{align-self:flex-start;border-bottom-left-radius:6px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
+.bub.err{border-color:rgba(239,91,91,.5);background:rgba(239,91,91,.1)}
+.bmeta{font-size:11px;color:var(--muted);margin:-4px 4px 0}.bmeta.r{align-self:flex-end}.bmeta.l{align-self:flex-start}
+.typing{display:inline-flex;gap:4px;margin-right:8px;vertical-align:middle}.typing i{width:6px;height:6px;border-radius:50%;background:var(--text2);animation:pulse 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+.chempty{margin:auto;text-align:center;color:var(--muted);max-width:300px;font-size:13px}
+.chf{border-top:1px solid var(--line);padding:10px 12px max(12px,env(safe-area-inset-bottom))}
+.chf .row{display:flex;gap:8px;align-items:flex-end}
+.chf textarea{flex:1;resize:none;min-height:42px;max-height:160px;padding:11px 14px;border-radius:21px;border:1px solid var(--line2);background:rgba(0,0,0,.25);color:var(--text);font-family:inherit;font-size:15px;line-height:1.35}
+.chf textarea:focus{outline:none;border-color:var(--orange2)}
+.chf .snd{width:42px;height:42px;border-radius:50%;border:0;background:var(--orange);color:#fff;cursor:pointer;display:grid;place-items:center;flex:none}
+.chf .snd:disabled{opacity:.4;cursor:default}
+.chf .opts{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.cdep{flex:none;width:auto;border:1px solid var(--line2);background:transparent;color:var(--text2);border-radius:999px;padding:3px 10px;font-family:inherit;font-size:11.5px;font-weight:600;line-height:1.3;cursor:pointer}
+.cdep.on{background:#F5F5F7;color:#0A0A0C;border-color:#F5F5F7}
+.chnote{margin:0 16px 8px;padding:8px 12px;border-radius:12px;background:rgba(255,176,0,.1);border:1px solid rgba(255,176,0,.3);font-size:12.5px;color:var(--text2)}
 </style>
 </head>
 <body>
@@ -271,7 +326,7 @@ const ico=(k,c)=>`<div class="mi" style="background:${c}22;color:${c}"><svg widt
 /* ---------- state: hash for drill-downs, localStorage for layout ---------- */
 const H=Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
 function setH(k,v){if(v==null)delete H[k];else H[k]=v;history.replaceState(null,"","#"+new URLSearchParams(H).toString())}
-const DEFAULT_ORDER=["dec","you","sit","v2","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health"];
+const DEFAULT_ORDER=["dec","you","sit","fuel","v2","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health"];
 let L=LS.get("w1dash.layout",{});L.order=(L.order||[]).filter(k=>DEFAULT_ORDER.includes(k));DEFAULT_ORDER.forEach((k,i)=>{if(!L.order.includes(k))L.order.splice(Math.min(i,L.order.length),0,k)});
 L.col=L.col||{};L.wide=L.wide||{};L.hide=L.hide||{};L.f=L.f||{};
 const saveL=()=>LS.set("w1dash.layout",L);
@@ -299,6 +354,8 @@ const M={
   help:"Each decision shows the situation, the options with their trade-offs and a recommendation. Approve opens a GitHub issue already filled in (DECISION D-n: X); press Submit. The Mac reads it within a minute, records it, closes the issue, and the coordinator acts at its next step. Issues are public, so they carry only the number, the letter and any note you add. Only your GitHub account can record a decision."},
  sit:{t:"Situation report",s:"Where things stand, in a few lines",i:"sit",c:"#FF8A3D",w:"full",nav:"SITREP",
   help:"Written by the generator from task state, the schedule and the gates. Red lines first, then what is running, what starts next, what waits on you, and the projected finish times."},
+ fuel:{t:"Session fuel",s:"Context used by each session active in the last 30 min, against its hand-over thresholds",i:"live",c:"#FF6A00",w:"full",nav:"Fuel",
+  help:"From the fuel guard on the Mac (a PostToolUse hook in every session; falls back to the transcript index when a session has no guard data). The bar is the context sent with the session's last request; the three ticks are its thresholds: start hand-over, hand-over due, STOP. Thresholds by role: lean Sonnet lanes 175k/200k/225k, Haiku lanes 80k/90k/95k, desktop and other non-lean sessions 225k/250k/275k, the coordinator 250k/275k/300k; lower when a model has auto-compacted earlier on this Mac (80/88/94% of that point). Words: fine, start hand-over, hand-over due, STOP."},
  kpi:{t:"At a glance",s:"Progress, gates, tokens and quota",i:"kpi",c:"#3DA5FF",w:"full",nav:"Glance",
   help:"Rings show tasks done out of the total. Gate rings count the tasks tagged GO-build or G1 in W1_TASKS.json. Projected times come from the schedule (see Today's timeline)."},
  chg:{prog:"V3",t:"Since you last looked",s:"",i:"chg",c:"#9B7BEA",w:"full",nav:"Changes",
@@ -382,17 +439,43 @@ R.dec=()=>{const sent=LS.get("w1dash.sent",{});const RISK={low:"green",med:"ambe
   (done.length?`<div class="pathlab" style="margin-top:14px">Decided</div><table>${done.map(d=>`<tr><td class="mono" style="white-space:nowrap"><b>${esc(d.id)}</b></td><td>${esc(d.title)}</td><td>${d.decided?pill("green",d.decided.choice):pill("grey",d.status)}</td><td class="why">${d.decided?esc((d.decided.at||"").replace("T"," ")+" · "+(d.decided.via||"")):""}${d.acted?`<br>${esc(d.acted)}`:""}</td></tr>`).join("")}</table>`:"")};
 R.sit=()=>{const IC={red:["✕","var(--crit)"],now:["▶","var(--info)"],next:["→","var(--c1)"],you:["●","var(--amber)"],plan:["◷","var(--orange2)"]};
  return `<div class="sit">${D.sit.filter(l=>showP(l.prog)).map(l=>`<div class="sl ${l.k==="red"?"red":""} p${l.prog||""}"><div class="ic" style="background:${IC[l.k][1]}22;color:${IC[l.k][1]}" aria-hidden="true">${IC[l.k][0]}</div><div>${pg(l.prog)} ${link(l.text)}</div></div>`).join("")}</div>`};
+R.fuel=()=>{const F=D.fuel||{sessions:[],events:[]};const S=(F.sessions||[]).filter(s=>showP(s.prog));
+ const BR=["green","amber","amber","red"],BC=["var(--good)","var(--warn)","#FF8A3D","var(--crit)"];
+ const rows=S.map(s=>{const mx=s.th[2]*1.08,pc=v=>Math.min(100,v/mx*100).toFixed(1);
+  return `<div class="frow"><div style="min-width:0"><div class="nm ell">${pg(s.prog)} ${esc(s.title)}</div><div class="sub">${esc(s.role_txt||s.role)}${s.model?" · "+esc(s.model.replace(/^claude-/,"")):""} · ${s.age_min?s.age_min+" min ago":"now"}${s.src==="index"?" · from the transcript index (no guard data)":""}${s.compactions&&s.compactions.length?` · <b style="color:var(--crit)">compacted ${s.compactions.length}×</b>`:""}</div></div>
+  <div class="gw"><div class="gauge" role="img" aria-label="${fmt(s.ctx)} of ${fmt(s.th[2])} context"><div class="fill" style="width:${pc(s.ctx)}%;background:${BC[s.band]}"></div>${s.th.map((v,i)=>`<div class="tk t${i+1}" style="left:${pc(v)}%" title="${["start hand-over","hand-over due","STOP"][i]} at ${fmt(v)}"></div>`).join("")}</div>
+  <div class="glab"><span><b style="color:var(--text)">${fmt(s.ctx)}</b> context</span><span>${s.th.map(fmt).join(" · ")}</span></div></div>
+  <div>${pill(BR[s.band],s.words)}</div></div>`}).join("");
+ const ev=(F.events||[]).filter(e=>e.band!==0||e.note);
+ return (S.length?`<div class="fuel">${rows}</div>`:`<div class="empty">No session has been active in the last 30 minutes${PROG()!=="all"?" in "+PROG():""}.</div>`)+
+  (ev.length?`<details style="margin-top:12px"><summary class="why" style="cursor:pointer">Recent guard events (${ev.length})</summary>${ev.map(e=>`<div style="margin:5px 0;font-size:12.5px"><span class="mono" style="color:var(--muted)">${esc(typeof e.at==="number"?dtf(e.at,{hour:"2-digit",minute:"2-digit"}):String(e.at||"").slice(11,16))}</span> ${esc(e.title||e.id)} · ${fmt(e.ctx)} · ${esc(e.band===-1?"compacted":["fine","start hand-over","hand-over due","STOP"][e.band]||e.note)}</div>`).join("")}</details>`:"")};
 R.kpi=()=>{const done=D.tasks.filter(t=>t.status==="done").length;const tdy=D.today_ids.map(i=>T[i]);const td=tdy.filter(t=>t.status==="done").length;
- const s0=(()=>{const d=new Date(D.gen_iso);d.setHours(0,0,0,0);return d/1000})();let tt=0,tx=0;TK.buckets.forEach(b=>{if(b[1]>=s0){tt+=b[3]+b[4]+b[5]+b[6];tx+=b[3]+b[4]+b[6]}});
+ const s0=(()=>{const d=new Date(D.gen_iso);d.setHours(0,0,0,0);return d/1000})();
+ const tokP=p=>{const ix=new Set();TK.sessions.forEach((s,i)=>{if(s.prog===p)ix.add(i)});let t=0;TK.buckets.forEach(b=>{if(b[1]>=s0&&ix.has(b[0]))t+=b[3]+b[4]+b[5]+b[6]});return t};
+ const liveP=p=>TK.sessions.filter(s=>s.prog===p&&s.last>=genEpoch-900).length;
  const q=D.usage.length?D.usage[D.usage.length-1]:null;const g=D.gates;
- const k=[["<span class='pg pg-V3'>V3</span> Week",ring(done,D.tasks.length,"var(--orange)"),`${done}<small> / ${D.tasks.length}</small>`,`projected end ${D.week_finish}`,"week"],
-  ["<span class='pg pg-V3'>V3</span> Today",ring(td,tdy.length,"var(--info)"),`${td}<small> / ${tdy.length}</small>`,`projected finish ${D.day_finish}`,"board"],
-  ["<span class='pg pg-V3'>V3</span> GO-build gate",ring(g["GO-build"].done,g["GO-build"].total,"var(--good)"),`${g["GO-build"].done}<small> / ${g["GO-build"].total}</small>`,`install + v2 tag ${g["GO-build"].eta}`,"path"],
-  ["<span class='pg pg-V3'>V3</span> G1 gate",ring(g.G1.done,g.G1.total,"var(--c4)"),`${g.G1.done}<small> / ${g.G1.total}</small>`,`projected ${g.G1.eta}`,"week"],
-  ["Tokens today","",fmt(tt),`${fmt(tx)} without cache reads · ${TK.sessions.filter(s=>s.last>=genEpoch-900).length} live now`,"tok"],
-  ...(D.v2&&showP("V2")?[["<span class='pg pg-V2'>V2</span> Roadmap",ring(D.v2.steps.filter(x=>x.state==="done").length,D.v2.steps.length,"var(--v2)"),`${esc(D.v2.current)}<small> now</small>`,`${D.v2.steps.filter(x=>x.state==="done").length} of ${D.v2.steps.length} steps done`,"v2"]]:[]),
-  ["Weekly quota","",q?`${q.week}<small>%</small>`:"–",q?`read ${q.at.slice(5,16).replace("T"," ")} · forecast ${QF.text}`:"no reading (W1-05)","quota"]];
- return `<div class="grid k6">${k.map(([l,r,v,f,go])=>`<div class="tile click" data-go="${go}" role="button" tabindex="0"><div class="lab">${l}</div><div class="ringrow" style="margin-top:6px">${r}<div class="val" style="margin:0">${v}</div></div><div class="foot">${f}</div></div>`).join("")}</div>`};
+ const tile=(l,r,v,f,go,cls,rag,vv)=>`<div class="tile click ${cls||""}" data-go="${go}" ${vv?`data-v2v="${vv}"`:""} role="button" tabindex="0">${rag?`<span class="rag" style="background:${RCOL[rag]}" title="${RAG[rag][1]}"></span>`:""}<div class="lab">${l}</div><div class="ringrow" style="margin-top:6px">${r}<div class="val" style="margin:0">${v}</div></div><div class="foot ${/^(no estimate|overdue)/.test(f)?"noest":""}">${f}</div></div>`;
+ const V3b="<span class='pg pg-V3'>V3</span>",V2b="<span class='pg pg-V2'>V2</span>";
+ const quota=tile("Weekly quota","",q?`${q.week}<small>%</small>`:"–",q?`read ${q.at.slice(5,16).replace("T"," ")} · forecast ${esc(QF.text)}`:"no reading (W1-05)","quota");
+ let out="";
+ if(showP("V3"))out+=`<div class="krow">${V3b} Week 1 plan</div><div class="grid k6">${[
+  tile(V3b+" Week",ring(done,D.tasks.length,"var(--orange)"),`${done}<small> / ${D.tasks.length}</small>`,`projected end ${esc(D.week_finish)}`,"week","v3t"),
+  tile(V3b+" Today",ring(td,tdy.length,"var(--info)"),`${td}<small> / ${tdy.length}</small>`,`projected finish ${esc(D.day_finish)}`,"board","v3t"),
+  tile(V3b+" GO-build gate",ring(g["GO-build"].done,g["GO-build"].total,"var(--good)"),`${g["GO-build"].done}<small> / ${g["GO-build"].total}</small>`,`install + v2 tag ${esc(g["GO-build"].eta)}`,"path","v3t"),
+  tile(V3b+" G1 gate",ring(g.G1.done,g.G1.total,"var(--c4)"),`${g.G1.done}<small> / ${g.G1.total}</small>`,`projected ${esc(g.G1.eta)}`,"week","v3t"),
+  tile(V3b+" Tokens today","",fmt(tokP("V3")),`${liveP("V3")} live now`,"tok","v3t"),
+  ...(showP("V2")?[]:[quota])].join("")}</div>`;
+ const K=D.v2k;
+ if(K&&showP("V2")){const gt=k=>{const x=K.gates[k];return tile(`${V2b} ${k} gate`,ring(x.done,x.total,"var(--v2)"),`${x.done}<small> / ${x.total}</small>`,x.eta==="done"?"done":x.eta?(/^overdue/.test(x.eta)?esc(x.eta):`projected ${esc(x.eta)}`):esc(x.why),"v2","v2t",x.rag,"path")};
+  out+=`<div class="krow">${V2b} Roadmap to Beta${K.stale?` <span class="pill r-amber" title="${esc(K.stale_why)}">roadmap out of date</span>`:""}</div><div class="grid k6">${[
+  tile(V2b+" Plan",ring(K.plan.done,K.plan.total,"var(--v2)"),`${K.plan.done}<small> / ${K.plan.total}</small>`,K.plan.eta==="done"?"all steps done":K.plan.eta?(/^overdue/.test(K.plan.eta)?esc(K.plan.eta):`projected end ${esc(K.plan.eta)}`):esc(K.plan.why),"v2","v2t",K.plan.rag,"week"),
+  tile(V2b+" Today",ring(K.today.done,K.today.total,"var(--v2)"),`${K.today.done}<small> / ${K.today.total}</small>`,K.today.eta?(/^overdue/.test(K.today.eta)?esc(K.today.eta):`projected finish ${esc(K.today.eta)}`):esc(K.today.why),"v2","v2t",K.today.rag,"board"),
+  gt("L0"),gt("L1"),gt("L2"),
+  tile(V2b+" Tokens today","",fmt(K.tokens.today),`${K.tokens.live} live now · ${K.tokens.sessions} sessions`,"tok","v2t",K.tokens.rag),
+  tile(V2b+" PRs / train","",`${K.prs.open}<small> open</small>`,esc(K.prs.train.text),"pr","v2t",K.prs.rag),
+  tile(V2b+" Needs you","",`${K.need.n}`,K.need.n?"items in the roadmap's NEED line":"nothing waiting","you","v2t",K.need.rag),
+  quota].join("")}</div>`}
+ return out};
 R.chg=()=>{const since=seen?new Date(seen.at).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit"}):"now";
  const rows=changes.map(c=>`<tr class="click" data-t="${c.t.id}"><td class="mono" style="white-space:nowrap"><b>${c.t.id}</b></td><td class="ell" style="max-width:420px">${esc(c.t.title)}</td><td>${pill(c.from[1],c.from[0])} → ${pill(c.t.rag,c.t.status)}</td></tr>`).join("");
  if(!seen)return `<div class="empty">First visit in this browser: changes are tracked from now.</div>`;
@@ -531,7 +614,19 @@ R.v2=()=>{const V=D.v2;if(!V)return `<div class="empty">ROADMAP_TO_BETA.html not
  <div class="callout" style="border-color:var(--v2);background:var(--v2bg);margin-top:12px"><b>SITREP</b> · ${esc(V.sitrep)}</div>
  ${cur?`<div class="tile" style="margin-top:10px"><div class="lab" style="color:var(--v2)">Current step ${esc(cur.id)} · ${esc(cur.title)}</div><div style="margin-top:6px">${esc(cur.what)}</div><div class="why" style="margin-top:4px">started ${esc(cur.start)} · ${esc(cur.dur)}</div></div>`:""}
  ${V.need?`<div class="callout amber" style="margin-top:10px"><b>V2 needs you:</b> ${esc(V.need)} <span class="why">(also under Waiting on you)</span></div>`:""}
- ${V.live.length?`<div class="pathlab" style="margin-top:14px">Live updates</div>${V.live.map(l=>`<div style="margin:5px 0"><span class="mono" style="color:var(--v2)">${esc(l.at)}</span> ${esc(l.text)}</div>`).join("")}`:""}`};
+ ${V.live.length?`<div class="pathlab" style="margin-top:14px">Live updates</div>${V.live.slice(0,8).map(l=>`<div style="margin:5px 0"><span class="mono" style="color:var(--v2)">${esc(l.at)}</span> ${esc(l.text)}</div>`).join("")}`:""}${v2views()}`};
+function v2views(){const K=D.v2k,V=D.v2;if(!K)return"";const vw=L.f.v2v||"board";
+ const seg=`<div style="display:flex;align-items:center;gap:10px;margin:18px 0 10px;flex-wrap:wrap"><div class="pathlab" style="margin:0">V2 drill-down</div><div class="seg" data-f="v2v">${[["board","Board"],["path","Path"],["week","Week"]].map(([k,l])=>`<button data-v="${k}" class="${vw===k?"on":""}">${l}</button>`).join("")}</div></div>`;
+ let b="";
+ if(vw==="board")b=`<div class="scroll"><table><thead><tr><th>Step</th><th>What</th><th>Status</th><th class="n">Started</th><th class="n">Expected</th></tr></thead>${V.steps.map(x=>`<tr class="rowV2"><td><b>${esc(x.id)}</b></td><td>${esc(x.title)}<div class="why">${esc(x.why||"")}</div></td><td>${pill(x.rag||"grey",x.state==="done"?"Done":x.state==="now"?(x.rag==="red"?"Overdue":x.rag==="amber"?"No estimate":"On track"):"Queued")}</td><td class="n">${esc(x.start)}</td><td class="n">${esc(x.state==="done"?"done":x.eta_txt||"no estimate")}</td></tr>`).join("")}</table></div>`;
+ if(vw==="path")b=["L0","L1","L2"].map(k=>{const G=K.gates[k],op=V.steps.filter(x=>G.steps.includes(x.id));return `<div class="pathlab" style="margin-top:10px">${k} gate · ${G.done} of ${G.total} · ${esc(G.eta==="done"?"done":G.eta||"no estimate")}</div><div class="why" style="margin-bottom:6px">${esc(G.why)}</div><div class="tube"><div class="tline v2line">${op.map(x=>`<div class="st v2step ${x.state==="done"?"done":""}" title="${esc(x.why||"")}"><div class="dot" style="border-color:${RCOL[x.rag||"grey"]}">${x.state==="done"?"✓":x.state==="now"?"▶":"○"}</div><div class="nm">${esc(x.id)}</div><div class="tt">${esc(x.title)}</div><div class="tm">${esc(x.state==="done"?"done":x.eta_txt||"no estimate")}</div></div>`).join("")}</div></div>`}).join("")+`<div class="why" style="margin-top:8px">Plan end: ${esc(K.plan.eta==="done"?"all done":K.plan.eta||"")} ${esc(K.plan.why)}</div>`;
+ if(vw==="week"){const d0=new Date(D.now_iso);const days=[...Array(7)].map((_,i)=>{const d=new Date(d0);d.setDate(d.getDate()-6+i);return d});
+  const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const wd=d=>d.toLocaleDateString("en-GB",{weekday:"short"});
+  const rows=days.map(d=>{const lv=V.live.filter(l=>String(l.ts||"").startsWith(iso(d)));const st=V.steps.filter(x=>x.state==="done"&&new RegExp("done "+wd(d)+"\\b").test(x.dur));return {d,lv,st}});
+  const mx=Math.max(1,...rows.map(r=>r.lv.length+r.st.length));
+  b=rows.map(r=>`<div style="display:grid;grid-template-columns:70px 1fr;gap:10px;align-items:start;margin:6px 0"><div class="mono" style="color:${iso(r.d)===D.today?"var(--v2)":"var(--muted)"}">${esc(r.d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric"}))}</div><div><div style="height:8px;border-radius:4px;background:var(--v2);opacity:.85;width:${(r.lv.length+r.st.length)/mx*100}%;min-width:${r.lv.length+r.st.length?6:0}px"></div><div class="why" style="margin-top:3px">${r.st.length?"steps done: "+r.st.map(x=>esc(x.id)).join(", ")+" · ":""}${r.lv.length} live update${r.lv.length===1?"":"s"}${r.lv.length?": "+r.lv.slice(0,3).map(l=>esc(l.text.slice(0,80))).join(" · "):""}</div></div></div>`).join("")+`<div class="why" style="margin-top:8px">Steps count on the day the roadmap says they finished; the roadmap keeps only its newest ${V.live.length} live updates, so older days can show fewer.</div>`}
+ return seg+b}
 R.q=()=>{const QC={PASS:"green","PASS-FILTERED":"blue",FAIL:"red"};const p=D.facts.pending;
  return `<div class="bar-row"><span class="why">pending ${p.pending} · running ${p.running} · held ${p.held}</span></div>`+(D.queue.length?`<div class="scroll"><table><thead><tr><th>At</th><th>Lane</th><th>Branch</th><th>Targets</th><th class="n">Time</th><th>Result</th></tr></thead>${D.queue.filter(j=>showP(j.prog)).map(j=>`<tr class="row${j.prog}"><td class="mono">${j.at}</td><td>${pg(j.prog)} ${esc(j.lane)}</td><td><div class="ell" style="max-width:200px">${esc(j.branch)}</div><span class="mono why">${j.sha}</span></td><td>${esc(j.targets)}</td><td class="n">${j.dur?Math.round(j.dur/60)+"m":""}</td><td>${pill(QC[j.overall]||"grey",j.overall)}</td></tr>`).join("")}</table></div>`:`<div class="empty">No results.</div>`)};
 R.pr=()=>{const F=D.facts;return `<div class="pathlab">Open · ${F.open_prs.length}</div>`+(F.open_prs.length?F.open_prs.filter(p=>showP(p.prog)).map(p=>`<div style="margin:7px 0;padding-left:8px" class="row${p.prog}">${pg(p.prog)} <a href="${esc(p.url)}">#${p.n}</a> ${esc(p.t)}<div class="why">${esc(p.b)}</div></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="pathlab" style="margin-top:14px">Merged in 24 h · ${F.merged_24h.length}</div>`+(F.merged_24h.length?F.merged_24h.filter(p=>showP(p.prog)).map(p=>`<div style="margin:7px 0;padding-left:8px" class="row${p.prog}">${pg(p.prog)} ${pill("green","#"+p.n)} ${esc(p.t)} <span class="why">${p.at}</span></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="why" style="margin-top:8px">main ${F.main.length?`<span class="mono">${esc(F.main[0])}</span> · ${esc(F.main[1])} · ${esc(F.main[2])}`:"unknown"}</div>`};
@@ -555,7 +650,7 @@ function renderAll(){$("#mods").innerHTML=L.order.map(shell).join("");renderNav(
 function rerender(k){const el=$("#b-"+k);if(el&&!L.col[k])el.innerHTML=R[k]()}
 function renderNav(){const custom=document.body.classList.contains("custom");
  $("#nav").innerHTML=`<div class="seg progseg" data-f="prog" style="flex:none">${[["all","All"],["V3","V3"],["V2","V2"]].map(([k,l])=>`<button data-v="${k}" class="${PROG()===k?"on":""}">${l}</button>`).join("")}</div>`+L.order.filter(k=>(!L.hide[k]||custom)&&(!M[k].prog||showP(M[k].prog))).map(k=>`<a data-go="${k}" class="${M[k].prog?"n"+M[k].prog:""}" style="${L.hide[k]?"opacity:.4":""}">${M[k].nav}${k==="dec"&&OPEN_DEC.length?`<span class="badge" style="background:var(--orange)">${OPEN_DEC.length}</span>`:k==="iss"&&nRed?`<span class="badge">${nRed}</span>`:k==="chg"&&changes.length?`<span class="badge" style="background:var(--c4)">${changes.length}</span>`:""}</a>`).join("")+
- `<span class="sp"></span>${HOSTED?`<button class="tbtn" id="phone" title="Show a QR code that opens this page on your phone, already unlocked">Phone link</button>`:""}<button class="tbtn ${custom?"on":""}" id="custom">${custom?"Done":"Customise"}</button>${custom?`<button class="tbtn" id="reset">Reset layout</button>`:""}${custom&&Object.values(L.hide).some(Boolean)?`<button class="tbtn" id="unhide">Show hidden</button>`:""}`}
+ `<span class="sp"></span><button class="tbtn" id="chatbtn" title="Chat with the V3 or V2 coordinator or a lane">💬 Chat</button>${HOSTED?`<button class="tbtn" id="phone" title="Show a QR code that opens this page on your phone, already unlocked">Phone link</button>`:""}<button class="tbtn ${custom?"on":""}" id="custom">${custom?"Done":"Customise"}</button>${custom?`<button class="tbtn" id="reset">Reset layout</button>`:""}${custom&&Object.values(L.hide).some(Boolean)?`<button class="tbtn" id="unhide">Show hidden</button>`:""}`}
 
 /* ---------- drill-downs ---------- */
 function openTask(id){const t=T[id];if(!t)return;setH("s",null);setH("t",id);
@@ -642,6 +737,7 @@ document.addEventListener("click",e=>{
  const sg=e.target.closest(".seg button");if(sg&&sg.parentElement.dataset.f==="prog"){L.f.prog=sg.dataset.v;saveL();renderAll();return}
  if(sg){const f=sg.parentElement.dataset.f;if(f==="hidedone")L.f.hidedone=!L.f.hidedone;else L.f[f]=sg.dataset.v;saveL();rerender(sg.closest(".mod").dataset.k);return}
  const th=e.target.closest("th.sort");if(th){L.f.sort=th.dataset.sort;saveL();rerender("tok");return}
+ const vv=e.target.closest("[data-v2v]");if(vv){L.f.v2v=vv.dataset.v2v;saveL();rerender("v2")}
  const g=e.target.closest("[data-go]");if(g){e.preventDefault();return go(g.dataset.go)}
  const kk=e.target.closest("[data-kind]");if(kk){L.f.kind=kk.dataset.kind;saveL();rerender("tok");return}
  const a=e.target.closest("[data-t]");if(a){e.preventDefault();return openTask(a.dataset.t)}
@@ -659,11 +755,81 @@ try{const y=sessionStorage.getItem("w1dash.y");if(y!=null){scrollTo(0,+y);sessio
 if(H.go&&M[H.go])go(H.go,true);
 if(H.t)openTask(H.t);else if(H.s){const i=TK.sessions.findIndex(s=>s.id===H.s);if(i>=0)openSess(i)}
 const pendingAns=OPEN_DEC.some(d=>d.question_pending)||Object.keys(LS.get("w1dash.asked",{})).some(id=>OPEN_DEC.some(d=>d.id===id&&!(d.thread||[]).length))||Object.keys(LS.get("w1dash.sent",{})).some(id=>OPEN_DEC.some(d=>d.id===id))||Object.keys(LS.get("w1dash.sentact",{})).some(id=>T[id]&&T[id].status!=="done");
-setInterval(()=>{if(!$("#panel").classList.contains("on")&&!document.body.classList.contains("custom")&&document.visibilityState==="visible"){try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload()}},HOSTED&&!pendingAns?300000:45000);
+/* ---------- chat pop-out: each message is encrypted here, posted as a "CHAT <target>" issue, answered by one short read-only run on the Mac ---------- */
+const CH=D.chat||{threads:{},lanes:[],limit:20};
+const SS={get(k,d){try{const v=sessionStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{v==null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v)}catch(e){}}};
+const CHQ=()=>{const q=LS.get("w1dash.chatq",{});let ch=false;for(const [cid,x] of Object.entries(q)){if((CH.threads[x.t]||[]).some(m=>m.id===cid)||Date.now()-x.ts>45*60000){delete q[cid];ch=true}}if(ch)LS.set("w1dash.chatq",q);return q};
+const chatPending=()=>Object.values(CH.threads).some(th=>th.some(m=>m.pending))||Object.keys(CHQ()).length>0;
+let CT=SS.get("w1dash.chatt","V3");if(!/^(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$/.test(CT))CT="V3";
+const CNAME=t=>t==="V3"?"V3 coordinator":t==="V2"?"V2 coordinator":"Lane "+t.slice(2);
+const CCOL=t=>t==="V3"?"var(--v3)":t==="V2"?"var(--v2)":"#AEB6C8";
+const hhmm=s=>{const d=new Date(String(s).length>19?s:String(s).replace(" ","T"));return isNaN(d)?"":d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(d.toDateString()===new Date().toDateString()?"":" "+d.toLocaleDateString("en-GB",{weekday:"short"}))};
+function chatMsgs(t){const th=(CH.threads[t]||[]).slice();Object.entries(CHQ()).filter(([c,x])=>x.t===t).forEach(([c,x])=>th.push({id:c,from:"JB",at:x.at,text:x.m,depth:x.d,pending:true,local:x.via}));return th}
+function bubbles(t){const ms=chatMsgs(t);if(!ms.length)return `<div class="chempty"><div style="font-size:28px;margin-bottom:8px">💬</div>Ask the ${esc(CNAME(t))} anything: where things stand, why something is red, what is next.<br><br>Ask for an action and it is recorded (${t==="V2"?"a note the V2 coordinator reads":"a decision card or a note"}); the chat itself never changes code.</div>`;
+ const ans=new Set(ms.filter(m=>m.re).map(m=>m.re));let h="";
+ ms.forEach(m=>{if(m.from==="JB"){h+=`<div class="bub me" style="--cc:${CCOL(t)}">${esc(m.text)}</div><div class="bmeta r">${esc(hhmm(m.at))}${m.depth==="deep"?" · Deep":""}</div>`;
+   if(m.pending&&!ans.has(m.id))h+=`<div class="bub cl"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>${m.local==="github"?"Waiting for you to press Submit on GitHub, then Claude answers in ~1-2 min":"Claude is answering… ~1-2 min"}</div>`}
+  else h+=`<div class="bub cl ${m.error?"err":""}">${esc(m.text)}</div><div class="bmeta l">${esc(hhmm(m.at))}${m.model?" · "+esc(m.model.replace(/claude-|-\d{8}/g,"")):""}${m.start?" · start "+fmt(m.start):""}</div>`});
+ return h}
+function renderChat(){const el=$("#chat");if(!el)return;const PASS=window._PASS,dep=LS.get("w1dash.chatd","auto");
+ const lanes=CH.lanes||[];const isL=CT.startsWith("L-");
+ el.innerHTML=`<div class="chh"><div class="logo" style="width:34px;height:34px;border-radius:10px;box-shadow:none;background:${CCOL(CT)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div><div class="ttl">${esc(CNAME(CT))}<div class="why" style="font-weight:500;font-size:12px">Each message gets one fresh, short, read-only answer</div></div><button class="x" data-cx aria-label="Close chat">${svgI('<path d="M6 6l12 12M18 6L6 18"/>')}</button></div>
+ <div class="cht" role="tablist" aria-label="Talk to"><button data-ct="V3" class="${CT==="V3"?"on":""}" role="tab" aria-selected="${CT==="V3"}"><span class="d" style="background:var(--v3)"></span>V3 coordinator</button><button data-ct="V2" class="${CT==="V2"?"on":""}" role="tab" aria-selected="${CT==="V2"}"><span class="d" style="background:var(--v2)"></span>V2 coordinator</button>
+ <select data-cl aria-label="Lane" class="${isL?"on":""}"><option value="">Lane…</option>${lanes.map(l=>`<option value="${esc(l.id)}" ${CT==="L-"+l.id?"selected":""}>${esc(l.id)} · ${l.age_min<60?l.age_min+" min":Math.round(l.age_min/60)+" h"}</option>`).join("")}${isL&&!lanes.some(l=>"L-"+l.id===CT)?`<option selected value="${esc(CT.slice(2))}">${esc(CT.slice(2))}</option>`:""}</select></div>
+ ${!PASS?`<div class="chnote" style="margin-top:10px">Chat works on the published page: it needs the passphrase to encrypt your message.</div>`:!ghTok()?`<div class="chnote" style="margin-top:10px">No GitHub token in this browser: Send opens GitHub with the encrypted message filled in; press Submit there.</div>`:""}
+ <div class="chm" id="chm" aria-live="polite">${bubbles(CT)}</div>
+ <div class="chf"><div class="row"><textarea id="chin" rows="1" maxlength="4000" placeholder="Message ${esc(CNAME(CT))}" aria-label="Message">${esc(SS.get("w1dash.chatdraft",""))}</textarea><button class="snd" data-cs aria-label="Send" ${PASS?"":"disabled"}>${svgI('<path d="M12 19V5M5 12l7-7 7 7"/>')}</button></div>
+ <div class="opts"><button class="cdep ${dep==="auto"?"on":""}" data-cd="auto" title="Sonnet (Haiku for quick status questions)">Auto</button><button class="cdep ${dep==="deep"?"on":""}" data-cd="deep" title="Opus: slower, for judgment calls">Deep (Opus)</button><span style="flex:1"></span><span>🔒 Encrypted in your browser · ${CH.limit||20} an hour</span></div></div>`;
+ const m=$("#chm");m.scrollTop=m.scrollHeight;const ta=$("#chin");ta.style.height="auto";ta.style.height=Math.min(160,ta.scrollHeight)+"px"}
+function openChat(){SS.set("w1dash.chatopen","1");document.body.classList.add("chaton");renderChat();$("#chat").classList.add("on");setTimeout(()=>{const t=$("#chin");if(t&&matchMedia("(hover:hover)").matches)t.focus()},250)}
+function closeChat(){SS.set("w1dash.chatopen",null);document.body.classList.remove("chaton");$("#chat").classList.remove("on")}
+async function sendChat(){const ta=$("#chin"),txt=(ta.value||"").trim(),PASS=window._PASS;if(!txt||!PASS)return;
+ const b=$("[data-cs]");b.disabled=true;const cid=Array.from(crypto.getRandomValues(new Uint8Array(9)),x=>"abcdefghijkmnpqrstuvwxyz23456789"[x%32]).join("");
+ const d=LS.get("w1dash.chatd","auto"),at=new Date().toISOString();
+ let enc;try{enc=await encryptTxt(JSON.stringify({t:CT,m:txt,cid,d,at}),PASS)}catch(e){b.disabled=false;return alert("Could not encrypt the message in this browser.")}
+ const title="CHAT "+CT,r=await postIssue(title,enc);
+ if(!r.ok)window.open(ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent(enc),"_blank","noopener");
+ const q=LS.get("w1dash.chatq",{});q[cid]={t:CT,m:txt,d,at,ts:Date.now(),via:r.ok?"direct":"github"};LS.set("w1dash.chatq",q);
+ SS.set("w1dash.chatdraft",null);renderChat();startPoll()}
+document.body.insertAdjacentHTML("beforeend",`<aside class="chat" id="chat" aria-label="Chat"></aside><button class="fab" id="fab" aria-label="Open chat" title="Chat with a coordinator or lane">${svgI('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>').replace('width="15" height="15"','width="24" height="24"')}${chatPending()?'<span class="dotp" aria-label="answer pending"></span>':""}</button>`);
+document.addEventListener("click",e=>{if(e.target.closest("#fab,#chatbtn")){e.preventDefault();return openChat()}
+ if(!e.target.closest("#chat"))return;
+ if(e.target.closest("[data-cx]"))return closeChat();
+ const ct=e.target.closest("[data-ct]");if(ct){CT=ct.dataset.ct;SS.set("w1dash.chatt",CT);return renderChat()}
+ const cd=e.target.closest("[data-cd]");if(cd){LS.set("w1dash.chatd",cd.dataset.cd);return renderChat()}
+ if(e.target.closest("[data-cs]"))return sendChat()});
+document.addEventListener("change",e=>{if(e.target.matches("#chat [data-cl]")&&e.target.value){CT="L-"+e.target.value;SS.set("w1dash.chatt",CT);renderChat()}});
+document.addEventListener("input",e=>{if(e.target.id==="chin"){SS.set("w1dash.chatdraft",e.target.value);e.target.style.height="auto";e.target.style.height=Math.min(160,e.target.scrollHeight)+"px"}});
+document.addEventListener("keydown",e=>{if(e.target.id==="chin"&&e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}if(e.key==="Escape"&&document.body.classList.contains("chaton"))closeChat()});
+/* freshness: while an answer is pending, re-read the published data every ~15 s from the GitHub API (fresher than the CDN) */
+function startPoll(){if(window._poll||!HOSTED)return;window._poll=setInterval(async()=>{if(document.visibilityState!=="visible")return;
+ const t=await fetchEnc(true);if(t&&t!==window._ENC){SS.set("w1dash.enc",JSON.stringify({t,at:Date.now()}));try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload()}},ghTok()?15000:75000)}
+if(SS.get("w1dash.chatopen",""))openChat();
+if(pendingAns||chatPending())startPoll();
+setInterval(()=>{if(!$("#panel").classList.contains("on")&&!document.body.classList.contains("custom")&&!document.body.classList.contains("chaton")&&document.visibilityState==="visible"){try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload()}},HOSTED&&!pendingAns&&!chatPending()?300000:45000);
 }
 
 /* ---------- loader: passphrase, fetch, decrypt (AES-256-CBC + PBKDF2-SHA256, openssl enc format), gunzip ---------- */
 const ITER=200000;
+const API_URL="https://api.github.com/repos/multisportusa-git/lc-control-room/contents/w1.enc?ref=data";
+function ghT(){try{return localStorage.getItem("w1dash.gt")||""}catch(e){return""}}
+async function fetchEnc(apiOnly){const t=ghT();
+ if(apiOnly||t){try{const r=await fetch(API_URL+"&t="+Date.now(),{cache:"no-store",headers:Object.assign({"Accept":"application/vnd.github.raw"},t?{"Authorization":"Bearer "+t}:{})});if(r.ok)return (await r.text()).trim()}catch(e){}if(apiOnly)return null}
+ const r=await fetch(DATA_URL+"?t="+Math.floor(Date.now()/60000),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);return (await r.text()).trim()}
+async function encryptTxt(txt,pass){/* same format as openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -md sha256 -salt -base64 -A */
+ const salt=crypto.getRandomValues(new Uint8Array(8));
+ const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveBits"]);
+ const bits=new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:ITER,hash:"SHA-256"},km,384));
+ const key=await crypto.subtle.importKey("raw",bits.slice(0,32),"AES-CBC",false,["encrypt"]);
+ const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-CBC",iv:bits.slice(32,48)},key,new TextEncoder().encode(txt)));
+ const out=new Uint8Array(16+ct.length);out.set(new TextEncoder().encode("Salted__"),0);out.set(salt,8);out.set(ct,16);
+ let s="";for(let i=0;i<out.length;i+=8192)s+=String.fromCharCode.apply(null,out.subarray(i,i+8192));return btoa(s)}
+async function decryptRaw(b64,pass){/* openssl format -> UTF-8 text, no gzip (tests and chat) */
+ const raw=Uint8Array.from(atob(b64.replace(/\s+/g,"")),c=>c.charCodeAt(0));
+ const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveBits"]);
+ const bits=new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2",salt:raw.slice(8,16),iterations:ITER,hash:"SHA-256"},km,384));
+ const key=await crypto.subtle.importKey("raw",bits.slice(0,32),"AES-CBC",false,["decrypt"]);
+ return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-CBC",iv:bits.slice(32,48)},key,raw.slice(16)))}
 async function decrypt(b64,pass){
  const raw=Uint8Array.from(atob(b64.replace(/\s+/g,"")),c=>c.charCodeAt(0));
  if(new TextDecoder().decode(raw.slice(0,8))!=="Salted__")throw new Error("Unexpected data format");
@@ -693,9 +859,12 @@ async function load(){
  if(hp.get("k")){try{localStorage.setItem("w1dash.k",hp.get("k"))}catch(x){}hp.delete("k");history.replaceState(null,"",location.pathname+(hp.toString()?"#"+hp:""));}
  let pass=null;try{pass=localStorage.getItem("w1dash.k")}catch(x){}
  if(!pass)return lockScreen("");
- let txt;try{const r=await fetch(DATA_URL+"?t="+Math.floor(Date.now()/60000),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);txt=await r.text()}
+ let txt;try{txt=await fetchEnc(false)}
  catch(e){document.getElementById("mods").innerHTML=`<div class="mod full"><div class="mbi" style="padding:20px">Could not fetch the data (${String(e.message||e)}). The page retries in a minute.</div></div>`;setTimeout(load,60000);return}
  let D;try{D=await decrypt(txt,pass)}catch(e){try{localStorage.removeItem("w1dash.k")}catch(x){}return lockScreen("That passphrase did not open the data.")}
+ /* a newer copy fetched by the freshness poll (the CDN can lag by minutes) wins */
+ try{const c=JSON.parse(sessionStorage.getItem("w1dash.enc")||"null");if(c&&c.t!==txt&&Date.now()-c.at<15*60000){const D2=await decrypt(c.t,pass);if(Date.parse(D2.gen_iso)>Date.parse(D.gen_iso)){D=D2;txt=c.t}}}catch(e){}
+ window._ENC=txt;window._PASS=pass;
  app(D);
 }
 load();

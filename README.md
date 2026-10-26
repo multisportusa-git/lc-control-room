@@ -17,6 +17,15 @@ passphrase once per browser, or takes it from a `#k=` link and removes it from t
 - If the Mac is asleep or offline the page says so (Data health turns red after 25 minutes without a push).
 - The same generator also writes a local copy with the data embedded: `<notes>/w1/W1_DASHBOARD.html`.
 
+## Chat
+The 💬 button opens a side panel to ask the V3 coordinator, the V2 coordinator or a lane a question. The page encrypts the
+message with the passphrase and files it as an issue `CHAT <target>` (one click with the stored token, or a pre-filled
+GitHub form). `gen/chat_sync.py` on the Mac (every minute, owner only, 20 an hour) decrypts it, closes the issue and starts
+`mac/chat_reply.sh`: one fresh, short, read-only `claude -p` run (empty working dir, no MCP servers, read tools only,
+secrets denied; Auto = Sonnet or Haiku, Deep = Opus). The answer goes into `<notes>/w1/chat/<target>.json` and is
+published encrypted; asked-for actions become a decision card or a note for the coordinator. While an answer is pending
+the page re-reads the data every 15 s.
+
 ## Decisions
 Sessions raise decisions as files; JB approves on the page; the Mac records the answer. See DECISIONS.md.
 
