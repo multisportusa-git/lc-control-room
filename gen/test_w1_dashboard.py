@@ -17,7 +17,7 @@ def task(i, day, owner="LANE", model="sonnet", effort="medium", depends=(), **kw
              steps=["do it"], done_check="true", evidence="", where="")
     t.update(kw); return t
 
-def build(tmp, tasks, state, files=None, now="2026-10-26T11:45"):
+def build(tmp, tasks, state, files=None, now="2026-10-26T11:45", mtimes=None):
     w1 = os.path.join(tmp, "w1"); os.makedirs(os.path.join(w1, "evidence"), exist_ok=True)
     os.makedirs(os.path.join(tmp, "testq", "results"), exist_ok=True)
     json.dump({"plan": "test", "week": "test week", "tasks": tasks}, open(os.path.join(w1, "W1_TASKS.json"), "w"))
@@ -25,6 +25,8 @@ def build(tmp, tasks, state, files=None, now="2026-10-26T11:45"):
     for rel, body in (files or {}).items():
         p = os.path.join(tmp, rel); os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, "w").write(body if isinstance(body, str) else json.dumps(body))
+    for rel, at_ in (mtimes or {}).items():
+        e_ = datetime.fromisoformat(at_).timestamp(); os.utime(os.path.join(tmp, rel), (e_, e_))
     home = os.path.join(tmp, "home"); os.makedirs(home, exist_ok=True)
     out, js = os.path.join(w1, "page.html"), os.path.join(w1, "w1.json")
     r = subprocess.run([sys.executable, os.path.join(HERE, "w1_dashboard.py"), "--notes", tmp, "--repo", os.path.join(tmp, "norepo"),
@@ -60,6 +62,7 @@ files = {
     "w1/evidence/w106_pr.txt": "pr=900\n",
     "w1/gh_cache.json": [{"number": 900, "state": "MERGED", "mergedAt": "2026-10-26T10:00:00Z", "title": "x", "headRefName": "b", "url": "u"}],
     "w1/evidence/usage_pct.csv": "2026-10-25T22:57Z,40,12.8,26.4\n",
+    "w1/jb_briefs.json": {"briefs": {"W1-05": {"title": "Read the usage meter", "why": "w", "steps": ["a"], "time": "2 min", "answer": "numbers"}}},
 }
 with tempfile.TemporaryDirectory() as tmp:
     html, D, js = build(tmp, tasks, state, files)
@@ -268,6 +271,40 @@ with tempfile.TemporaryDirectory() as tf:
     check("chat: lanes come from status files, coordinators' K files excluded", {"L2-F1", "V7"} <= {l["id"] for l in DF["chat"]["lanes"]} and "K12" not in {l["id"] for l in DF["chat"]["lanes"]}, DF["chat"]["lanes"])
     check("chat text cannot close the script tag", htmlf.count("</script>") == 1 and "<img src=x" not in htmlf.replace(json.dumps("<img src=x onerror=alert(2)>")[1:-1], ""))
     check("page escapes chat text before showing it", "${esc(m.text)}" in PAGE and "${m.text}" not in PAGE)
+
+
+# ---------- impact: critical path, slack, latest finish, holding up now; critical never amber ----------
+def imp(tasks_, state_, files_=None, mtimes=None):
+    with tempfile.TemporaryDirectory() as ti:
+        _, Di, _ = build(ti, tasks_, state_, files_, mtimes=mtimes)
+        return {t["id"]: t for t in Di["tasks"]}, Di
+BR = lambda *ids: {"w1/jb_briefs.json": {"briefs": {i: {"title": "Do " + i, "why": "w", "steps": ["s"], "time": "5 min"} for i in ids}}}
+# A: X1 (running since 10:00, 90 min estimate) -> X2 -> X3 all today = the week's chain; S is a 45 min side task
+TA = [task("W1-71", "2026-10-26"), task("W1-72", "2026-10-26", depends=["W1-71"]), task("W1-73", "2026-10-26", depends=["W1-72"]),
+      task("W1-79", "2026-10-26", model="haiku")]
+IA, DA = imp(TA, {"W1-71": {"status": "doing", "opened": [{"at": "2026-10-26T10:00", "as": "sonnet/medium"}]}})
+check("impact: the week's chain is critical with 0 slack", all(IA[i]["impact"]["critical"] and IA[i]["impact"]["slack_min"] == 0 for i in ("W1-71", "W1-72", "W1-73")), {i: IA[i]["impact"] for i in ("W1-72", "W1-73")})
+s79 = IA["W1-79"]["impact"]
+check("impact: a side task has positive slack and latest finish = week finish", (not s79["critical"]) and s79["slack_min"] == 145 and s79["latest_iso"] == "2026-10-26T14:55:00" and IA["W1-79"]["fin_iso"] == "2026-10-26T12:30:00", s79)
+check("impact: unblocks counts all descendants and lists the nearest", IA["W1-71"]["impact"]["unblocks"] == 2 and [x["id"] for x in IA["W1-71"]["impact"]["next"]] == ["W1-72"] and IA["W1-71"]["impact"]["next"][0]["beg_iso"])
+check("critical + past its estimate = red 'slack used up' (never amber)", IA["W1-71"]["rag"] == "red" and IA["W1-71"]["why"].startswith("Critical path: slack used up at Mon 11:30"), IA["W1-71"]["why"])
+# B: JB task J1 ready, J2 (today) waits only on it -> holding now; on the GO-build chain -> red
+TB = [task("W1-81", "2026-10-26", owner="JB", model="none", effort="none"), task("W1-82", "2026-10-26", depends=["W1-81"]),
+      task("W1-83", "2026-10-26", depends=["W1-82"], gates=["GO-build"]),
+      task("W1-85", "2026-10-26", owner="JB", model="none", effort="none"), task("W1-86", "2026-10-27", depends=["W1-85"])]
+IB, DB = imp(TB, {}, BR("W1-81", "W1-85"))
+check("impact: holding_now when a dependent is otherwise ready", IB["W1-81"]["impact"]["holding_now"] and IB["W1-81"]["impact"]["holding"] == ["W1-82"], IB["W1-81"]["impact"])
+check("critical + holding up now = red naming the task", IB["W1-81"]["impact"]["critical"] and IB["W1-81"]["rag"] == "red" and "holding up W1-82 now" in IB["W1-81"]["why"], (IB["W1-81"]["rag"], IB["W1-81"]["why"]))
+k = IB["W1-85"]
+check("critical with slack left stays amber and carries when it turns red", k["impact"]["critical"] and not k["impact"]["holding_now"] and k["rag"] == "amber" and k["impact"]["red_iso"] == "2026-10-27T07:45:00" and k["impact"]["slack_min"] > 0, (k["rag"], k["why"], k["impact"]))
+check("holding_now is false when the dependent is planned for a later day", not IB["W1-85"]["impact"]["holding_now"])
+# C: a JB task with no brief is amber 'Brief missing'; a lane whose run ended long ago with no live process is red, owner Claude
+TC = [task("W1-91", "2026-10-26", owner="JB", model="none", effort="none"), task("W1-92", "2026-10-26"), task("W1-93", "2026-10-28", depends=["W1-92"]), task("W1-94", "2026-10-28", depends=["W1-93"])]
+IC_, _ = imp(TC, {"W1-92": {"status": "doing", "opened": [{"at": "2026-10-26T11:00", "as": "sonnet/medium"}]}},
+             {"w1/evidence/lane-W1-92.json": {"session_id": "s92", "result": "ok", "num_turns": 3, "total_cost_usd": 0.1}}, {"w1/evidence/lane-W1-92.json": "2026-10-26T11:06"})
+check("JB task without a brief is amber 'Brief missing'", IC_["W1-91"]["rag"] == "amber" and IC_["W1-91"]["why"] == "Brief missing" and IC_["W1-91"]["brief_missing"])
+check("stale lane run is red 'Last run ended … not restarted', owner Claude", IC_["W1-92"]["rag"] == "red" and "Last run ended 11:06; Claude has not restarted it" in IC_["W1-92"]["why"] and IC_["W1-92"]["act"]["kind"] == "Claude", IC_["W1-92"]["why"])
+check("owner line: Claude tasks never read as an ask to JB", all(t["act"]["kind"] == "Claude" and not t["act"]["doing"].lower().startswith("coordinator") for t in IC_.values() if t["owner"] != "JB") and IC_["W1-91"]["act"]["kind"] == "JB")
 
 print("ALL PASS" if not FAILS else "%d FAILED: %s" % (len(FAILS), ", ".join(FAILS)))
 sys.exit(1 if FAILS else 0)

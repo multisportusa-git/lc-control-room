@@ -121,6 +121,20 @@ svg text{fill:var(--muted);font:11px -apple-system,system-ui,sans-serif}
 .it{border-left:4px solid var(--grey);border-radius:10px;padding:10px 12px;background:rgba(255,255,255,.035);cursor:pointer}
 .it:hover{background:rgba(255,255,255,.06)}
 .it.red{border-color:var(--crit)}.it.amber{border-color:var(--warn)}
+.own{border-radius:10px;padding:8px 12px;margin:8px 0;font-size:13px;border:1px solid var(--line)}
+.own.you{background:rgba(255,176,0,.10);border-color:rgba(255,176,0,.35)}
+.own.claude{background:rgba(63,185,138,.08);border-color:rgba(63,185,138,.3);color:var(--text2)}.own.claude b{color:var(--text)}
+.own.owes{background:rgba(242,179,61,.10);border-color:rgba(242,179,61,.45)}
+.own.miss{border-color:rgba(239,91,91,.5)}
+.impact{font-size:12.5px;color:var(--text);margin-top:4px}
+.askshort .own{margin:6px 0 0}.abtn{margin-top:8px;gap:8px;flex-wrap:wrap}
+.askcard{padding:16px;margin-bottom:12px}
+.askcard h6{margin:14px 0 4px;color:var(--orange2);font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+.askcard ol.asksteps,.askcard ul.askknow{margin:0;padding-left:20px;color:var(--text2)}.askcard li{margin:4px 0}
+.cmdbox{display:flex;gap:8px;align-items:flex-start;background:rgba(0,0,0,.28);border:1px solid var(--line2);border-radius:10px;padding:8px 8px 8px 12px}
+.cmdbox code{flex:1;min-width:0;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-all;color:var(--text)}
+.miss-line{margin-top:10px;color:var(--crit);font-weight:600}
+.plandet{margin-top:16px;border-top:1px solid var(--line);padding-top:8px}.plandet summary{cursor:pointer;color:var(--text2);font-size:13px}
 .it .act{color:var(--orange2);font-size:12.5px;margin-top:4px}
 /* board */
 .board{background:#07090d;border:1px solid #1d232c;border-radius:14px;overflow:hidden}
@@ -405,8 +419,9 @@ async function postIssue(title,body){const t=ghTok();if(!t)return {ok:false,why:
  catch(e){return {ok:false,why:"GitHub could not be reached"}}}
 async function send(title,body,fallbackUrl){const r=await postIssue(title,body);if(r.ok)return {mode:"direct",url:r.url};window.open(fallbackUrl,"_blank","noopener");return {mode:"github",why:r.why}}
 function left(iso){if(!iso)return"";const m=Math.round((Date.parse(iso)-Date.now())/60000);if(m<0)return`<b style="color:var(--crit)">overdue by ${m>-90?-m+" min":Math.round(-m/60)+" h"}</b>`;return m<90?`${m} min left`:m<2880?`${Math.round(m/60)} h left`:`${Math.round(m/1440)} days left`}
-R.dec=()=>{const sent=LS.get("w1dash.sent",{});const RISK={low:"green",med:"amber",medium:"amber",high:"red"};
- const notif=D.ntfy&&!LS.get("w1dash.ntfyok",false)?`<div class="callout blue" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><b>Get a phone alert when a decision is waiting.</b><div class="why">Install the free ntfy app, then open this link on the phone and subscribe. The alert carries only the decision number and a link back here.</div></div><a class="tbtn" href="https://ntfy.sh/${esc(D.ntfy)}" target="_blank" rel="noopener">Subscribe link</a><button class="tbtn" data-ntfyok="1">Done</button></div>`:"";
+const NOTIF_HTML=()=>`<div class="callout blue" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><b>Get a phone alert when a decision is waiting.</b><div class="why">Install the free ntfy app, then open this link on the phone and subscribe. The alert carries only the decision number and a link back here.</div></div><a class="tbtn" href="https://ntfy.sh/${esc(D.ntfy)}" target="_blank" rel="noopener">Subscribe link</a><button class="tbtn" data-ntfyok="1">Done</button></div>`;
+function decCard(d0){const sent=LS.get("w1dash.sent",{});const RISK={low:"green",med:"amber",medium:"amber",high:"red"};
+
  const answered=d=>{const s=sent[d.id];const o=(d.options||[]).find(o=>(o.key||"").toUpperCase()===s.choice)||{};
   const step=(ok,txt)=>`<div style="display:flex;gap:10px;align-items:center;margin-top:8px"><span class="mi" style="width:24px;height:24px;background:${ok?"var(--good)":"rgba(255,255,255,.08)"};color:#fff;font-size:13px">${ok?"✓":"…"}</span><span style="${ok?"":"color:var(--muted)"}">${txt}</span></div>`;
   const direct=s.mode==="direct";
@@ -418,7 +433,7 @@ R.dec=()=>{const sent=LS.get("w1dash.sent",{});const RISK={low:"green",med:"ambe
   ${d.has_run?step(false,"Action starts on the Mac"):""}
   <div style="margin-top:10px"><button class="tbtn" data-undo="${esc(d.id)}">Change my answer</button></div></div>`};
  const card=d=>{const s=sent[d.id];if(s)return answered(d);const rec=(d.recommend||"").toUpperCase();
-  return `<div class="tile" style="padding:16px;border-color:${s?"rgba(61,165,255,.45)":"rgba(255,106,0,.45)"};margin-bottom:12px">
+  return `<div class="tile deccard" style="padding:16px;border-color:${s?"rgba(61,165,255,.45)":"rgba(255,106,0,.45)"};margin-bottom:12px">
   <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">${pg(d.programme||"V3")}<span class="pill r-amber">${esc(d.id)}</span><b style="font-size:16px;flex:1;min-width:200px">${esc(d.title)}</b><span class="why">${d.deadline?"decide by "+esc(d.deadline.replace("T"," "))+" · "+left(d.deadline):""}</span></div>
   <div style="margin-top:10px;color:var(--text2)">${link(d.situation||"")}</div>${d.why_now?`<div class="why" style="margin-top:6px"><b>Why now:</b> ${link(d.why_now)}</div>`:""}
   ${(d.tasks||[]).length?`<div class="why" style="margin-top:6px">Tasks: ${d.tasks.map(t=>T[t]?`<a href="#" data-t="${t}" class="mono">${t}</a>`:esc(t)).join(" ")}</div>`:""}
@@ -436,6 +451,55 @@ R.dec=()=>{const sent=LS.get("w1dash.sent",{});const RISK={low:"green",med:"ambe
   <div class="why" style="margin-top:10px">${ghTok()?"One click: your answer goes straight to GitHub with your token; the Mac records it within a minute and closes it.":"How approving works: the button opens GitHub with your answer filled in; press the green <b>Create</b> there. The Mac records it within a minute and closes the issue."}</div>
   <details style="margin-top:8px"><summary class="why" style="cursor:pointer">Add a note to your answer (public on GitHub)</summary><textarea id="note-${esc(d.id)}" rows="2" style="width:100%;margin-top:6px;border-radius:10px;border:1px solid var(--line2);background:#0c1424;color:var(--text);padding:8px" placeholder="Optional. Do not include anything private."></textarea></details>
 </div>`};
+ return card(d0)}
+/* ---------- every ask of JB, and every alert: who acts, what exactly, how long, a script, what it holds up ---------- */
+const BRF=()=>(D.jb&&D.jb.briefs)||{};
+const atE=s=>Date.parse(s)/1000;
+const atT=s=>s?dtf(atE(s)):"";
+const durTxt=m=>{m=Math.max(0,Math.round(m||0));if(m<60)return m+" min";if(m<1440){const h=Math.floor(m/60),r=m%60;return h+" h"+(r?" "+r+" min":"")}const d=Math.floor(m/1440),h=Math.round((m%1440)/60);return d+" day"+(d>1?"s":"")+(h?" "+h+" h":"")};
+const decFor=t=>{const b=BRF()[t.id]||{};return (D.decisions||[]).find(d=>d.status==="open"&&((d.tasks||[]).includes(t.id)||d.id===t.decision||(b.answer==="decision"&&d.id===b.decision)))};
+function impactTxt(t){const im=t.impact;if(!im)return "";const n=(im.next||[])[0];const tgt=(t.gates||[]).includes("GO-build")?"the GO-build gate":"the week finish";let s="";
+ if(im.holding_now)s=`Holding up ${im.holding.join(", ")} now.`+(im.critical?` On the critical path: every hour late moves ${tgt}.`:` Not on the critical path yet: it can slip ${durTxt(im.slack_min)} before it moves ${tgt}.`);
+ else{const need=n?`Needed before ${n.id} (projected ${atT(n.beg_iso)}). `:"Nothing waits on it. ";
+  if(im.critical)s=need+`On the critical path: every hour late moves ${tgt}.`+(t.rag!=="red"&&im.red_iso?` Turns red at ${atT(im.red_iso)}.`:"");
+  else if(im.slack_min<=0)s=need+`No slack left: every hour late moves ${tgt}.`;
+  else s=need+`Not on the critical path: can slip ${durTxt(im.slack_min)} before it moves ${tgt}${n?" (through "+n.id+")":""}; becomes critical ${atT(im.latest_iso)}.`}
+ if(im.unblocks)s+=` Unblocks ${im.unblocks} later task${im.unblocks>1?"s":""}.`;return s}
+function ownerLine(t){const b=BRF()[t.id],dc=decFor(t);
+ if(dc)return `<div class="own you"><b>You: decide ${esc(dc.id)}</b> · ${esc(dc.title||"")}${dc.deadline?" · by "+esc(dc.deadline.replace("T"," ").slice(5,16)):""}</div>`;
+ if(t.owner==="JB")return b?`<div class="own you"><b>You:</b> ${esc(b.title)}${b.time?" · "+esc(b.time):""}</div>`:`<div class="own you miss"><b>You:</b> ${esc(t.title)} · <span style="color:var(--crit)">Brief missing: the coordinator owes you a plain-English ask</span></div>`;
+ const a=t.act||{};const who=esc(a.who||"coordinator");
+ return a.owes?`<div class="own claude owes"><b>Nothing needed from you.</b> Claude (${who}) owes a status here.</div>`
+  :`<div class="own claude"><b>Nothing needed from you.</b> Claude (${who}): ${link(a.doing||"")}${a.next_check_iso?` · next check ${esc(atT(a.next_check_iso))}`:""}</div>`}
+function actBtns(t){const b=BRF()[t.id],dc=decFor(t);const out=[];
+ if(dc)out.push(`<button class="tbtn on" data-doit="${t.id}">Decide ${esc(dc.id)}</button>`);
+ else if(t.owner==="JB")out.push(`<button class="tbtn on" data-doit="${t.id}">${b?"Do it":"Open"}</button>`);
+ if(t.owner!=="JB"&&(t.rag==="red"||(t.act||{}).owes))out.push(`<button class="tbtn" data-askc="${t.id}">Ask Claude about this</button>`);
+ return out.length?`<div class="bar-row abtn">${out.join("")}</div>`:""}
+function askForm(t,b){const sent=LS.get("w1dash.sentact",{});const sendL=ghTok()?"Send":"Send → GitHub, press Create";
+ return sent[t.id]?`<div class="callout green" style="margin:10px 0 0">✓ Sent at ${esc(sent[t.id])}. The Mac records it within a minute and this card closes.</div>`
+  :b.answer==="numbers"?`<div class="bar-row" style="margin:10px 0 0">${(b.fields||["Week %","Claude Code %","Cowork %"]).map((f,i)=>`<input id="u-${i}" data-u="${i}" inputmode="decimal" placeholder="${esc(f)}" style="width:130px" class="inp">`).join("")}<button class="tbtn on" data-act="${t.id}" data-kind="numbers">${sendL}</button></div>`
+  :`<div class="bar-row" style="margin:10px 0 0"><input id="a-${t.id}" data-a="1" placeholder="${esc(b.placeholder||"What you did or found")}" style="flex:1;min-width:min(220px,100%)" class="inp"><button class="tbtn on" data-act="${t.id}">${sendL}</button></div>`}
+function askCard(t,mode){const b=BRF()[t.id];const imp=impactTxt(t);
+ if(mode==="short")return `<div class="askshort">${ownerLine(t)}${imp?`<div class="impact">${link(imp)}</div>`:""}${actBtns(t)}</div>`;
+ const dc=decFor(t);
+ const head=`<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">${pg("V3")}${t.rag==="red"||t.rag==="amber"?pill(t.rag,t.rag==="red"?"Problem":"Attention"):""}<b style="font-size:16px;flex:1;min-width:min(200px,100%)">${esc(b?b.title:t.title)}</b><a href="#" data-t="${t.id}" class="mono">${t.id}</a></div>`;
+ if(dc)return `<div class="tile askcard rowV3">${head}<div class="impact" style="margin-top:8px">${link(imp)}</div><div class="why" style="margin-top:6px">This needs your judgement, not a checklist: choose an option on decision ${esc(dc.id)}.</div>${mode==="panel"?decCard(dc):`<div class="bar-row abtn"><button class="tbtn on" data-go="dec">Decide ${esc(dc.id)}</button></div>`}</div>`;
+ if(!b)return `<div class="tile askcard rowV3">${head}<div class="miss-line">Brief missing: the coordinator owes you a plain-English ask</div>${imp?`<h6>Why it matters</h6><div class="impact">${link(imp)}</div>`:""}<div class="why" style="margin-top:6px">The raw plan steps are under Plan detail in the task panel.</div>${mode!=="panel"?`<div class="bar-row abtn"><button class="tbtn" data-t="${t.id}">Open the task</button></div>`:""}</div>`;
+ const sc=b.script&&b.script.cmd?b.script:null;const know=[...(b.know||[]),...(b.note?[b.note]:[])];
+ return `<div class="tile askcard rowV3">${head}
+ <h6>What I need you to do</h6><div>${link(b.title)}${b.jb_part?`<div style="margin-top:4px;color:var(--text2)">${link(b.jb_part)}</div>`:""}</div>
+ <h6>Time</h6><div>${esc(b.time||"not estimated")}${b.when?` · ${esc(b.when)}`:""}</div>
+ <h6>Run this</h6>${sc?`<div class="cmdbox"><code>${esc(sc.cmd)}</code><button class="tbtn" data-copy="${esc(sc.cmd)}" aria-label="Copy the command">Copy</button></div><div class="why" style="margin-top:4px">${esc(sc.does||"")}${sc.where?` · ${esc(sc.where)}`:""}</div>`:`<div class="why">No script: ${esc(b.script_none||"the brief does not say why")}</div>`}
+ <h6>Steps</h6><ol class="asksteps">${(b.steps||[]).map(x=>`<li>${link(x)}</li>`).join("")||"<li>See Run this.</li>"}</ol>
+ <h6>Why it matters</h6><div style="color:var(--text2)">${link(b.why||"")}</div>${imp?`<div class="impact">${link(imp)}</div>`:""}
+ <h6>Good to know</h6>${know.length?`<ul class="askknow">${know.map(x=>`<li>${link(x)}</li>`).join("")}</ul>`:`<div class="why">Nothing else.</div>`}
+ <h6>Send back</h6><div style="color:var(--text2)">${esc(b.send||"Press Report done when finished.")}</div>${askForm(t,b)}</div>`}
+function copyTxt(txt,btn){const ok=()=>{window._lastCopy=txt;if(btn){btn.textContent="Copied ✓";setTimeout(()=>{btn.textContent="Copy"},1600)}};
+ const fb=()=>{const ta=document.createElement("textarea");ta.value=txt;ta.setAttribute("readonly","");ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();let r=false;try{r=document.execCommand("copy")}catch(e){}ta.remove();if(r)ok();else if(btn)btn.textContent="Select and copy by hand"};
+ if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(txt).then(ok,fb);else fb()}
+function askClaude(id){const t=T[id];CT="V3";SS.set("w1dash.chatt",CT);SS.set("w1dash.chatdraft",`About ${id} (${t?t.title:""}): ${t?t.why:""}. What is happening, what are you doing about it, and do you need anything from me?`);closePanel();openChat()}
+R.dec=()=>{const notif=D.ntfy&&!LS.get("w1dash.ntfyok",false)?NOTIF_HTML():"";const card=decCard;
  const done=(D.decisions||[]).filter(d=>d.status!=="open").slice(0,8);
  const tokCard=ghTok()?"":`<div class="callout amber" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:260px"><b>Turn on one-click approvals (once per device).</b><div class="why">1. Open the token page (already filled in), set <b>Repository access</b> to <b>Only select repositories → lc-control-room</b>, and press <b>Generate token</b>. 2. Copy it and paste it here. It stays in this browser only and can do nothing except open issues on lc-control-room. Without it, Approve opens GitHub and you press Create.</div></div><a class="tbtn" href="${TOKEN_NEW}" target="_blank" rel="noopener">Token page</a><input id="gt-in" class="inp" placeholder="Paste token" style="width:200px"><button class="tbtn on" id="gt-save">Save</button></div>`;
  return tokCard+notif+(OPEN_DEC.length?OPEN_DEC.map(card).join(""):`<div class="empty">Nothing needs your decision right now.</div>`)+
@@ -485,19 +549,10 @@ R.chg=()=>{const since=seen?new Date(seen.at).toLocaleString("en-GB",{weekday:"s
  return `<div class="bar-row"><span class="why">Compared with ${esc(since)}: ${changes.length} change${changes.length===1?"":"s"}${newTasks.length?`, ${newTasks.length} new task(s)`:""}.</span><span style="flex:1"></span><button class="tbtn" id="markseen">Mark as seen</button></div>${changes.length?`<div class="scroll"><table>${rows}</table></div>`:`<div class="empty">Nothing has changed since then.</div>`}`};
 R.iss=()=>{const L2=D.tasks.filter(t=>t.rag==="red"||t.rag==="amber").sort((a,b)=>RORD[a.rag]-RORD[b.rag]||b.ndesc-a.ndesc);
  const allI=!!L.f.issall,shown=allI?L2:L2.filter(t=>t.rag==="red").concat(L2.filter(t=>t.rag==="amber").slice(0,4));
- return L2.length?`<div class="iss">${shown.map(t=>`<div class="it ${t.rag}" data-t="${t.id}" role="button" tabindex="0"><div style="display:flex;gap:8px;align-items:center">${pill(t.rag,t.rag==="red"?"Problem":"Attention")}<b class="mono">${t.id}</b><span class="ell" style="flex:1">${esc(t.title)}</span></div><div class="why" style="margin-top:4px">${esc(t.why)}</div>${t.plan?`<div class="act">→ ${esc(t.plan)}</div>`:""}${t.ndesc?`<div class="why">blocks ${t.ndesc} later task${t.ndesc>1?"s":""}</div>`:""}</div>`).join("")}</div>${L2.length>shown.length||allI?`<div style="margin-top:10px"><button class="tbtn" data-tog="issall">${allI?"Show fewer":`Show all ${L2.length}`}</button></div>`:""}`:`<div class="empty">No problems. Everything is on track.</div>`};
+ return L2.length?`<div class="iss">${shown.map(t=>`<div class="it ${t.rag}" data-t="${t.id}" role="button" tabindex="0"><div style="display:flex;gap:8px;align-items:center">${pill(t.rag,t.rag==="red"?"Problem":"Attention")}<b class="mono">${t.id}</b><span class="ell" style="flex:1">${esc(t.title)}</span></div><div class="why" style="margin-top:4px">${esc(t.why)}</div>${askCard(t,"short")}</div>`).join("")}</div>${L2.length>shown.length||allI?`<div style="margin-top:10px"><button class="tbtn" data-tog="issall">${allI?"Show fewer":`Show all ${L2.length}`}</button></div>`:""}`:`<div class="empty">No problems. Everything is on track.</div>`};
 R.you=()=>{const B=(D.jb&&D.jb.briefs)||{},C=(D.jb&&D.jb.coming)||[],Hd=(D.jb&&D.jb.handled)||[];const sent=LS.get("w1dash.sentact",{});
- const ready=D.tasks.filter(t=>t.status!=="done"&&t.owner==="JB"&&!t.why.startsWith("Waiting")&&B[t.id]&&!B[t.id].hide);
- const send=(id)=>ghTok()?"Send":"Send → GitHub, press Create";
- const form=(t,b)=>sent[t.id]?`<div class="callout green" style="margin:10px 0 0">✓ Sent at ${esc(sent[t.id])}. The Mac records it within a minute and this card closes.</div>`
-  :b.answer==="numbers"?`<div class="bar-row" style="margin:12px 0 0">${(b.fields||["Week %","Claude Code %","Cowork %"]).map((f,i)=>`<input id="u-${i}" inputmode="decimal" placeholder="${esc(f)}" style="width:130px" class="inp">`).join("")}<button class="tbtn on" data-act="${t.id}" data-kind="numbers">${send()}</button></div>`
-  :`<div class="bar-row" style="margin:12px 0 0"><input id="a-${t.id}" placeholder="${esc(b.placeholder||"What you did or found")}" style="flex:1;min-width:220px" class="inp"><button class="tbtn on" data-act="${t.id}">${send()}</button></div>`;
- const card=t=>{const b=B[t.id];return `<div class="tile rowV3" style="padding:16px;margin-bottom:12px">
-  <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">${pg("V3")}<b style="font-size:16px;flex:1;min-width:200px">${esc(b.title)}</b><span class="why">${esc(b.time||"")}${b.when?" · "+esc(b.when):""}</span></div>
-  <div style="margin-top:8px;color:var(--text2)"><b style="color:var(--text)">Why:</b> ${link(b.why)}</div>
-  <ol style="margin:10px 0 0;padding-left:20px">${(b.steps||[]).map(x=>`<li style="margin:4px 0">${link(x)}</li>`).join("")}</ol>
-  ${b.note?`<div class="why" style="margin-top:6px">${link(b.note)}</div>`:""}
-  <div class="why" style="margin-top:6px">Send back: ${esc(b.send||"")} · task <a href="#" data-t="${t.id}" class="mono">${t.id}</a></div>${form(t,b)}</div>`};
+ const ready=D.tasks.filter(t=>t.status!=="done"&&t.owner==="JB"&&!t.why.startsWith("Waiting")&&!(B[t.id]&&B[t.id].hide));
+ const card=t=>askCard(t,"you");
  const v2need=D.v2&&D.v2.need&&showP("V2")?`<div class="tile rowV2" style="padding:16px;margin-bottom:12px"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">${pg("V2")}<b style="font-size:16px;flex:1">The V2 coordinator (${esc(D.facts.coordinator)}) needs you</b></div><div style="margin-top:8px">${esc(D.v2.need)}</div>${sent["V2"]?`<div class="callout green" style="margin:10px 0 0">✓ Sent at ${esc(sent["V2"])}; the Mac passes it to the V2 coordinator.</div>`:`<div class="bar-row" style="margin:10px 0 0"><input id="a-V2" placeholder="Your reply, e.g. phone connected · Standard · 3-line cap OK" style="flex:1;min-width:220px" class="inp"><button class="tbtn" style="background:var(--v2);border-color:var(--v2);color:#0A0A0C" data-act="V2">Send to the V2 coordinator</button></div>`}</div>`:"";
  const v3=showP("V3");
  const coming=v3&&C.length?`<div class="pathlab" style="margin-top:6px">Coming up (nothing to do yet)</div><table>${C.map(c=>`<tr class="rowV3"><td style="white-space:nowrap">${pg("V3")}</td><td><b>${esc(c.title)}</b><div class="why">${esc(c.text)}</div></td><td class="why" style="white-space:nowrap;text-align:right">${esc(c.when||"")}</td></tr>`).join("")}</table>`:"";
@@ -664,14 +719,15 @@ function openTask(id){const t=T[id];if(!t)return;setH("s",null);setH("t",id);
  const ln=t.lane;
  $("#panel").innerHTML=`<button class="x" aria-label="Close">×</button><h3>${t.id} · ${esc(t.title)}</h3>
  <div class="meta">${ownerTxt(t)} · planned ${dn(t.day)}${t.where?" · "+esc(t.where):""}</div>
- <div class="callout ${t.rag==="grey"?"":t.rag}">${pill(t.rag,t.status==="done"?"Done":t.status==="doing"?"In progress":t.status==="blocked"?"Blocked":null)}<div style="margin-top:6px">${esc(t.why)}</div>${t.plan?`<div style="margin-top:6px;color:var(--orange2)"><b>Next action:</b> ${esc(t.plan)}</div>`:""}${t.note?`<div style="margin-top:6px"><b>Coordinator note:</b> ${esc(t.note)}</div>`:""}</div>
+ ${t.status!=="done"?ownerLine(t):""}${t.status!=="done"&&(t.owner==="JB"||decFor(t))?askCard(t,"panel"):""}
+ <div class="callout ${t.rag==="grey"?"":t.rag}">${pill(t.rag,t.status==="done"?"Done":t.status==="doing"?"In progress":t.status==="blocked"?"Blocked":null)}<div style="margin-top:6px">${esc(t.why)}</div>${t.plan&&t.owner!=="JB"?`<div style="margin-top:6px;color:var(--orange2)"><b>Claude's next action</b> (nothing for you): ${esc(t.plan.replace(/^(Coordinator|Claude)\s*:\s*/,""))}</div>`:""}${t.status!=="done"&&t.owner!=="JB"&&!decFor(t)&&impactTxt(t)?`<div class="impact" style="margin-top:6px">${link(impactTxt(t))}</div>`:""}${t.status!=="done"&&t.owner!=="JB"?actBtns(t):""}${t.note?`<div style="margin-top:6px"><b>Coordinator note:</b> ${esc(t.note)}</div>`:""}</div>
  <div class="mini"><div class="tile"><div class="lab">Estimate</div><div class="val">${t.est}<small> min</small></div><div class="foot">${esc(t.slot||"")}</div></div><div class="tile"><div class="lab">${t.status==="done"?"Finished":"Projected"}</div><div class="val">${t.status==="done"?(t.updated||"").slice(11,16):t.finish}</div><div class="foot">${t.status==="done"?(t.updated||"").slice(0,10):dn(t.finish_day)+(t.slip_days?` · <b style="color:var(--warn)">${t.slip_days} day late</b>`:" · on plan")}</div></div><div class="tile"><div class="lab">Tokens</div><div class="val">${fmt(tot)}</div><div class="foot">${ss.length} session(s) · start ${fmt(stc)}</div></div></div>
  ${t.gates&&t.gates.length?`<h5>Gates</h5><div>${t.gates.map(g=>`<span class="pill r-blue">${esc(g)}</span>`).join(" ")}</div>`:""}
  <h5>Depends on</h5><div>${dep}</div><h5>Unblocks ${t.ndesc?`<span class="why">(${t.ndesc} later tasks in all)</span>`:""}</h5><div>${users}</div>
  ${ev.length?`<h5>History</h5><ul>${ev.map(e=>`<li><span class="mono">${esc(String(e[0]).replace("T"," ").slice(0,16))}</span> · ${esc(e[1])}</li>`).join("")}</ul>`:""}
  ${t.why_opus?`<h5>Why Opus</h5><div class="box">${esc(t.why_opus)}</div>`:""}
- <h5>Steps</h5><ol>${(t.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
- <h5>Done when</h5><div class="box mono">${esc(t.done_check||"")}</div>${t.evidence?`<div class="why">evidence file: ${esc(t.evidence)}</div>`:""}
+ ${t.owner==="JB"?`<details class="plandet"><summary>Plan detail (the W1 plan's own steps and check)</summary>`:""}<h5>Steps</h5><ol>${(t.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ol>
+ <h5>Done when</h5><div class="box mono">${esc(t.done_check||"")}</div>${t.evidence?`<div class="why">evidence file: ${esc(t.evidence)}</div>`:""}${t.owner==="JB"?`</details>`:""}
  ${t.pr?`<h5>Pull request</h5><div>#${t.pr} · ${esc(t.pr_state||"state unknown")}</div>`:""}
  ${ln?`<h5>Last lane run · ${esc(ln.at)} ${t.lane_running?pill("green","running"):""}</h5>${ln.denied.length?`<div class="box mono" style="border-color:rgba(239,91,91,.5)">Refused: ${ln.denied.map(esc).join("\n")}</div>`:""}<div class="box" style="margin-top:6px">${esc(ln.result)}</div>`:""}
  ${(t.ev||[]).length?`<h5>Evidence</h5>${t.ev.map(e=>`<div class="why">${esc(e.file)} · ${esc(e.at)}</div><div class="box" style="margin-bottom:8px">${esc(e.text)}</div>`).join("")}`:""}
@@ -721,17 +777,22 @@ document.addEventListener("click",e=>{
   if(a==="col")L.col[k]=!L.col[k];
   if(a==="hide")L.hide[k]=true;
   saveL();renderAll();const el=$("#m-"+k);if(el&&(a==="up"||a==="down")){el.scrollIntoView({block:"nearest"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),700)}return}
+ const cp=e.target.closest("[data-copy]");if(cp){e.preventDefault();copyTxt(cp.dataset.copy,cp);return}
+ const di=e.target.closest("[data-doit]");if(di){e.preventDefault();e.stopPropagation();openTask(di.dataset.doit);setTimeout(()=>{const c=$("#panel .askcard");if(c)c.scrollIntoView({block:"start"})},50);return}
+ const aq=e.target.closest("[data-askc]");if(aq){e.preventDefault();e.stopPropagation();askClaude(aq.dataset.askc);return}
+ if(e.target.closest(".askshort .abtn,.askcard input,.askcard .cmdbox"))return;
  const ac=e.target.closest("[data-act]");if(ac){const id=ac.dataset.act;let title;
-  if(ac.dataset.kind==="numbers"){const v=[0,1,2].map(i=>((document.getElementById("u-"+i)||{}).value||"").trim());if(!v[0]){document.getElementById("u-0").focus();return}title=`ACTION ${id}: ${v.join(" ")}`.trim()}
-  else{const v=((document.getElementById("a-"+id)||{}).value||"").trim();if(!v){document.getElementById("a-"+id).focus();return}title=`ACTION ${id}: ${v}`.slice(0,240)}
+  const box=ac.closest(".askcard,.tile")||document;
+  if(ac.dataset.kind==="numbers"){const ins=[0,1,2].map(i=>box.querySelector('[data-u="'+i+'"]')||document.getElementById("u-"+i));const v=ins.map(x=>((x||{}).value||"").trim());if(!v[0]){ins[0]&&ins[0].focus();return}title=`ACTION ${id}: ${v.join(" ")}`.trim()}
+  else{const inp=box.querySelector("[data-a]")||document.getElementById("a-"+id);const v=((inp||{}).value||"").trim();if(!v){inp&&inp.focus();return}title=`ACTION ${id}: ${v}`.slice(0,240)}
   const body="Reported from the control room.\n\n<!-- recorded by the Mac within a minute -->";ac.disabled=true;ac.textContent="Sending…";
-  send(title,body,ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent(body)).then(()=>{const sv=LS.get("w1dash.sentact",{});sv[id]=new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});LS.set("w1dash.sentact",sv);rerender("you")});return}
+  send(title,body,ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent(body)).then(()=>{const sv=LS.get("w1dash.sentact",{});sv[id]=new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});LS.set("w1dash.sentact",sv);rerender("you");rerender("iss");if(H.t)openTask(H.t)});return}
  if(e.target.id==="gt-save"){const v=(document.getElementById("gt-in").value||"").trim();if(!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)){document.getElementById("gt-in").style.borderColor="var(--crit)";return}try{localStorage.setItem("w1dash.gt",v)}catch(x){}rerender("dec");return}
- const ap=e.target.closest("[data-approve]");if(ap){const id=ap.dataset.approve,ch=ap.dataset.choice,nt=(document.getElementById("note-"+id)||{}).value||"";
+ const ap=e.target.closest("[data-approve]");if(ap){const id=ap.dataset.approve,ch=ap.dataset.choice,dcb=ap.closest(".deccard")||document,nt=(dcb.querySelector('[id="note-'+id+'"]')||{}).value||"";
   const url=ISSUE_NEW+"?title="+encodeURIComponent("DECISION "+id+": "+ch)+"&body="+encodeURIComponent((nt.trim()||"Approved from the control room.")+"\n\n<!-- recorded by the Mac within a minute -->");
   ap.disabled=true;ap.textContent="Sending…";
   send("DECISION "+id+": "+ch,(nt.trim()||"Approved from the control room.")+"\n\n<!-- recorded by the Mac within a minute -->",url).then(res=>{const sv=LS.get("w1dash.sent",{});sv[id]={choice:ch,at:new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),url:res.mode==="direct"?res.url:url,mode:res.mode,why:res.why||""};LS.set("w1dash.sent",sv);rerender("dec")});return}
- const ot=e.target.closest("[data-other]");if(ot){const id=ot.dataset.other,ta=document.getElementById("other-"+id),q=(ta&&ta.value||"").trim();if(!q){ta&&ta.focus();return}
+ const ot=e.target.closest("[data-other]");if(ot){const id=ot.dataset.other,ta=(ot.closest(".deccard")||document).querySelector('[id="other-'+id+'"]'),q=(ta&&ta.value||"").trim();if(!q){ta&&ta.focus();return}
   ot.disabled=true;ot.textContent="Sending…";const title="DECISION "+id+": OTHER",body=q+"\n\n<!-- recorded by the Mac within a minute -->";
   send(title,body,ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent(body)).then(res=>{const a=LS.get("w1dash.asked",{});a[id]=Date.now();LS.set("w1dash.asked",a);
    const box=ot.closest(".tile");box.innerHTML=`<div class="callout ${res.mode==="direct"?"green":"blue"}" style="margin:0">${res.mode==="direct"?"✓ Sent to Claude.":"Opened GitHub: press Create to send."} Your message appears on this card within a minute and Claude answers here, usually within a few minutes. The decision stays open.</div>`});return}

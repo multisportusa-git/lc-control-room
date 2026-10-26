@@ -165,55 +165,6 @@ while left:
     beg[t["id"]], fin[t["id"]] = b, f; pool[k] = f; slot[t["id"]] = "%s %d" % (t["owner"], k + 1)
     left.remove(t)
 
-# ---------- RAG ----------
-def rag(t):
-    tid = t["id"]; st = status(tid); s = state.get(tid) or {}; n = notes.get(tid) or {}
-    deps_open = [d for d in t.get("depends", []) if status(d) != "done"]
-    ln = lanes.get(tid); pr = pr_for(tid); prs_ = PR.get(pr) if pr else None
-    blockfile = os.path.join(EV, "lane-%s-blocked.md" % tid)
-    if st == "done":
-        r = ("green", "Done %s" % hm(ts(s.get("updated"))), "")
-        if "forced" in (s.get("note") or ""): r = ("green", "Done, closed with --force (model rail skipped)", "Coordinator: record the reason in the CHANGELOG")
-    elif st == "blocked" or os.path.exists(blockfile):
-        r = ("red", "Blocked: " + clean(s.get("note") or rd(blockfile, 300), 200), "Coordinator: clear the cause, then re-run or re-open the lane")
-    elif ln and ln["denied"] and st == "doing" and (not started(tid) or ln["mt"] >= started(tid)) and tid not in running_lanes:
-        r = ("red", "Lane stopped: the sandbox refused %d command(s): %s" % (len(ln["denied"]), "; ".join(ln["denied"])[:160]),
-             "Coordinator: allow that command in the lane settings (or run the step itself), then resume the lane session")
-    elif st == "doing" and prs_ and prs_.get("state") == "MERGED":
-        r = ("amber", "PR #%d merged %s; task not closed" % (pr, hm(ts(prs_.get("mergedAt")) and ts(prs_["mergedAt"]) + dt.timedelta(hours=0))),
-             "Coordinator: python3 scripts/lc_state.py done %s" % tid)
-    elif st == "doing":
-        b = started(tid); el = (NOW - b).total_seconds() / 60 if b else 0; e = est(t)
-        if el > 2 * e: r = ("red", "Running %d min, twice the %d min estimate" % (el, e), "Coordinator: read the lane log and status file; escalate or re-brief per the stall triggers")
-        elif el > 1.5 * e: r = ("amber", "Running %d min, past 1.5x the %d min estimate" % (el, e), "Coordinator: check the lane at its next message")
-        else: r = ("green", "On time: %d of %d min" % (el, e), "")
-    elif deps_open:
-        late = t["day"] < TODAY
-        r = ("amber" if late else "grey", "Waiting on %s" % ", ".join(deps_open[:4]) + (" (planned %s)" % t["day"][5:] if late else ""),
-             "Follows its dependencies" if not late else "Behind plan: unblock " + deps_open[0])
-    else:
-        if t["owner"] == "JB": r = ("amber", "Ready: needs JB", "JB: see the steps")
-        elif t["day"] < TODAY: r = ("red", "Ready since %s, not started" % t["day"][5:], "Coordinator: start it now (lane.sh / autorun)")
-        elif t["day"] == TODAY: r = ("blue", "Ready to start", "Coordinator starts it (lc_state.py next --today)")
-        else: r = ("grey", "Ready (planned %s)" % t["day"][5:], "")
-    if st != "done" and r[0] in ("grey", "blue") and fin.get(tid) and fin[tid].date().isoformat() > t["day"]:
-        r = ("amber", r[1] + "; projected to finish %s, planned %s" % (fin[tid].strftime("%a %H:%M"), t["day"][5:]), r[2] or "Coordinator: pull the chain forward or re-plan")
-    if n.get("rag"): r = (n["rag"], r[1], r[2])
-    return {"rag": r[0], "why": r[1], "plan": n.get("plan") or r[2], "note": n.get("note", "")}
-
-tasks = []
-for t in T:
-    tid = t["id"]; s = state.get(tid) or {}; R = rag(t); pr = pr_for(tid)
-    tasks.append({**{k: t.get(k) for k in ("id", "day", "title", "owner", "model", "effort", "depends", "steps", "done_check", "evidence", "where", "gates", "why_opus", "review_of", "manual_start")},
-                  "status": status(tid), "updated": s.get("updated", ""), "state_note": clean(s.get("note"), 300),
-                  "opened": s.get("opened", []), "escalations": s.get("escalations", []),
-                  "est": est(t), "start": hm(beg.get(tid)), "start_day": beg[tid].date().isoformat() if beg.get(tid) else "",
-                  "finish": hm(fin.get(tid)), "finish_day": fin[tid].date().isoformat() if fin.get(tid) else "",
-                  "pr": pr, "pr_state": (PR.get(pr) or {}).get("state") if pr else None, "lane": {k: v for k, v in (lanes.get(tid) or {}).items() if k != "mt"} or None,
-                  "slot": slot.get(tid, ""), "beg_iso": beg[tid].isoformat() if beg.get(tid) else "", "fin_iso": fin[tid].isoformat() if fin.get(tid) else "",
-                  "ndesc": NDESC.get(tid, 0), "slip_days": max(0, (fin[tid].date() - dt.date.fromisoformat(t["day"])).days) if fin.get(tid) and status(tid) != "done" else 0,
-                  "lane_running": tid in running_lanes, "ev": evidence_excerpt(tid) if status(tid) != "todo" or tid in lanes else [], **R})
-
 # critical path: walk back from the latest projected finish through the latest-finishing open dependency
 def chain(end):
     c = [end]
@@ -230,6 +181,151 @@ for g in ("GO-build", "G1"):
     gates[g] = {"done": sum(status(i) == "done" for i in g_t), "total": len(g_t),
                 "eta": max((fin[i] for i in g_t), default=NOW).strftime("%a %H:%M") if g_t else "",
                 "path": chain(max(g_t, key=lambda i: fin[i])) if [i for i in g_t if status(i) != "done"] else []}
+
+
+# ---------- impact of each open task: what it unblocks, whether it is critical, how far it can slip ----------
+jb = js(os.path.join(W1, "jb_briefs.json"), {}) or {}  # plain-English briefs for JB's asks (written by sessions)
+BRIEFS = jb.get("briefs") if isinstance(jb.get("briefs"), dict) else {}
+crit_set = set(crit) | set(gates["GO-build"]["path"])
+def open_kids(i): return [k for k in kids.get(i, []) if k in BY and status(k) != "done"]
+WEEK_FIN = max(fin.values(), default=NOW)
+GATE_ETA = {g: max((fin[i] for i in BY if g in (BY[i].get("gates") or [])), default=WEEK_FIN) for g in ("GO-build", "G1")}
+# Latest-finish rule (a backward pass over the projected schedule; durations are est()):
+#   Target = what the critical path is measured against: the projected week finish (the latest projected finish,
+#   where chain() starts), lowered to the projected gate finish for a task tagged with that gate (GO-build, G1).
+#   LF(i) = min(target(i), min over open dependents k of LS(k)),  LS(k) = beg[k] + slack(k)
+#           i.e. i may finish as late as each dependent can start late without moving the week finish or the gate.
+#           Waits for a free lane or for 08:00 already in the projection count as slack.
+#   slack_min  = LF(i) - fin[i] in minutes (0 on the critical chain and the GO-build chain by construction).
+#   latest_iso = LF(i): "becomes critical at"; past that, each minute late moves the week finish / gate.
+#   delay_min  = minutes i can slip before its nearest open dependent's projected start moves (free float).
+LFm = {}
+def latest(i, stack=()):
+    if i in LFm: return LFm[i]
+    if i in stack: return fin[i]  # dependency cycle guard
+    cap = WEEK_FIN
+    for g in (BY[i].get("gates") or []):
+        if g in GATE_ETA: cap = min(cap, GATE_ETA[g])
+    for k in open_kids(i):
+        cap = min(cap, beg[k] + max(dt.timedelta(0), latest(k, stack + (i,)) - fin[k]))
+    LFm[i] = max(cap, fin[i])
+    return LFm[i]
+# holding_now: this task is the only thing an otherwise-ready dependent (other deps done, planned day reached) waits for,
+# and nobody is moving it on schedule: it is blocked, or a ready person/coordinator task (JB, Cowork, coordinator) not
+# started, or ready since an earlier day and not started, or running past 1.5x its estimate.
+def stuck(i):
+    st = status(i); t = BY[i]
+    if st == "blocked": return True
+    if st == "todo" and all(status(d) == "done" for d in t.get("depends", []) if d in BY):
+        return t["owner"] in ("JB", "COWORK", "COORD") or t["day"] < TODAY
+    if st == "doing" and started(i): return (NOW - started(i)).total_seconds() / 60 > 1.5 * est(t)
+    return False
+def impact(i):
+    if status(i) == "done": return None
+    lf = latest(i); sl = max(0, int((lf - fin[i]).total_seconds() // 60))
+    ks = open_kids(i)
+    nk = min(ks, key=lambda k: beg[k]) if ks else None
+    hold = [k for k in ks if status(k) == "todo" and BY[k]["day"] <= TODAY and all(status(d) == "done" for d in BY[k].get("depends", []) if d != i and d in BY)] if stuck(i) else []
+    return {"unblocks": NDESC.get(i, 0),
+            "next": [{"id": k, "title": clean(BY[k]["title"], 120), "beg_iso": beg[k].isoformat(), "fin_iso": fin[k].isoformat()} for k in sorted(ks, key=lambda k: beg[k])][:6],
+            "critical": i in crit_set, "slack_min": sl, "latest_iso": lf.isoformat(), "holding_now": bool(hold), "holding": hold,
+            "delay_id": nk, "delay_min": max(0, int((beg[nk] - fin[i]).total_seconds() // 60)) if nk else None,
+            "red_iso": red_at(i, lf).isoformat()}
+# red_at: when a critical task stops being "attention" and becomes a red alert (JB 26 Oct 15:06).
+#   running: the earlier of its latest finish and the end of its estimate (on the chain, every minute past it moves the finish);
+#   not started: its latest start (latest finish - estimate), but never sooner than 30 min after it became ready, so the
+#   coordinator has a moment to start a lane that has just been freed.
+def red_at(i, lf):
+    t = BY[i]; e = dt.timedelta(minutes=est(t))
+    if status(i) == "doing" and started(i): return min(lf, started(i) + e)
+    ls = lf - e
+    if all(status(d) == "done" for d in t.get("depends", []) if d in BY):
+        rdy = max([fin[d] for d in t.get("depends", []) if d in fin] + [dt.datetime.strptime(t["day"], "%Y-%m-%d").replace(hour=8)])
+        ls = max(ls, rdy + dt.timedelta(minutes=30))
+    return ls
+IMPACT = {t["id"]: impact(t["id"]) for t in T}
+
+# ---------- RAG ----------
+STALE_MIN = 20  # a lane whose last headless run ended this long ago, with no live process, is stopped, not running
+def rag(t):
+    tid = t["id"]; st = status(tid); s = state.get(tid) or {}; n = notes.get(tid) or {}
+    deps_open = [d for d in t.get("depends", []) if status(d) != "done"]
+    ln = lanes.get(tid); pr = pr_for(tid); prs_ = PR.get(pr) if pr else None
+    blockfile = os.path.join(EV, "lane-%s-blocked.md" % tid)
+    if st == "done":
+        r = ("green", "Done %s" % hm(ts(s.get("updated"))), "")
+        if "forced" in (s.get("note") or ""): r = ("green", "Done, closed with --force (model rail skipped)", "Coordinator: record the reason in the CHANGELOG")
+    elif st == "blocked" or os.path.exists(blockfile):
+        r = ("red", "Blocked: " + clean(s.get("note") or rd(blockfile, 300), 200), "Coordinator: clear the cause, then re-run or re-open the lane")
+    elif ln and ln["denied"] and st == "doing" and (not started(tid) or ln["mt"] >= started(tid)) and tid not in running_lanes:
+        r = ("red", "Lane stopped: the sandbox refused %d command(s): %s" % (len(ln["denied"]), "; ".join(ln["denied"])[:160]),
+             "Coordinator: allow that command in the lane settings (or run the step itself), then resume the lane session")
+    elif st == "doing" and prs_ and prs_.get("state") == "MERGED":
+        r = ("amber", "PR #%d merged %s; task not closed" % (pr, hm(ts(prs_.get("mergedAt")) and ts(prs_["mergedAt"]) + dt.timedelta(hours=0))),
+             "Coordinator: python3 scripts/lc_state.py done %s" % tid)
+    elif st == "doing" and ln and tid not in running_lanes and started(tid) and ln["mt"] >= started(tid) and NOW - ln["mt"] > dt.timedelta(minutes=STALE_MIN):
+        r = ("red", "Last run ended %s; Claude has not restarted it" % ln["mt"].strftime("%H:%M" if ln["mt"].date() == NOW.date() else "%a %H:%M"),
+             "Coordinator: read the lane result, then resume the lane or close the task")
+    elif st == "doing":
+        b = started(tid); el = (NOW - b).total_seconds() / 60 if b else 0; e = est(t)
+        if el > 2 * e: r = ("red", "Running %d min, twice the %d min estimate" % (el, e), "Coordinator: read the lane log and status file; escalate or re-brief per the stall triggers")
+        elif el > 1.5 * e: r = ("amber", "Running %d min, past 1.5x the %d min estimate" % (el, e), "Coordinator: check the lane at its next message")
+        else: r = ("green", "On time: %d of %d min" % (el, e), "")
+    elif deps_open:
+        late = t["day"] < TODAY
+        r = ("amber" if late else "grey", "Waiting on %s" % ", ".join(deps_open[:4]) + (" (planned %s)" % t["day"][5:] if late else ""),
+             "Follows its dependencies" if not late else "Behind plan: unblock " + deps_open[0])
+    else:
+        if t["owner"] == "JB": r = ("amber", "Ready: needs JB", "JB: see the steps")
+        elif t["day"] < TODAY: r = ("red", "Ready since %s, not started" % t["day"][5:], "Coordinator: start it now (lane.sh / autorun)")
+        elif t["day"] == TODAY: r = ("blue", "Ready to start", "Coordinator starts it (lc_state.py next --today)")
+        else: r = ("grey", "Ready (planned %s)" % t["day"][5:], "")
+    if st != "done" and r[0] in ("grey", "blue") and fin.get(tid) and fin[tid].date().isoformat() > t["day"]:
+        r = ("amber", r[1] + "; projected to finish %s, planned %s" % (fin[tid].strftime("%a %H:%M"), t["day"][5:]), r[2] or "Coordinator: pull the chain forward or re-plan")
+    if t["owner"] == "JB" and r[1] == "Ready: needs JB" and not BRIEFS.get(tid):
+        r = ("amber", "Brief missing", "Coordinator: write the plain-English ask for JB in jb_briefs.json")
+    if n.get("rag"): r = (n["rag"], r[1], r[2])
+    im = IMPACT.get(tid)
+    # JB 26 Oct 15:06: a task that reaches a critical-path point is never amber; it is red.
+    if st != "done" and im and im["critical"]:
+        if im["holding_now"]:
+            r = ("red", "Critical path: holding up %s now" % ", ".join(im["holding"][:3]) + ("; " + r[1] if r[1] not in ("Ready: needs JB",) else ""), r[2])
+        elif NOW >= dt.datetime.fromisoformat(im["red_iso"]):
+            r = ("red", "Critical path: slack used up at %s; %s" % (dt.datetime.fromisoformat(im["red_iso"]).strftime("%a %H:%M"), r[1]), r[2] or "Coordinator: pull the chain forward or re-plan")
+    return {"rag": r[0], "why": r[1], "plan": n.get("plan") or r[2], "note": n.get("note", "")}
+
+# who acts next, in plain words: JB, or Claude (coordinator / a lane / a script / the test queue) and when it is next looked at
+WHO = {"COORD": "coordinator", "LANE": "a lane", "SCRIPT": "a script", "QUEUE": "the test queue", "COWORK": "Cowork"}
+def who_line(t, R):
+    tid = t["id"]; st = status(tid)
+    if t["owner"] == "JB": return {"kind": "JB"}
+    who = WHO.get(t["owner"], t["owner"])
+    if t["owner"] == "LANE" and slot.get(tid, "").startswith("LANE "): who = "lane " + slot[tid].split(" ")[1]
+    doing = R["plan"] or (state.get(tid) or {}).get("note") or R["note"]
+    doing = re.sub(r"^(Coordinator|Claude)\s*:\s*", "", clean(doing, 300))
+    if re.match(r"(?i)^coordinator\b", R["plan"] or ""): who = "coordinator"
+    owes = False
+    if not doing:
+        if R["rag"] in ("green", "grey", "blue"): doing = R["why"]  # plain state: on time / waiting on / ready
+        else: owes = True
+    if R["rag"] in ("red", "amber"): nxt = NOW + dt.timedelta(minutes=10)  # an alert is re-checked at the next publish
+    elif st == "doing" and started(tid) and started(tid) + dt.timedelta(minutes=1.5 * est(t)) > NOW: nxt = started(tid) + dt.timedelta(minutes=1.5 * est(t))
+    elif st == "todo" and beg.get(tid) and beg[tid] > NOW: nxt = beg[tid]
+    else: nxt = NOW + dt.timedelta(minutes=10)  # the control room re-checks it at the next publish
+    return {"kind": "Claude", "who": who, "doing": doing, "owes": owes, "next_check_iso": nxt.isoformat()}
+
+tasks = []
+for t in T:
+    tid = t["id"]; s = state.get(tid) or {}; R = rag(t); pr = pr_for(tid)
+    tasks.append({**{k: t.get(k) for k in ("id", "day", "title", "owner", "model", "effort", "depends", "steps", "done_check", "evidence", "where", "gates", "why_opus", "review_of", "manual_start")},
+                  "status": status(tid), "updated": s.get("updated", ""), "state_note": clean(s.get("note"), 300),
+                  "opened": s.get("opened", []), "escalations": s.get("escalations", []),
+                  "est": est(t), "start": hm(beg.get(tid)), "start_day": beg[tid].date().isoformat() if beg.get(tid) else "",
+                  "finish": hm(fin.get(tid)), "finish_day": fin[tid].date().isoformat() if fin.get(tid) else "",
+                  "pr": pr, "pr_state": (PR.get(pr) or {}).get("state") if pr else None, "lane": {k: v for k, v in (lanes.get(tid) or {}).items() if k != "mt"} or None,
+                  "decision": t.get("decision"), "slot": slot.get(tid, ""), "beg_iso": beg[tid].isoformat() if beg.get(tid) else "", "fin_iso": fin[tid].isoformat() if fin.get(tid) else "",
+                  "ndesc": NDESC.get(tid, 0), "slip_days": max(0, (fin[tid].date() - dt.date.fromisoformat(t["day"])).days) if fin.get(tid) and status(tid) != "done" else 0,
+                  "lane_running": tid in running_lanes, "impact": IMPACT.get(tid), "act": who_line(t, R), "brief_missing": t["owner"] == "JB" and status(tid) != "done" and not BRIEFS.get(tid), "ev": evidence_excerpt(tid) if status(tid) != "todo" or tid in lanes else [], **R})
 
 # ---------- queue, usage, facts ----------
 queue = []
@@ -283,7 +379,6 @@ for p in glob.glob(os.path.join(W1, "decisions", "D-*.json")):
     decisions.append(d)
 decisions.sort(key=lambda d: (d["status"] != "open", d.get("deadline") or "9", d["id"]))
 ntfy = rd(os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")).strip()
-jb = js(os.path.join(W1, "jb_briefs.json"), {}) or {}  # plain-English briefs for JB's asks (written by sessions)
 
 # ---------- V2: the Roadmap to Beta (ROADMAP_TO_BETA.html, edited by the V2 coordinator with roadmap.py) ----------
 import html as _html
@@ -515,7 +610,6 @@ health = [
 ]
 
 # ---------- SITREP: the few sentences that answer "where are we" ----------
-crit_set = set(crit) | set(gates["GO-build"]["path"])
 def short(x, n):
     x = x.strip()
     if len(x) <= n: return x
