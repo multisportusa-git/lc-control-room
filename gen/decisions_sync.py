@@ -12,7 +12,7 @@ The page's Approve button opens a GitHub issue titled "DECISION D-3: A" in the p
      and a link) and a macOS notification;
   3. appends every change to <notes>/w1/decisions/decisions.log for the coordinator, which acts at its next step.
 Usage: decisions_sync.py [--notes DIR] [--repo owner/name] [--dry-run]"""
-import glob, json, os, re, subprocess, sys, time, urllib.request, datetime as dt
+import glob, json, os, re, subprocess, sys, time, datetime as dt
 
 A = sys.argv[1:]
 def arg(k, d): return A[A.index(k) + 1] if k in A else d
@@ -122,23 +122,22 @@ def topic():
 def notify(decs):
     t = topic()
     for did, (p, d) in sorted(decs.items()):
-        if d.get("status", "open") != "open" or d.get("notified"): continue
+        if d.get("status", "open") != "open" or (d.get("notified") and d.get("notified_phone", True)): continue
         msg = "Decision needed: %s. Open the control room to review and approve." % did
         sent = []
         if t and not DRY:
-            try:
-                req = urllib.request.Request("https://ntfy.sh/" + t, data=msg.encode(), method="POST",
-                                             headers={"Title": "London Commuter: decision needed", "Click": PAGE + "#go=dec", "Tags": "railway_car", "Priority": "high"})
-                urllib.request.urlopen(req, timeout=15).read(); sent.append("phone")
-            except Exception as e:
-                log("ntfy failed for %s: %s" % (did, str(e)[:120]))
+            # system curl uses the macOS keychain certificates (python.org builds may have none)
+            r = subprocess.run(["curl", "-fsS", "-m", "15", "-H", "Title: London Commuter: decision needed", "-H", "Click: " + PAGE + "#go=dec",
+                                "-H", "Tags: railway_car", "-H", "Priority: high", "-d", msg, "https://ntfy.sh/" + t], capture_output=True, text=True)
+            if r.returncode == 0: sent.append("phone")
+            else: log("ntfy failed for %s: %s" % (did, (r.stderr or r.stdout)[:120]))
         if not DRY:
             try:
                 subprocess.run(["osascript", "-e", 'display notification "%s" with title "London Commuter" sound name "Glass"' % msg.replace('"', "'")], capture_output=True, timeout=10)
                 sent.append("mac")
             except (OSError, subprocess.SubprocessError):
                 pass
-        d["notified"] = now()
+        d["notified"] = now(); d["notified_phone"] = "phone" in sent or not t
         if not DRY: save(p, d)
         log("notified %s (%s)" % (did, ", ".join(sent) or ("dry run" if DRY else "no channel reachable")))
 
