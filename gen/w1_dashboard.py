@@ -283,6 +283,7 @@ for p in glob.glob(os.path.join(W1, "decisions", "D-*.json")):
     decisions.append(d)
 decisions.sort(key=lambda d: (d["status"] != "open", d.get("deadline") or "9", d["id"]))
 ntfy = rd(os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")).strip()
+jb = js(os.path.join(W1, "jb_briefs.json"), {}) or {}  # plain-English briefs for JB's asks (written by sessions)
 
 # ---------- V2: the Roadmap to Beta (ROADMAP_TO_BETA.html, edited by the V2 coordinator with roadmap.py) ----------
 import html as _html
@@ -418,7 +419,7 @@ today_ids = [t["id"] for t in tasks if t["day"] == TODAY or (t["day"] < TODAY an
 reds = [t for t in tasks if t["rag"] == "red"]; ambers = [t for t in tasks if t["rag"] == "amber"]
 overall = "red" if reds else "amber" if ambers else "green"
 data = {"gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
-        "decisions": decisions, "ntfy": ntfy, "v2": v2, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
+        "decisions": decisions, "ntfy": ntfy, "v2": v2, "jb": jb, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
         "loop": rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LOOP_LOG.md"), 6000),
         "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
         "day_finish": max((fin[i] for i in today_ids if status(i) != "done"), default=NOW).strftime("%a %H:%M"),
