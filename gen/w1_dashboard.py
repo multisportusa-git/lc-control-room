@@ -308,7 +308,9 @@ reds_ = [t for t in tasks if t["rag"] == "red"]
 for t in reds_:
     on = " It is on the GO-build path, so the install and the v2 tag wait for it." if t["id"] in gates["GO-build"]["path"] else (" It is on the critical path." if t["id"] in crit_set else "")
     sit.append({"k": "red", "ids": [t["id"]], "text": "%s: %s.%s Next: %s" % (tl(t["id"]), t["why"].rstrip("."), on, t["plan"] or "see the task")})
-doing = [t["id"] for t in tasks if t["status"] in ("doing",) and t["rag"] != "red"]
+closable = [t["id"] for t in tasks if t["status"] == "doing" and "merged" in t["why"] and "not closed" in t["why"]]
+if closable: sit.append({"k": "next", "ids": closable, "text": "Ready to close (PR merged, task still open): %s. Coordinator: lc_state.py done for each; this frees %s." % (", ".join(closable), "a lane" if len(closable) == 1 else "%d lanes" % len(closable))})
+doing = [t["id"] for t in tasks if t["status"] in ("doing",) and t["rag"] != "red" and t["id"] not in closable]
 if doing: sit.append({"k": "now", "ids": doing, "text": "In progress: " + "; ".join("%s %s" % (i, short(BY[i]["title"], 56)) for i in doing)})
 nxt = sorted([t for t in tasks if t["status"] == "todo" and not t["why"].startswith("Waiting") and t["owner"] != "JB"], key=lambda t: (t["beg_iso"], -t["ndesc"]))[:4]
 if nxt: sit.append({"k": "next", "ids": [t["id"] for t in nxt], "text": "Next to start: " + "; ".join("%s at %s" % (t["id"], t["start"]) for t in nxt)})

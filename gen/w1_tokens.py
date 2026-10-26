@@ -122,7 +122,7 @@ def aggregate(c, now_ts, lane_sessions):
         peak = c.execute("select max(inp+cw+cr) from msgs where session=? and side=0", (sid,)).fetchone()[0] or 0
         lc = c.execute("select inp+cw+cr from msgs where session=? and side=0 order by ts desc limit 1", (sid,)).fetchone()
         total = inp + cw + cr + out
-        sess[sid] = {"id": sid[:8], "sid": sid, "title": (title or "(untitled) " + os.path.basename(cwd or ""))[:140], "kind": kind, "task": task,
+        sess[sid] = {"id": sid[:8], "sid": sid, "title": (title or ("Headless run · " if src == "code" else "Session · ") + (os.path.basename(cwd or "") or sid[:8]))[:140], "kind": kind, "task": task,
                      "project": project, "models": sorted(set((models or "").split(","))), "effort": effort or "",
                      "first": first_ts, "last": last_ts, "req": n, "inp": inp, "cw": cw, "cr": cr, "out": out,
                      "total": total, "start": start, "last_ctx": lc[0] if lc else 0, "work": max(total - start, 0), "peak": peak}

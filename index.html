@@ -540,6 +540,7 @@ document.addEventListener("mousemove",e=>{const r=e.target.closest&&e.target.clo
 $("#foot").innerHTML=`Built by <span class="mono">gen/w1_dashboard.py</span> on JB's Mac from local files${HOSTED?", encrypted there and published to GitHub; your browser decrypts it":""}. Viewing and refreshing cost no model tokens. Layout, filters and the "since you last looked" snapshot live in this browser only. Projections are estimates; status colours follow fixed rules (open a module's ⓘ).<details><summary>Decision-loop log for this version</summary><div class="why" style="margin-top:6px">${esc(D.loop||"")}</div></details>`;
 renderAll();
 try{const y=sessionStorage.getItem("w1dash.y");if(y!=null){scrollTo(0,+y);sessionStorage.removeItem("w1dash.y")}}catch(e){}
+if(H.go&&M[H.go])setTimeout(()=>go(H.go),50);
 if(H.t)openTask(H.t);else if(H.s){const i=TK.sessions.findIndex(s=>s.id===H.s);if(i>=0)openSess(i)}
 setInterval(()=>{if(!$("#panel").classList.contains("on")&&!document.body.classList.contains("custom")&&document.visibilityState==="visible"){try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload()}},HOSTED?300000:60000);
 }
