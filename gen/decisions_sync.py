@@ -27,6 +27,10 @@ GH = shutil.which("gh") or next((p for p in ("/opt/homebrew/bin/gh", "/usr/local
 TOPIC_FILE = os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")
 PAGE = "https://%s.github.io/%s/" % (OWNER, REPO.split("/")[1])
 TITLE = re.compile(r"^\s*DECISION\s+(D-\d+)\s*:\s*([A-Z])\b", re.I)
+ACTION = re.compile(r"^\s*ACTION\s+(W1-\d{2}[A-Z]{0,2})\b\s*:?\s*(.*)$", re.I)
+LC = arg("--lc-repo", os.path.join(HOME, "Claude_London Commuter"))
+EV = os.path.join(NOTES, "w1", "evidence")
+PY = sys.executable
 
 def now(): return dt.datetime.now().strftime("%Y-%m-%dT%H:%M")
 def log(msg):
@@ -51,6 +55,8 @@ def sync_issues(decs):
     try: issues = json.loads(raw) if raw else []
     except ValueError: issues = []
     for it in issues:
+        if ACTION.match(it.get("title", "")):
+            action(it); continue
         m = TITLE.match(it.get("title", ""))
         if not m: continue
         n, did, choice = it["number"], m.group(1).upper(), m.group(2).upper()
@@ -72,6 +78,43 @@ def sync_issues(decs):
         if not DRY: save(p, d)
         gh("issue", "close", str(n), "-R", REPO, "-c", "Recorded: %s = %s. The coordinator acts on it at its next step." % (did, choice))
         log("DECIDED %s = %s by %s via issue #%d%s" % (did, choice, who, n, (" note: " + note[:200].replace("\n", " ")) if note else ""))
+
+def task_defs():
+    out = subprocess.run(["git", "-C", LC, "show", "origin/main:docs/handover/v3/W1_TASKS.json"], capture_output=True, text=True).stdout
+    try: return {t["id"]: t for t in json.loads(out)["tasks"]}
+    except (ValueError, KeyError): return {}
+
+def action(it):
+    """ACTION W1-nn issues from the owner: write JB's report into the task's evidence file, then close the task with
+    lc_state.py done --note (its done check still runs). W1-05 takes three numbers: week %, Claude Code %, Cowork %."""
+    n = it["number"]; m = ACTION.match(it["title"]); tid, rest = m.group(1).upper(), m.group(2).strip()
+    who = (it.get("author") or {}).get("login", "")
+    if who.lower() != OWNER.lower():
+        log("ignored action #%d from %s" % (n, who)); gh("issue", "close", str(n), "-R", REPO, "-c", "Only the repo owner can report tasks."); return
+    T = task_defs(); t = T.get(tid)
+    if not t or t.get("owner") != "JB":
+        gh("issue", "close", str(n), "-R", REPO, "-c", "%s is not one of JB's tasks; nothing recorded." % tid); log("action #%d: %s not a JB task" % (n, tid)); return
+    body = re.sub(r"(?s)<!--.*?-->", "", it.get("body") or "").strip()[:4000]
+    ev = os.path.join(EV, t.get("evidence") or (tid + ".md"))
+    if tid == "W1-05":
+        nums = re.findall(r"\d+(?:\.\d+)?", rest or body)
+        if not nums:
+            gh("issue", "close", str(n), "-R", REPO, "-c", "No numbers found; nothing recorded."); return
+        w, c, k = (nums + ["", ""])[:3]
+        line = "%s,%s,%s,%s" % (dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"), w, c, k)
+        if not DRY:
+            with open(ev, "a") as f: f.write(line + "\n")
+        note = "JB via issue #%d: %s%% (Claude Code %s, Cowork %s)" % (n, w, c or "-", k or "-")
+    else:
+        text = (rest + "\n" + body).strip() or "done"
+        if not DRY:
+            with open(ev, "a") as f: f.write("%s\n(recorded from issue #%d by %s at %s)\n" % (text, n, who, now()))
+        note = "JB via issue #%d: %s" % (n, text[:300].replace("\n", " "))
+    r = subprocess.run([PY, os.path.join(LC, "scripts", "lc_state.py"), "done", tid, "--note", note], cwd=LC, capture_output=True, text=True, timeout=120) if not DRY else None
+    ok = r is not None and r.returncode == 0
+    msg = ("Recorded in %s and %s closed." % (os.path.basename(ev), tid)) if ok else ("Recorded in %s; %s not closed yet: %s" % (os.path.basename(ev), tid, ((r.stdout + r.stderr).strip()[-200:] if r else "dry run")))
+    gh("issue", "close", str(n), "-R", REPO, "-c", msg)
+    log("ACTION %s via issue #%d: %s" % (tid, n, msg))
 
 def topic():
     if os.path.exists(TOPIC_FILE): return open(TOPIC_FILE).read().strip()

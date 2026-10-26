@@ -12,6 +12,8 @@ shows it at the top under **Your decisions**, and JB gets one alert (ntfy app on
  "recommend": "A", "because": "Why A", "tasks": ["W1-07"], "deadline": "2026-10-26T14:00", "status": "open"}
 ```
 
+JB tasks: the Report done box files `ACTION W1-nn: <text>` (W1-05: `ACTION W1-05: week code cowork`); the Mac appends it to the task's evidence file and runs `lc_state.py done W1-nn --note "JB via issue #n: ..."`.
+
 Answer (JB, on the page): **Approve X** opens a pre-filled GitHub issue `DECISION D-3: X`; he presses Submit (an optional
 note goes in the issue body, which is public). `gen/decisions_sync.py` on the Mac (every 10 minutes) accepts it only from
 the repo owner, writes `status: decided` and `decided: {choice, by, at, via, note}` into the file, comments, closes the

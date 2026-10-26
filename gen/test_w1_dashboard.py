@@ -13,8 +13,9 @@ def check(name, ok, detail=""):
     if not ok: FAILS.append(name)
 
 def task(i, day, owner="LANE", model="sonnet", effort="medium", depends=(), **kw):
-    return dict(id=i, day=day, title="task " + i, owner=owner, model=model, effort=effort, depends=list(depends),
-                steps=["do it"], done_check="true", evidence="", where="", **kw)
+    t = dict(id=i, day=day, title="task " + i, owner=owner, model=model, effort=effort, depends=list(depends),
+             steps=["do it"], done_check="true", evidence="", where="")
+    t.update(kw); return t
 
 def build(tmp, tasks, state, files=None, now="2026-10-26T11:45"):
     w1 = os.path.join(tmp, "w1"); os.makedirs(os.path.join(w1, "evidence"), exist_ok=True)
@@ -121,6 +122,33 @@ with tempfile.TemporaryDirectory() as tmp3:
     ghlog = open(os.path.join(tmp3, "gh.log")).read()
     check("every DECISION issue is answered and closed", all(("close %d" % n) in ghlog for n in (11, 12, 13)), ghlog)
     check("each new open decision is notified once", "notified D-8" in open(os.path.join(tmp3, "w1/decisions/decisions.log")).read() and json.load(open(os.path.join(tmp3, "w1/decisions/D-8.json"))).get("notified"))
+
+# JB task reports: evidence written, task closed through lc_state.py with his words as the note
+with tempfile.TemporaryDirectory() as tmp4:
+    lc = os.path.join(tmp4, "lc"); os.makedirs(os.path.join(lc, "docs/handover/v3")); os.makedirs(os.path.join(lc, "scripts"))
+    json.dump({"tasks": [task("W1-05", "2026-10-26", owner="JB", model="none", effort="none", evidence="usage_pct.csv"),
+                         task("W1-55", "2026-10-26", owner="JB", model="none", effort="none", evidence="dh0.md"),
+                         task("W1-12", "2026-10-26")]}, open(os.path.join(lc, "docs/handover/v3/W1_TASKS.json"), "w"))
+    open(os.path.join(lc, "scripts/lc_state.py"), "w").write("import sys\nopen(%r,'a').write(' '.join(sys.argv[1:])+'\\n')\n" % os.path.join(tmp4, "lc.log"))
+    subprocess.run("git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm x && git update-ref refs/remotes/origin/main HEAD", shell=True, cwd=lc, check=True)
+    os.makedirs(os.path.join(tmp4, "w1/evidence")); bindir = os.path.join(tmp4, "bin"); os.makedirs(bindir)
+    issues = [{"number": 21, "title": "ACTION W1-05: 46 15 30", "body": "", "author": {"login": "multisportusa-git"}},
+              {"number": 22, "title": "ACTION W1-55: works, iOS 26 boots", "body": "", "author": {"login": "multisportusa-git"}},
+              {"number": 23, "title": "ACTION W1-12: done", "body": "", "author": {"login": "multisportusa-git"}},
+              {"number": 24, "title": "ACTION W1-55: fake", "body": "", "author": {"login": "intruder"}}]
+    json.dump(issues, open(os.path.join(tmp4, "issues.json"), "w"))
+    open(os.path.join(bindir, "gh"), "w").write("#!/bin/sh\nif [ \"$1 $2\" = \"issue list\" ]; then cat '%s'; else echo \"$@\" >> '%s'; fi\n" % (os.path.join(tmp4, "issues.json"), os.path.join(tmp4, "gh.log")))
+    os.chmod(os.path.join(bindir, "gh"), 0o755)
+    r = subprocess.run([sys.executable, os.path.join(HERE, "decisions_sync.py"), "--notes", tmp4, "--lc-repo", lc], capture_output=True, text=True,
+                       env=dict(os.environ, HOME=os.path.join(tmp4, "home"), PATH=bindir + os.pathsep + os.environ["PATH"]), timeout=60)
+    usage = open(os.path.join(tmp4, "w1/evidence/usage_pct.csv")).read().strip().split(",")
+    check("W1-05 report appends a usage line", usage[1:] == ["46", "15", "30"], usage)
+    dh0 = open(os.path.join(tmp4, "w1/evidence/dh0.md")).read()
+    check("a JB report becomes the task's evidence", "works, iOS 26 boots" in dh0 and "fake" not in dh0, dh0)
+    lcl = open(os.path.join(tmp4, "lc.log")).read()
+    check("the task is closed through lc_state.py with JB's words", "done W1-05 --note JB via issue #21" in lcl and "done W1-55 --note JB via issue #22" in lcl, lcl)
+    check("only JB's own tasks can be reported", "W1-12" not in lcl, lcl)
+    check("reports from anyone else are ignored", "#24" not in lcl and "close 24" in open(os.path.join(tmp4, "gh.log")).read())
 
 print("ALL PASS" if not FAILS else "%d FAILED: %s" % (len(FAILS), ", ".join(FAILS)))
 sys.exit(1 if FAILS else 0)

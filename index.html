@@ -81,6 +81,7 @@ nav .sp{flex:1}
 .why{color:var(--muted);font-size:12px}
 .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mono{font-family:var(--mono);font-size:12px}
+.inp{padding:8px 10px;border-radius:10px;border:1px solid var(--line2);background:#0c1424;color:var(--text);font-size:13px}
 .empty{color:var(--muted);font-style:italic;padding:6px 0}
 .seg{display:inline-flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:2px;gap:2px;flex-wrap:wrap}
 .seg button{border:0;background:transparent;color:var(--text2);padding:5px 11px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
@@ -258,7 +259,7 @@ const ico=(k,c)=>`<div class="mi" style="background:${c}22;color:${c}"><svg widt
 /* ---------- state: hash for drill-downs, localStorage for layout ---------- */
 const H=Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
 function setH(k,v){if(v==null)delete H[k];else H[k]=v;history.replaceState(null,"","#"+new URLSearchParams(H).toString())}
-const DEFAULT_ORDER=["dec","sit","kpi","chg","iss","you","tl","board","path","week","live","quota","tok","q","pr","health"];
+const DEFAULT_ORDER=["dec","you","sit","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health"];
 let L=LS.get("w1dash.layout",{});L.order=(L.order||[]).filter(k=>DEFAULT_ORDER.includes(k));DEFAULT_ORDER.forEach((k,i)=>{if(!L.order.includes(k))L.order.splice(Math.min(i,L.order.length),0,k)});
 L.col=L.col||{};L.wide=L.wide||{};L.hide=L.hide||{};L.f=L.f||{};
 const saveL=()=>LS.set("w1dash.layout",L);
@@ -290,9 +291,9 @@ const M={
   help:"Rings show tasks done out of the total. Gate rings count the tasks tagged GO-build or G1 in W1_TASKS.json. Projected times come from the schedule (see Today's timeline)."},
  chg:{t:"Since you last looked",s:"",i:"chg",c:"#9B7BEA",w:"full",nav:"Changes",
   help:"Compares task status and colour with a snapshot kept in this browser. Press 'Mark as seen' to start a new comparison. Automatic reloads do not reset it."},
- iss:{t:"Problems and attention",s:"Red first; each with the next action and who owns it",i:"iss",c:"#EF5B5B",w:"half",nav:"Problems",
+ iss:{t:"Problems and attention",s:"Red first; each with the next action and who owns it",i:"iss",c:"#EF5B5B",w:"full",nav:"Problems",
   help:"Red: blocked, a lane refused or stopped, overdue and not started, or running past twice its estimate. Amber: needs you, past 1.5x its estimate, a merged PR not yet closed, or projected to finish after its planned day."},
- you:{t:"Waiting on you",s:"Decisions and steps only you can do",i:"you",c:"#FFB000",w:"half",nav:"You",
+ you:{t:"Waiting on you",s:"Steps only you can do; report them here",i:"you",c:"#FFB000",w:"full",nav:"You",
   help:"Tasks owned by JB in W1_TASKS.json that are not done. 'Now' means nothing blocks it."},
  tl:{t:"Today's timeline",s:"Who is doing what, when; the orange line is now",i:"tl",c:"#19C3B1",w:"full",nav:"Timeline",
   help:"Each row is a worker: you, the coordinator, up to 3 code lanes, 2 test runners, Cowork, scripts. Bars are scheduled from dependencies, the planned day, worker limits and estimates (Script 5 min, Queue 45, Haiku lane 45, Sonnet lane 90/150, Opus 180, review 45-60, Cowork 60-90, JB 15, coordinator 20). Faded bars are done; diamonds are scripts."},
@@ -359,8 +360,10 @@ R.chg=()=>{const since=seen?new Date(seen.at).toLocaleString("en-GB",{weekday:"s
 R.iss=()=>{const L2=D.tasks.filter(t=>t.rag==="red"||t.rag==="amber").sort((a,b)=>RORD[a.rag]-RORD[b.rag]||b.ndesc-a.ndesc);
  const allI=!!L.f.issall,shown=allI?L2:L2.filter(t=>t.rag==="red").concat(L2.filter(t=>t.rag==="amber").slice(0,4));
  return L2.length?`<div class="iss">${shown.map(t=>`<div class="it ${t.rag}" data-t="${t.id}" role="button" tabindex="0"><div style="display:flex;gap:8px;align-items:center">${pill(t.rag,t.rag==="red"?"Problem":"Attention")}<b class="mono">${t.id}</b><span class="ell" style="flex:1">${esc(t.title)}</span></div><div class="why" style="margin-top:4px">${esc(t.why)}</div>${t.plan?`<div class="act">→ ${esc(t.plan)}</div>`:""}${t.ndesc?`<div class="why">blocks ${t.ndesc} later task${t.ndesc>1?"s":""}</div>`:""}</div>`).join("")}</div>${L2.length>shown.length||allI?`<div style="margin-top:10px"><button class="tbtn" data-tog="issall">${allI?"Show fewer":`Show all ${L2.length}`}</button></div>`:""}`:`<div class="empty">No problems. Everything is on track.</div>`};
-R.you=()=>{const n=D.tasks.filter(t=>t.status!=="done"&&t.owner==="JB").sort((a,b)=>(a.why.startsWith("Waiting")-b.why.startsWith("Waiting"))||a.beg_iso.localeCompare(b.beg_iso));
- return n.length?`<table>${n.map(t=>{const now=!t.why.startsWith("Waiting");return `<tr class="click" data-t="${t.id}"><td class="mono" style="white-space:nowrap"><b>${t.id}</b></td><td>${esc(t.title)}<div class="why">${now?"Ready now · about "+t.est+" min":esc(t.why)}</div></td><td class="n" style="white-space:nowrap">${now?pill("amber","Now"):`<span class="why">${t.start_day===D.today?"from "+t.start:dn(t.start_day)+" "+t.start}</span>`}</td></tr>`}).join("")}</table>`:`<div class="empty">Nothing waits on you.</div>`};
+R.you=()=>{const n=D.tasks.filter(t=>t.status!=="done"&&t.owner==="JB").sort((a,b)=>(a.why.startsWith("Waiting")-b.why.startsWith("Waiting"))||a.beg_iso.localeCompare(b.beg_iso));const sent=LS.get("w1dash.sentact",{});
+ const form=t=>t.id==="W1-05"?`<div class="bar-row" style="margin:8px 0 0"><input id="u-w" inputmode="decimal" placeholder="Week %" style="width:90px" class="inp"><input id="u-c" inputmode="decimal" placeholder="Claude Code %" style="width:120px" class="inp"><input id="u-k" inputmode="decimal" placeholder="Cowork %" style="width:100px" class="inp"><button class="tbtn on" data-act="W1-05">Send reading</button></div>`
+  :`<div class="bar-row" style="margin:8px 0 0"><input id="a-${t.id}" placeholder="What you did or found (e.g. works / fails: …)" style="flex:1;min-width:200px" class="inp"><button class="tbtn on" data-act="${t.id}">Report done</button></div>`;
+ return n.length?`<table>${n.map(t=>{const now=!t.why.startsWith("Waiting");return `<tr><td class="mono" style="white-space:nowrap"><a href="#" data-t="${t.id}"><b>${t.id}</b></a></td><td><a href="#" data-t="${t.id}" style="color:inherit">${esc(t.title)}</a><div class="why">${now?"Ready now · about "+t.est+" min · tap the title for the steps":esc(t.why)}</div>${now?(sent[t.id]?`<div class="callout blue" style="margin:8px 0 0">Sent at ${esc(sent[t.id])}; the Mac records it within 10 minutes.</div>`:form(t)):""}</td><td class="n" style="white-space:nowrap">${now?pill("amber","Now"):`<span class="why">${t.start_day===D.today?"from "+t.start:dn(t.start_day)+" "+t.start}</span>`}</td></tr>`}).join("")}</table><div class="why" style="margin-top:8px">Report done opens a GitHub issue already filled in; press Submit. Your words become the task's evidence and close it. Issues are public: keep keys and private details out.</div>`:`<div class="empty">Nothing waits on you.</div>`};
 R.tl=()=>{const d0=new Date(D.now_iso);d0.setHours(0,0,0,0);const day0=d0/1000,day1=day0+86400;
  const bars=D.tasks.map(t=>({t,b:Date.parse(t.beg_iso)/1000,f:Date.parse(t.fin_iso)/1000})).filter(x=>x.b<day1&&x.f>=day0);
  if(!bars.length)return `<div class="empty">Nothing scheduled today.</div>`;
@@ -549,6 +552,11 @@ document.addEventListener("click",e=>{
   if(a==="col")L.col[k]=!L.col[k];
   if(a==="hide")L.hide[k]=true;
   saveL();renderAll();const el=$("#m-"+k);if(el&&(a==="up"||a==="down")){el.scrollIntoView({block:"nearest"});el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),700)}return}
+ const ac=e.target.closest("[data-act]");if(ac){const id=ac.dataset.act;let title;
+  if(id==="W1-05"){const v=["u-w","u-c","u-k"].map(x=>(document.getElementById(x)||{}).value||"").map(x=>x.trim());if(!v[0]){document.getElementById("u-w").focus();return}title=`ACTION W1-05: ${v.join(" ")}`.trim()}
+  else{const v=((document.getElementById("a-"+id)||{}).value||"").trim();if(!v){document.getElementById("a-"+id).focus();return}title=`ACTION ${id}: ${v}`.slice(0,240)}
+  window.open(ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent("Reported from the control room.\n\n<!-- recorded by the Mac within 10 minutes -->"),"_blank","noopener");
+  const sv=LS.get("w1dash.sentact",{});sv[id]=new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});LS.set("w1dash.sentact",sv);rerender("you");return}
  const ap=e.target.closest("[data-approve]");if(ap){const id=ap.dataset.approve,ch=ap.dataset.choice,nt=(document.getElementById("note-"+id)||{}).value||"";
   const url=ISSUE_NEW+"?title="+encodeURIComponent("DECISION "+id+": "+ch)+"&body="+encodeURIComponent((nt.trim()||"Approved from the control room.")+"\n\n<!-- recorded by the Mac within 10 minutes -->");
   window.open(url,"_blank","noopener");const sv=LS.get("w1dash.sent",{});sv[id]={choice:ch,at:new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),url};LS.set("w1dash.sent",sv);rerender("dec");return}
