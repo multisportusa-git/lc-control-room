@@ -1,6 +1,7 @@
 #!/bin/zsh
 # chat_reply.sh <target> <cid>: ONE fresh, short, read-only headless Claude run answers one Control Room chat message,
 # writes the answer into <notes>/w1/chat/<target>.json and publishes. Started in the background by gen/chat_sync.py.
+# With INTENT: act it then starts mac/chat_act.sh (one lean action run via lane.sh, follow-up posted to the thread).
 # Profile: empty working dir (no CLAUDE.md), only project/local setting sources (none there) plus a generated settings
 # file with deny rules for secrets and every write tool, --strict-mcp-config with no servers, explicit --allowedTools.
 set -u
@@ -24,6 +25,13 @@ cd "$W/cwd" || exit 1
   > "$W/out.json" 2> "$W/err.txt"
 echo "$(date '+%F %T') claude exit $?"
 "$PY" "$ROOT/gen/chat_sync.py" store "$T" "$C" "$W/out.json"
+# the read-only run decided "INTENT: act": store wrote act.txt (lane id) only when it started the one action run for this target
+# (a second request while one runs is queued in the thread instead). Start it in the background through the LC lane script.
+if [[ -s "$W/act.txt" ]]; then
+  echo "$(date '+%F %T') starting action run $(<"$W/act.txt") for $T $C"
+  nohup /bin/bash "$ROOT/mac/chat_act.sh" "$T" "$C" > "$W/act.log" 2>&1 < /dev/null &
+  disown
+fi
 # publish now: push.sh holds a lock while it runs, so retry for up to 90 s until a publish lands after the answer
 START=$(date +%s)
 for i in {1..18}; do

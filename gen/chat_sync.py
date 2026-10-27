@@ -7,7 +7,10 @@ public issue holds nothing readable. Commands:
   chat_sync.py [--notes DIR] [--repo o/n]        sync: read open CHAT issues (owner only), decrypt, rate-limit, append to
                                                  <notes>/w1/chat/<target>.json, comment + close, start mac/chat_reply.sh
   chat_sync.py plan <target> <cid> <rundir>      write the prompt, model, settings and empty MCP config for one answer
-  chat_sync.py store <target> <cid> <out.json>   put the answer (claude -p JSON) in the thread; record any action
+  chat_sync.py store <target> <cid> <out.json>   put the answer (claude -p JSON) in the thread; record any action; when the
+                                                 answer ends "INTENT: act <request>" start or queue ONE action run (act.txt)
+  chat_sync.py act-run <target> <cid>            run the action through the LC repo's scripts/lane.sh (coord role), wait, then
+                                                 post the DONE/BLOCKED follow-up from "Claude (acting)" and start a queued one
 The passphrase is only ever passed to openssl as -pass file:<path>; this script never reads it."""
 import fcntl, glob, json, os, re, shutil, subprocess, sys, time, datetime as dt
 
@@ -22,6 +25,9 @@ LC = arg("--lc-repo", os.path.join(HOME, "Claude_London Commuter"))
 CDIR = os.path.join(NOTES, "w1", "chat")
 LIMIT = int(arg("--limit", "20"))          # messages per rolling hour, all targets together
 STALE_MIN = 20                             # a pending message with no answer after this gets a "send again" note
+LANE_SH = arg("--lane-sh", os.path.join(LC, "scripts", "lane.sh"))
+ACT_STALE_MIN = 100                        # an action run that never reported is closed as blocked after this
+ACT_TIMEOUT = int(arg("--act-timeout", str(90 * 60)))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GH = shutil.which("gh") or next((p for p in ("/opt/homebrew/bin/gh", "/usr/local/bin/gh") if os.path.exists(p)), "gh")
 OPENSSL = "/usr/bin/openssl" if os.path.exists("/usr/bin/openssl") else (shutil.which("openssl") or "openssl")
@@ -128,6 +134,7 @@ def sync():
         t = os.path.basename(p)[:-5]
         if not TARGET.match(t): continue
         with Thread(t) as d:
+            sweep_acts(t, d)
             for x in d["msgs"]:
                 if x.get("pending") and x.get("at") and (dt.datetime.now() - dt.datetime.fromisoformat(x["at"])).total_seconds() > STALE_MIN * 60:
                     x["pending"] = False
@@ -191,14 +198,17 @@ def plan(target, cid, rd):
               "Sources (read only what you need; quote facts from them, do not guess):\n%s\n"
               "Conversation so far (oldest first):\n%s\n\nJB's new message:\n<<<\n%s\n>>>\n\n"
               "Rules:\n- Answer concisely in plain English (at most about 150 words). Say how fresh the facts are when it matters.\n"
-              "- You cannot change code, git or any file; you only read. Never claim you did something.\n"
+              "- You cannot change code, git or any file in this run; you only read. Never claim you did something yourself.\n"
               "- If JB asks for an action, record it as %s by ending your answer with exactly one fenced block:\n"
               "```record\n{\"type\": \"note\", \"text\": \"<the instruction, one or two lines>\"}\n```\n"
               "  or for a decision card: ```record\n{\"type\": \"decision\", \"title\": \"...\", \"situation\": \"...\", \"why_now\": \"...\", "
               "\"options\": [{\"key\": \"A\", \"label\": \"...\", \"detail\": \"...\"}, {\"key\": \"B\", \"label\": \"...\", \"detail\": \"...\"}], \"recommend\": \"A\", \"because\": \"...\"}\n```\n"
               "  and say in the answer that you recorded it and who picks it up. Otherwise add no block.\n"
               "- Never reveal or read secrets: tokens, keys, passphrases, .env, BrokerKey.xcconfig, build logs, preference plists.\n"
-              "- Do not use tools you were not given; if something needs a session, say so.\n") % (
+              "- Do not use tools you were not given; if something needs a session, say so.\n"
+              "- Your LAST line must be exactly one of:\n  INTENT: answer\n  INTENT: act <one-line imperative request>\n"
+              "  Use act ONLY when JB asks for something to be done (start a task, run, fix, merge-train, check and act). Anything vague, a question or an opinion is answer. "
+              "When you choose act, a separate acting run starts after your answer and reports back in this thread: say in one line what it will do, still add the record block above, and do not say you only read.\n") % (
         role, sources(target).replace("CONTEXT_FILE", ctxf),
         "\n".join("[%s %s] %s" % (x.get("at", "")[11:16], x.get("from"), (x.get("text") or "")[:1200]) for x in hist) or "(none)",
         me["text"], rec)
@@ -254,31 +264,198 @@ def read_out(outp):
         if e.get("type") == "result" or ("result" in e and "is_error" in e): res = e
     return res, start
 
+INTENT = re.compile(r"^[ \t]*INTENT:[ \t]*(answer|act)\b[ \t:-]*(.*?)[ \t]*$", re.I | re.M)
+def lane_id(cid): return "C" + re.sub(r"[^A-Za-z0-9]", "", cid)[-7:]   # lane ids are letter + <= 7; the tail of a cid varies most
+def act_running(d, me_id):
+    """The other action in this thread that is still running (acting, not stale), else None."""
+    for x in d["msgs"]:
+        a = x.get("act") or {}
+        if x.get("id") != me_id and a.get("state") == "acting":
+            try: age = (dt.datetime.now() - dt.datetime.fromisoformat(a.get("at") or x["at"])).total_seconds()
+            except (ValueError, KeyError): age = 0
+            if age < ACT_STALE_MIN * 60: return x
+    return None
+
+def make_brief(target, cid, req, rd, jb_text):
+    """The action run's brief (<= 8000 bytes): JB's request verbatim, target, time, the read run's facts, the rules, the last-line contract."""
+    try: C = json.load(open(os.path.join(rd, "context.json")))
+    except (OSError, ValueError, TypeError): C = {}
+    ids = set(re.findall(r"W\d+-\d+", req + " " + jb_text)); tasks = C.get("tasks") or []
+    rows = [t for t in tasks if t.get("id") in ids]
+    facts = ["Snapshot of the Control Room data from the read run (generated %s; may be minutes old, re-check with scripts/lc_state.py before acting):" % (C.get("gen") or "unknown")]
+    if C.get("overall"): facts.append("overall: " + json.dumps(C["overall"], default=str)[:400])
+    for t in rows[:8]: facts.append("task " + json.dumps({k: v for k, v in t.items() if v not in (None, "")}, default=str)[:420])
+    if not rows: facts.append("(no task id named in the request)")
+    for k in ("queue", "decisions", "gates"):
+        if C.get(k): facts.append("%s: %s" % (k, json.dumps(C[k], default=str)[:500]))
+    head = ("CHAT ACTION RUN. JB asked in the Control Room chat (target %s, message %s) for something to be DONE. Do it, see it through, and report.\n"
+            "Time now: %s\nTarget: %s\n\nJB's request, verbatim:\n<<<\n%s\n>>>\nThe read-only reply run summarised it as: %s\n\n") % (
+        target, cid, now(), target, jb_text[:2500], req[:400])
+    rules = ("\nRules that apply:\n- CLAUDE.md rule 0 applies in full (read CLAUDE.md first).\n- Merges happen only by the train; never merge a PR yourself.\n"
+             "- Phone actions need a phone-free answer: if it needs JB's iPhone, do everything else and say exactly what JB must do on it.\n"
+             "- A decision only JB can make becomes a decision card (scripts/act_on_decided.sh need ...), then end BLOCKED naming the card.\n"
+             "- Use only the tools you were given; never read secrets; do not widen permissions or work around a denied tool.\n"
+             "- Nobody reads chat: your last line is posted back to JB in the Control Room.\n\n"
+             "Your LAST line must be exactly one of:\nDONE <what was done, with ids: task, job, lane, PR numbers, files>\nBLOCKED <exact reason and what JB must do>\n")
+    room = 7800 - len((head + rules).encode())
+    body = "\n".join(facts)
+    while len(body.encode()) > max(room, 0): body = body[: int(len(body) * 0.9)]
+    return head + body + "\n" + rules
+
+def begin_act(d, me, target, rd):
+    """Mark me.act as acting and write its brief. Caller holds the thread lock."""
+    a = me["act"]; lane = lane_id(me["id"]); bf = os.path.join(rd, "brief.md")
+    open(bf, "w").write(make_brief(target, me["id"], a.get("req", ""), rd, me.get("text", "")))
+    a.update(state="acting", lane=lane, brief=bf, at=now(), rundir=rd)
+    a.pop("behind", None)
+
 def store(target, cid, outp):
     o, start = read_out(outp)
+    rd = os.path.dirname(os.path.abspath(outp))
     try:
         text = str(o.get("result") or "").strip(); err = bool(o.get("is_error")) or not text
         model = ",".join((o.get("modelUsage") or {}).keys()); cost = o.get("total_cost_usd")
     except AttributeError:
         text, err, model, cost = "", True, "", None
+    intent, req = "answer", ""
+    its = INTENT.findall(text)
+    if its: intent, req = its[-1][0].lower(), its[-1][1].strip()
+    text = INTENT.sub("", text).strip()
+    if err: intent = "answer"
     note = ""
     m = re.search(r"```record\s*(\{.*?\})\s*```", text, re.S)
+    rec = None
     if m:
-        try: note = record(target, cid, json.loads(m.group(1)))
+        try: rec = json.loads(m.group(1))
         except ValueError: note = "(Could not record the action: the record was not valid JSON.)"
         text = (text[: m.start()] + text[m.end():]).strip()
     text = SECRET.sub("[redacted]", text)[:6000]
     if err: text = "Sorry, the answer run failed. Please send it again (or choose Deep)."
+    started, behind = "", None
     with Thread(target) as d:
+        me = next((x for x in d["msgs"] if x.get("id") == cid and x.get("from") == "JB"), None)
+        if intent == "act" and me is not None:
+            req = SECRET.sub("[redacted]", req or me.get("text", ""))[:400]
+            me["act"] = {"state": "answered", "req": req, "at": now(), "lane": lane_id(cid), "rundir": rd}
+            behind = act_running(d, cid)
+            if behind: me["act"].update(state="queued", behind=behind["act"].get("lane") or behind["id"])
+            else: begin_act(d, me, target, rd); started = me["act"]["lane"]
+            if not isinstance(rec, dict) or rec.get("type") != "decision": rec = {"type": "note", "text": (rec or {}).get("text") or req}
+            rec = dict(rec); 
+            if rec.get("type") == "note": rec["text"] = "%s [%s]" % (str(rec["text"]).strip(), ("started action run " + started) if started else "queued behind " + str(me["act"]["behind"]))
+        if rec is not None:
+            try: note = record(target, cid, rec)
+            except Exception as e: note = "(Could not record the action: %s.)" % e
         for x in d["msgs"]:
             if x.get("id") == cid: x["pending"] = False
         d["msgs"] = [x for x in d["msgs"] if x.get("re") != cid]
+        if started: note = (note + "\n" if note else "") + "Acting: started action run %s; I will post what it did here." % started
         d["msgs"].append({"id": cid + "r", "re": cid, "from": "Claude", "at": now(), "text": (text + ("\n\n" + note if note else "")).strip(),
                           "model": model, "error": err, "cost": cost, "start_tokens": start})
-    log("ANSWERED %s %s (%s) start=%s%s" % (target, cid, model or "-", start, " ERROR" if err else ""))
+        if behind:
+            d["msgs"].append({"id": cid + "q", "fu": cid, "from": "Claude (acting)", "at": now(),
+                              "text": "Queued behind %s: one action at a time per target. It starts when that one ends." % me["act"]["behind"]})
+    try: os.remove(os.path.join(rd, "act.txt"))
+    except OSError: pass
+    if started: open(os.path.join(rd, "act.txt"), "w").write(started + "\n")
+    log("ANSWERED %s %s (%s) start=%s intent=%s%s%s" % (target, cid, model or "-", start, intent, " ERROR" if err else "", " QUEUED" if behind else ""))
+
+def spawn_act(target, cid):
+    sh = os.path.join(ROOT, "mac", "chat_act.sh")
+    if "--no-spawn" in A or not os.path.exists(sh): return
+    rd = os.path.join(CDIR, "run", cid); os.makedirs(rd, exist_ok=True)
+    with open(os.path.join(rd, "act.log"), "w") as f:
+        subprocess.Popen(["/bin/bash", sh, target, cid], stdout=f, stderr=subprocess.STDOUT, start_new_session=True, cwd=HOME)
+
+def evidence(lane, state, sig):
+    """Up to 5 short evidence lines: lane registry (branch, PR, job) and the last lines the run wrote before its signal."""
+    ev = []
+    try: reg = json.load(open(os.path.join(NOTES, "v2", "lanes", lane + ".json")))
+    except (OSError, ValueError): reg = {}
+    ev.append("lane %s, state %s" % (lane, state))
+    if reg.get("branch"): ev.append("branch %s" % reg["branch"])
+    if reg.get("pr"): ev.append("PR #%s" % reg["pr"])
+    if reg.get("job"): ev.append("job %s" % reg["job"])
+    lr = reg.get("last_run")
+    if lr and os.path.exists(lr):
+        res, _ = read_out(lr)
+        ls = [l.strip() for l in str(res.get("result") or "").splitlines() if l.strip() and l.strip() != sig]
+        for l in ls[-(5 - len(ev)):] if len(ev) < 5 else []: ev.append(l[:160])
+    return [SECRET.sub("[redacted]", e) for e in ev[:5]]
+
+def finish_act(target, cid, state_word, sig, lane):
+    """Post the follow-up into the thread and set the chip state."""
+    sig = SECRET.sub("[redacted]", (sig or "").strip())[:500]
+    blocked = state_word in ("blocked", "needs-coordinator", "no-signal", "parked", "failed") or sig.upper().startswith("BLOCKED")
+    if blocked:
+        line = sig if sig.upper().startswith("BLOCKED") else "BLOCKED %s" % (sig or {"needs-coordinator": "the run needs a coordinator (hand-off or escalation)", "parked": "the lane is parked (health gate or 3 lanes running); lc_watch.sh retries it", "no-signal": "the run ended without a result line"}.get(state_word, "the run did not finish: " + state_word))
+    else:
+        line = sig if sig.upper().startswith("DONE") else "DONE %s" % (sig or "(no detail)")
+    ev = evidence(lane, state_word, sig)
+    with Thread(target) as d:
+        me = next((x for x in d["msgs"] if x.get("id") == cid), None)
+        if me is not None and me.get("act"): me["act"]["state"] = "blocked" if blocked else "done"
+        d["msgs"] = [x for x in d["msgs"] if x.get("id") != cid + "a"]
+        d["msgs"].append({"id": cid + "a", "fu": cid, "from": "Claude (acting)", "at": now(), "error": blocked,
+                          "text": line + "".join("\n- " + e for e in ev)})
+    log("ACT %s %s %s %s" % ("BLOCKED" if blocked else "DONE", target, cid, line[:80]))
+
+def act_next(target):
+    """Start the oldest queued action of this thread if none is running."""
+    nxt = None
+    with Thread(target) as d:
+        if act_running(d, ""): return
+        q = next((x for x in d["msgs"] if (x.get("act") or {}).get("state") == "queued"), None)
+        if q:
+            rd = q["act"].get("rundir") or os.path.join(CDIR, "run", q["id"]); os.makedirs(rd, exist_ok=True)
+            begin_act(d, q, target, rd); nxt = q["id"]
+            d["msgs"].append({"id": nxt + "s", "fu": nxt, "from": "Claude (acting)", "at": now(), "text": "Starting action run %s now." % q["act"]["lane"]})
+    if nxt: spawn_act(target, nxt)
+
+def act_run(target, cid):
+    with Thread(target) as d:
+        me = next((x for x in d["msgs"] if x.get("id") == cid), None)
+        a = (me or {}).get("act") or {}
+    if not a.get("brief") or a.get("state") != "acting": raise SystemExit("no acting request %s in %s" % (cid, target))
+    lane = a["lane"]; task = "chat-" + re.sub(r"[^a-z0-9-]", "", cid.lower())[:30]
+    sf = os.path.join(NOTES, "status", lane + ".txt")
+    try: os.remove(sf)
+    except OSError: pass
+    env = dict(os.environ, LC_NOTES=NOTES)
+    cmd = [LANE_SH, lane, task, "--role", "coord", "--model", "sonnet", "--effort", "medium", "--brief", a["brief"]]
+    state, sig = "failed", ""
+    try:
+        r = subprocess.run(cmd, cwd=LC if os.path.isdir(LC) else HOME, env=env, capture_output=True, text=True, timeout=ACT_TIMEOUT)
+        rc, err = r.returncode, (r.stderr or r.stdout or "").strip().splitlines()[-1:] 
+    except subprocess.TimeoutExpired:
+        rc, err = -1, ["timed out after %d minutes" % (ACT_TIMEOUT // 60)]
+    except OSError as e:
+        rc, err = -2, [str(e)]
+    try:
+        ln = open(sf).read().splitlines()
+        state = (ln[0].split() or ["failed"])[0]; sig = ln[1] if len(ln) > 1 else ""
+    except OSError:
+        if rc == 75: state = "parked"
+        else: sig = "BLOCKED lane.sh ended (exit %s) without a status file: %s. JB: check %s/announce.log" % (rc, (err or ["no output"])[0][:200], NOTES)
+    if state == "running": state, sig = "failed", sig or "BLOCKED the run was still marked running when it stopped"
+    finish_act(target, cid, state, sig, lane)
+    act_next(target)
+
+def sweep_acts(target, d):
+    """sync(): an action that never reported (Mac restart) is closed as blocked. Caller holds the thread lock."""
+    for x in list(d["msgs"]):
+        a = x.get("act") or {}
+        if a.get("state") == "acting":
+            try: age = (dt.datetime.now() - dt.datetime.fromisoformat(a.get("at") or x["at"])).total_seconds()
+            except (ValueError, KeyError): continue
+            if age > ACT_STALE_MIN * 60:
+                a["state"] = "blocked"
+                d["msgs"].append({"id": x["id"] + "a", "fu": x["id"], "from": "Claude (acting)", "at": now(), "error": True,
+                                  "text": "BLOCKED the action run %s never reported (the Mac may have restarted). JB: ask again or open a session." % a.get("lane", "")})
 
 if __name__ == "__main__":
-    pos = [a for i, a in enumerate(A) if not a.startswith("--") and (i == 0 or not A[i - 1] in ("--notes", "--repo", "--key", "--lc-repo", "--limit"))]
+    pos = [a for i, a in enumerate(A) if not a.startswith("--") and (i == 0 or not A[i - 1] in ("--notes", "--repo", "--key", "--lc-repo", "--limit", "--lane-sh", "--act-timeout"))]
     if pos[:1] == ["plan"]: plan(pos[1], pos[2], pos[3])
     elif pos[:1] == ["store"]: store(pos[1], pos[2], pos[3])
+    elif pos[:1] == ["act-run"]: act_run(pos[1], pos[2])
     else: sync()

@@ -504,7 +504,9 @@ for p_ in glob.glob(os.path.join(CHAT_DIR, "*.json")):
     t_ = os.path.basename(p_)[:-5]
     if not re.match(r"^(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$", t_): continue
     d_ = js(p_, {}) or {}
-    threads[t_] = [{"id": str(m.get("id", ""))[:40], "re": str(m.get("re", ""))[:40], "from": "JB" if m.get("from") == "JB" else "Claude", "at": str(m.get("at", ""))[:19],
+    threads[t_] = [{"id": str(m.get("id", ""))[:40], "re": str(m.get("re", ""))[:40], "fu": str(m.get("fu", ""))[:40], "from": "JB" if m.get("from") == "JB" else "Claude",
+                    "acting": str(m.get("from", "")) == "Claude (acting)",
+                    "act": ({"state": str(m["act"].get("state", ""))[:12], "lane": str(m["act"].get("lane", ""))[:12], "behind": str(m["act"].get("behind", ""))[:12]} if isinstance(m.get("act"), dict) else None), "at": str(m.get("at", ""))[:19],
                     "text": clean(str(m.get("text", "")), 6000), "depth": m.get("depth", ""), "model": str(m.get("model", ""))[:60], "pending": bool(m.get("pending")),
                     "error": bool(m.get("error")), "start": m.get("start_tokens") if isinstance(m.get("start_tokens"), int) else None} for m in (d_.get("msgs") or [])[-40:] if isinstance(m, dict)]
 lanes_ = {}

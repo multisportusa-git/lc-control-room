@@ -260,6 +260,11 @@ body.chaton .fab{display:none}
 .bub.me{align-self:flex-end;border-bottom-right-radius:6px;color:#0A0A0C;background:var(--cc,#FF8A3D)}
 .bub.cl{align-self:flex-start;border-bottom-left-radius:6px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
 .bub.err{border-color:rgba(239,91,91,.5);background:rgba(239,91,91,.1)}
+.achip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--text2);background:rgba(255,255,255,.05)}
+.achip.acting,.achip.queued{color:var(--warn);border-color:rgba(255,184,77,.5)}.achip.acting::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--warn);animation:pulse 1.4s infinite}
+.achip.done{color:#5BD99A;border-color:rgba(91,217,154,.5)}.achip.blocked{color:#EF5B5B;border-color:rgba(239,91,91,.55)}
+.bub.cl.acts{border-color:rgba(255,106,0,.45)}.bwho{font-weight:700;font-size:11px;color:var(--v2);margin-bottom:2px}
+@media (prefers-reduced-motion:reduce){.achip.acting::before{animation:none}}
 .bmeta{font-size:11px;color:var(--muted);margin:-4px 4px 0}.bmeta.r{align-self:flex-end}.bmeta.l{align-self:flex-start}
 .typing{display:inline-flex;gap:4px;margin-right:8px;vertical-align:middle}.typing i{width:6px;height:6px;border-radius:50%;background:var(--text2);animation:pulse 1.2s infinite}
 .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
@@ -831,21 +836,23 @@ const pendingAns=OPEN_DEC.some(d=>d.question_pending)||Object.keys(LS.get("w1das
 const CH=D.chat||{threads:{},lanes:[],limit:20};
 const SS={get(k,d){try{const v=sessionStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{v==null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v)}catch(e){}}};
 const CHQ=()=>{const q=LS.get("w1dash.chatq",{});let ch=false;for(const [cid,x] of Object.entries(q)){if((CH.threads[x.t]||[]).some(m=>m.id===cid)||Date.now()-x.ts>45*60000){delete q[cid];ch=true}}if(ch)LS.set("w1dash.chatq",q);return q};
-const chatPending=()=>Object.values(CH.threads).some(th=>th.some(m=>m.pending))||Object.keys(CHQ()).length>0;
+const actOpen=m=>m.act&&/^(answered|acting|queued)$/.test(m.act.state);
+const chatPending=()=>Object.values(CH.threads).some(th=>th.some(m=>m.pending||actOpen(m)))||Object.keys(CHQ()).length>0;
 let CT=SS.get("w1dash.chatt","V3");if(!/^(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$/.test(CT))CT="V3";
 const CNAME=t=>t==="V3"?"V3 coordinator":t==="V2"?"V2 coordinator":"Lane "+t.slice(2);
 const CCOL=t=>t==="V3"?"var(--v3)":t==="V2"?"var(--v2)":"#AEB6C8";
 const hhmm=s=>{const d=new Date(String(s).length>19?s:String(s).replace(" ","T"));return isNaN(d)?"":d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(d.toDateString()===new Date().toDateString()?"":" "+d.toLocaleDateString("en-GB",{weekday:"short"}))};
 function chatMsgs(t){const th=(CH.threads[t]||[]).slice();Object.entries(CHQ()).filter(([c,x])=>x.t===t).forEach(([c,x])=>th.push({id:c,from:"JB",at:x.at,text:x.m,depth:x.d,pending:true,local:x.via}));return th}
-function bubbles(t){const ms=chatMsgs(t);if(!ms.length)return `<div class="chempty"><div style="font-size:28px;margin-bottom:8px">💬</div>Ask the ${esc(CNAME(t))} anything: where things stand, why something is red, what is next.<br><br>Ask for an action and it is recorded (${t==="V2"?"a note the V2 coordinator reads":"a decision card or a note"}); the chat itself never changes code.</div>`;
+function actChip(a){const L={answered:"Answered",acting:"Acting…",queued:"Queued"+(a.behind?" behind "+a.behind:""),done:"Done",blocked:"Blocked"};return `<span class="achip ${esc(a.state)}" title="${esc(a.lane||"")}">${esc(L[a.state]||a.state)}</span>`}
+function bubbles(t){const ms=chatMsgs(t);if(!ms.length)return `<div class="chempty"><div style="font-size:28px;margin-bottom:8px">💬</div>Ask the ${esc(CNAME(t))} anything: where things stand, why something is red, what is next.<br><br>Ask for an action and an acting run starts, does it and reports back here (Acting… then Done or Blocked); a decision only you can make becomes a card. Questions get a short read-only answer.</div>`;
  const ans=new Set(ms.filter(m=>m.re).map(m=>m.re));let h="";
- ms.forEach(m=>{if(m.from==="JB"){h+=`<div class="bub me" style="--cc:${CCOL(t)}">${esc(m.text)}</div><div class="bmeta r">${esc(hhmm(m.at))}${m.depth==="deep"?" · Deep":""}</div>`;
+ ms.forEach(m=>{if(m.from==="JB"){h+=`<div class="bub me" style="--cc:${CCOL(t)}">${esc(m.text)}</div><div class="bmeta r">${m.act?actChip(m.act):""} ${esc(hhmm(m.at))}${m.depth==="deep"?" · Deep":""}</div>`;
    if(m.pending&&!ans.has(m.id))h+=`<div class="bub cl"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>${m.local==="github"?"Waiting for you to press Submit on GitHub, then Claude answers in ~1-2 min":"Claude is answering… ~1-2 min"}</div>`}
-  else h+=`<div class="bub cl ${m.error?"err":""}">${esc(m.text)}</div><div class="bmeta l">${esc(hhmm(m.at))}${m.model?" · "+esc(m.model.replace(/claude-|-\d{8}/g,"")):""}${m.start?" · start "+fmt(m.start):""}</div>`});
+  else h+=`<div class="bub cl ${m.error?"err":""} ${m.acting?"acts":""}">${m.acting?`<div class="bwho">Claude (acting)</div>`:""}${esc(m.text)}</div><div class="bmeta l">${esc(hhmm(m.at))}${m.model?" · "+esc(m.model.replace(/claude-|-\d{8}/g,"")):""}${m.start?" · start "+fmt(m.start):""}</div>`});
  return h}
 function renderChat(){const el=$("#chat");if(!el)return;const PASS=window._PASS,dep=LS.get("w1dash.chatd","auto");
  const lanes=CH.lanes||[];const isL=CT.startsWith("L-");
- el.innerHTML=`<div class="chh"><div class="logo" style="width:34px;height:34px;border-radius:10px;box-shadow:none;background:${CCOL(CT)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div><div class="ttl">${esc(CNAME(CT))}<div class="why" style="font-weight:500;font-size:12px">Each message gets one fresh, short, read-only answer</div></div><button class="x" data-cx aria-label="Close chat">${svgI('<path d="M6 6l12 12M18 6L6 18"/>')}</button></div>
+ el.innerHTML=`<div class="chh"><div class="logo" style="width:34px;height:34px;border-radius:10px;box-shadow:none;background:${CCOL(CT)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div><div class="ttl">${esc(CNAME(CT))}<div class="why" style="font-weight:500;font-size:12px">Each message gets a short read-only answer; asks for action start an acting run</div></div><button class="x" data-cx aria-label="Close chat">${svgI('<path d="M6 6l12 12M18 6L6 18"/>')}</button></div>
  <div class="cht" role="tablist" aria-label="Talk to"><button data-ct="V3" class="${CT==="V3"?"on":""}" role="tab" aria-selected="${CT==="V3"}"><span class="d" style="background:var(--v3)"></span>V3 coordinator</button><button data-ct="V2" class="${CT==="V2"?"on":""}" role="tab" aria-selected="${CT==="V2"}"><span class="d" style="background:var(--v2)"></span>V2 coordinator</button>
  <select data-cl aria-label="Lane" class="${isL?"on":""}"><option value="">Lane…</option>${lanes.map(l=>`<option value="${esc(l.id)}" ${CT==="L-"+l.id?"selected":""}>${esc(l.id)} · ${l.age_min<60?l.age_min+" min":Math.round(l.age_min/60)+" h"}</option>`).join("")}${isL&&!lanes.some(l=>"L-"+l.id===CT)?`<option selected value="${esc(CT.slice(2))}">${esc(CT.slice(2))}</option>`:""}</select></div>
  ${!PASS?`<div class="chnote" style="margin-top:10px">Chat works on the published page: it needs the passphrase to encrypt your message.</div>`:!ghTok()?`<div class="chnote" style="margin-top:10px">No GitHub token in this browser: Send opens GitHub with the encrypted message filled in; press Submit there.</div>`:""}

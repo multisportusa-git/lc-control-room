@@ -306,5 +306,19 @@ check("JB task without a brief is amber 'Brief missing'", IC_["W1-91"]["rag"] ==
 check("stale lane run is red 'Last run ended … not restarted', owner Claude", IC_["W1-92"]["rag"] == "red" and "Last run ended 11:06; Claude has not restarted it" in IC_["W1-92"]["why"] and IC_["W1-92"]["act"]["kind"] == "Claude", IC_["W1-92"]["why"])
 check("owner line: Claude tasks never read as an ask to JB", all(t["act"]["kind"] == "Claude" and not t["act"]["doing"].lower().startswith("coordinator") for t in IC_.values() if t["owner"] != "JB") and IC_["W1-91"]["act"]["kind"] == "JB")
 
+# ---------- chat acting runs: chip states reach the page; the acting-run tests ----------
+with tempfile.TemporaryDirectory() as ta:
+    _, DA_, _ = build(ta, [task("W1-1", "2026-10-26")], {}, {"w1/chat/V3.json": {"msgs": [
+        {"id": "m1", "from": "JB", "at": "2026-10-27T04:21:00", "text": "go", "act": {"state": "acting", "lane": "Cct00001", "behind": ""}},
+        {"id": "m1a", "fu": "m1", "from": "Claude (acting)", "at": "2026-10-27T04:30:00", "text": "DONE x\n- PR #1"}]}})
+    th_ = DA_["chat"]["threads"]["V3"]
+    check("chat: act state and the 'Claude (acting)' follow-up reach the page data", th_[0]["act"]["state"] == "acting" and th_[1]["acting"] is True and th_[1]["fu"] == "m1" and th_[1]["from"] == "Claude", th_)
+check("page: chip moves Answered -> Acting… -> Done / Blocked, queued shows behind; open acts keep polling",
+      all(x in PAGE for x in ('answered:"Answered"', 'acting:"Acting…"', 'done:"Done"', 'blocked:"Blocked"', 'queued:"Queued"')) and "actChip(m.act)" in PAGE and "actOpen(m)" in PAGE and ".achip.done" in PAGE and ".achip.blocked" in PAGE)
+check("page: follow-up text is escaped and labelled", 'class="bwho">Claude (acting)' in PAGE and "${esc(m.text)}" in PAGE)
+r_ = subprocess.run([sys.executable, os.path.join(HERE, "test_chat_act.py")], capture_output=True, text=True, timeout=300)
+print("\n".join(l for l in r_.stdout.splitlines() if l.startswith("FAIL")))
+check("chat acting-run tests (gen/test_chat_act.py) all pass", r_.returncode == 0, r_.stdout[-600:] + r_.stderr[-300:])
+
 print("ALL PASS" if not FAILS else "%d FAILED: %s" % (len(FAILS), ", ".join(FAILS)))
 sys.exit(1 if FAILS else 0)
