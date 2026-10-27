@@ -27,6 +27,7 @@ GH = shutil.which("gh") or next((p for p in ("/opt/homebrew/bin/gh", "/usr/local
 TOPIC_FILE = os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")
 PAGE = "https://%s.github.io/%s/" % (OWNER, REPO.split("/")[1])
 TITLE = re.compile(r"^\s*DECISION\s+(D-\d+)\s*:\s*(OTHER|[A-Z])\b", re.I)
+PHONE = re.compile(r"^\s*PHONE\s+FREE\b", re.I)
 ACTION = re.compile(r"^\s*ACTION\s+(W1-\d{2}[A-Z]{0,2}|V2)\b\s*:?\s*(.*)$", re.I)
 LC = arg("--lc-repo", os.path.join(HOME, "Claude_London Commuter"))
 EV = os.path.join(NOTES, "w1", "evidence")
@@ -55,6 +56,8 @@ def sync_issues(decs):
     try: issues = json.loads(raw) if raw else []
     except ValueError: issues = []
     for it in issues:
+        if PHONE.match(it.get("title", "")):
+            phone_free(it); continue
         if ACTION.match(it.get("title", "")):
             action(it); continue
         m = TITLE.match(it.get("title", ""))
@@ -86,6 +89,23 @@ def task_defs():
     out = subprocess.run(["git", "-C", LC, "show", "origin/main:docs/handover/v3/W1_TASKS.json"], capture_output=True, text=True).stdout
     try: return {t["id"]: t for t in json.loads(out)["tasks"]}
     except (ValueError, KeyError): return {}
+
+def phone_free(it):
+    """PHONE FREE issue from the owner: JB says the iPhone is free and connected. Writes <notes>/w1/phone_free.json
+    {"at", "by": "JB", "until": at + 2 h} (the page shows 'iPhone free (since HH:MM)' until then or until a phone job runs)
+    and appends a PHONE FREE line to <notes>/w1/ACTIONS-from-JB.md for the coordinator."""
+    n = it["number"]; who = (it.get("author") or {}).get("login", "")
+    if who.lower() != OWNER.lower():
+        log("ignored phone-free #%d from %s" % (n, who)); gh("issue", "close", str(n), "-R", REPO, "-c", "Only the repo owner can say the phone is free."); return
+    t0 = dt.datetime.now().replace(second=0, microsecond=0); until = t0 + dt.timedelta(hours=2)
+    if not DRY:
+        W = os.path.join(NOTES, "w1"); os.makedirs(W, exist_ok=True)
+        f = os.path.join(W, "phone_free.json"); tmp = f + ".tmp"
+        json.dump({"at": t0.strftime("%Y-%m-%dT%H:%M"), "by": "JB", "until": until.strftime("%Y-%m-%dT%H:%M")}, open(tmp, "w")); os.replace(tmp, f)
+        with open(os.path.join(W, "ACTIONS-from-JB.md"), "a") as fh:
+            fh.write("%s JB (issue #%d): PHONE FREE - iPhone is free and connected until %s; phone jobs may run now.\n" % (now(), n, until.strftime("%H:%M")))
+    gh("issue", "close", str(n), "-R", REPO, "-c", "Recorded: iPhone free until %s. The coordinator can run phone jobs." % until.strftime("%H:%M"))
+    log("PHONE FREE via issue #%d until %s" % (n, until.strftime("%H:%M")))
 
 def action(it):
     """ACTION W1-nn issues from the owner: write JB's report into the task's evidence file, then close the task with

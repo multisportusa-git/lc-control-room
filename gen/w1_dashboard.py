@@ -659,7 +659,45 @@ burn = [{"day": d, "planned": sum(t["day"] <= d for t in T),
 today_ids = [t["id"] for t in tasks if t["day"] == TODAY or (t["day"] < TODAY and t["status"] != "done") or (t["status"] == "done" and (t["updated"] or "")[:10] == TODAY)]
 reds = [t for t in tasks if t["rag"] == "red"]; ambers = [t for t in tasks if t["rag"] == "amber"]
 overall = "red" if reds else "amber" if ambers else "green"
-data = {"gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
+# ---------- iPhone alert (JB 27 Oct 04:42): which open tasks need the phone connected, and has JB said it is free ----------
+#   A task needs the phone when its `where` mentions iPhone/phone/Mirroring, its gates or title mention install or "phone check",
+#   it is a QUEUE task whose targets/where/title/steps say install, or it is named in <notes>/v2/owed_phone_checks.txt (first word = task id,
+#   or any text = an owed V2 check; optional "title | why | minutes"). State: red = a phone task is critical and due within 24 h
+#   (projected start or red_iso within 24 h, or holding_now); amber = some phone task open; green = none. free = phone_free.json while valid.
+PHONE_RE = re.compile(r"(?i)iphone|\bphone\b|mirroring")
+def needs_phone(t):
+    if PHONE_RE.search(t.get("where") or ""): return True
+    if re.search(r"(?i)\binstall|phone check", " ".join(t.get("gates") or []) + " " + (t.get("title") or "")): return True
+    return t.get("owner") == "QUEUE" and bool(re.search(r"(?i)install", " ".join([str(t.get("targets") or ""), t.get("where") or "", t.get("title") or ""] + [str(x) for x in (t.get("steps") or [])])))
+owed_lines = [l.strip() for l in rd(os.path.join(NOTES, "v2", "owed_phone_checks.txt")).splitlines() if l.strip() and not l.strip().startswith("#")]
+owed_ids = {l.split()[0] for l in owed_lines if l.split()[0] in BY}
+H24 = NOW + dt.timedelta(hours=24)
+def due24(x):
+    im = x.get("impact") or {}
+    if not im.get("critical"): return False
+    if im.get("holding_now"): return True
+    return any(ts(x.get(k)) and ts(x.get(k)) <= H24 for k in ("beg_iso",)) or bool(im.get("red_iso") and ts(im["red_iso"]) and ts(im["red_iso"]) <= H24)
+ph_tasks = []
+for x in tasks:
+    if x["status"] == "done" or not (needs_phone(BY[x["id"]]) or x["id"] in owed_ids): continue
+    ph_tasks.append({"id": x["id"], "title": x["title"], "why": x["why"], "min": x["est"], "programme": "V3", "critical": bool((x.get("impact") or {}).get("critical")), "due24": due24(x)})
+for n, l in enumerate(owed_lines, 1):
+    if l.split()[0] in BY: continue
+    f = [c.strip() for c in l.split("|")]
+    ph_tasks.append({"id": "V2-P%d" % n, "title": f[0][:160], "why": f[1][:200] if len(f) > 1 else "Owed V2 phone check", "min": int(f[2]) if len(f) > 2 and f[2].isdigit() else 10, "programme": "V2", "critical": False, "due24": False})
+ph_state = "red" if any(x["due24"] for x in ph_tasks) else "amber" if ph_tasks else "green"
+ph_free = js(os.path.join(W1, "phone_free.json"))
+if isinstance(ph_free, dict) and ts(ph_free.get("at")) and ts(ph_free.get("until")):
+    at_, un_ = ts(ph_free["at"]), ts(ph_free["until"])
+    ran = False   # a phone job ran after JB said it is free: the phone is in use, the note is spent
+    for q in glob.glob(os.path.join(NOTES, "testq/results/*.txt")):
+        if mtime(q) and mtime(q) > at_ and re.search(r"(?i)install", rd(q, 2000)): ran = True
+    ph_free = {"at": ph_free["at"], "by": ph_free.get("by", "JB"), "until": ph_free["until"], "since": hm(at_), "active": at_ <= NOW < un_ and not ran}
+else:
+    ph_free = None
+phone = {"state": ph_state, "tasks": ph_tasks, "free": ph_free}
+
+data = {"phone": phone, "gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
         "decisions": decisions, "ntfy": ntfy, "fuel": fuel, "chat": chat, "v2": v2, "v2k": v2k, "jb": jb, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
         "loop": rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LOOP_LOG.md"), 6000),
         "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,

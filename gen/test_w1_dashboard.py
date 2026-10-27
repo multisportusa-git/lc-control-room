@@ -306,6 +306,49 @@ check("JB task without a brief is amber 'Brief missing'", IC_["W1-91"]["rag"] ==
 check("stale lane run is red 'Last run ended … not restarted', owner Claude", IC_["W1-92"]["rag"] == "red" and "Last run ended 11:06; Claude has not restarted it" in IC_["W1-92"]["why"] and IC_["W1-92"]["act"]["kind"] == "Claude", IC_["W1-92"]["why"])
 check("owner line: Claude tasks never read as an ask to JB", all(t["act"]["kind"] == "Claude" and not t["act"]["doing"].lower().startswith("coordinator") for t in IC_.values() if t["owner"] != "JB") and IC_["W1-91"]["act"]["kind"] == "JB")
 
+# ---------- iPhone alert: green / amber / red, the free state, the Mac recording the PHONE FREE issue ----------
+ST_A = {"W1-71": {"status": "doing", "opened": [{"at": "2026-10-26T10:00", "as": "sonnet/medium"}]}}
+def phn(tasks_, files_=None, state_=None):
+    with tempfile.TemporaryDirectory() as tp:
+        _, Dp, _ = build(tp, tasks_, state_ if state_ is not None else ST_A, files_); return Dp["phone"]
+P0 = phn(TA)
+check("phone: green and no tasks when nothing needs the phone", P0["state"] == "green" and P0["tasks"] == [] and P0["free"] is None, P0)
+TP1 = [dict(t, where="iPhone via Mirroring") if t["id"] == "W1-79" else t for t in TA]
+P1 = phn(TP1)
+check("phone: amber when a non-critical task needs the phone (id, title, why, minutes listed)", P1["state"] == "amber" and [x["id"] for x in P1["tasks"]] == ["W1-79"] and not P1["tasks"][0]["critical"] and P1["tasks"][0]["min"] == 45 and P1["tasks"][0]["why"], P1)
+TP2 = [dict(t, title="Install the build on the phone") if t["id"] == "W1-73" else t for t in TA]
+P2 = phn(TP2)
+check("phone: red when a critical phone task is due within 24 h (title says install)", P2["state"] == "red" and P2["tasks"][0]["id"] == "W1-73" and P2["tasks"][0]["critical"] and P2["tasks"][0]["due24"], P2)
+TP3 = [dict(t, owner="QUEUE", model="none", effort="none", steps=["run the queue with targets install"]) if t["id"] == "W1-79" else t for t in TA]
+check("phone: a QUEUE task with install targets needs the phone; a done one does not", phn(TP3)["state"] == "amber" and phn(TP1, None, dict(ST_A, **{"W1-79": {"status": "done", "updated": "2026-10-26T09:00"}}))["state"] == "green")
+P4 = phn(TA, {"v2/owed_phone_checks.txt": "# owed\nL2 ride check on the 08:14 | the tunnel case was never seen on a real phone | 20\nW1-79\n"})
+check("phone: V2 owed checks count as phone tasks (programme V2); a task id line marks that task", P4["state"] == "amber" and {x["id"] for x in P4["tasks"]} == {"V2-P1", "W1-79"} and next(x for x in P4["tasks"] if x["id"] == "V2-P1")["programme"] == "V2" and next(x for x in P4["tasks"] if x["id"] == "V2-P1")["min"] == 20, P4)
+P5 = phn(TP1, {"w1/phone_free.json": {"at": "2026-10-26T11:30", "by": "JB", "until": "2026-10-26T13:30"}})
+check("phone: free after phone_free.json (active, since 11:30)", P5["free"] and P5["free"]["active"] and P5["free"]["since"] == "11:30", P5)
+P6 = phn(TP1, {"w1/phone_free.json": {"at": "2026-10-26T08:30", "by": "JB", "until": "2026-10-26T10:30"}})
+check("phone: free note past its until is not active", P6["free"] and not P6["free"]["active"], P6)
+P7 = phn(TP1, {"w1/phone_free.json": {"at": "2026-10-26T11:00", "by": "JB", "until": "2026-10-26T13:00"}, "testq/results/j1.txt": "job=j1 targets=install overall=pass\n"})
+check("phone: free note ends when a phone job ran after it", P7["free"] and not P7["free"]["active"], P7)
+check("page: chip is a button when amber/red, panel lists tasks with one 'iPhone is free and connected' action posting PHONE FREE",
+      all(x in PAGE for x in ("iPhone: not needed", "iPhone needed", "iPhone is free and connected", 'title="PHONE FREE"', "data-phone", "iPhone free (since")))
+
+with tempfile.TemporaryDirectory() as tm:
+    hm_ = os.path.join(tm, "home"); os.makedirs(hm_); bind = os.path.join(tm, "bin"); os.makedirs(bind)
+    gl = os.path.join(tm, "gh.log")
+    issues = [{"number": 31, "title": "PHONE FREE", "body": "x", "author": {"login": "multisportusa-git"}},
+              {"number": 32, "title": "PHONE FREE", "body": "x", "author": {"login": "mallory"}}]
+    open(os.path.join(bind, "gh"), "w").write("#!/bin/bash\necho \"$@\" >> '%s'\nif [ \"$1 $2\" = 'issue list' ]; then cat '%s/issues.json'; fi\n" % (gl, tm))
+    os.chmod(os.path.join(bind, "gh"), 0o755); json.dump(issues, open(os.path.join(tm, "issues.json"), "w"))
+    r_ = subprocess.run([sys.executable, os.path.join(HERE, "decisions_sync.py"), "--notes", tm, "--repo", "multisportusa-git/lc-control-room"], capture_output=True, text=True,
+                        env=dict(os.environ, HOME=hm_, PATH=bind + os.pathsep + os.environ["PATH"]), timeout=60)
+    pf = os.path.join(tm, "w1", "phone_free.json"); pj = json.load(open(pf)) if os.path.exists(pf) else {}
+    a_ = datetime.fromisoformat(pj["at"]) if pj else None; u_ = datetime.fromisoformat(pj["until"]) if pj else None
+    check("sync: owner's PHONE FREE issue writes phone_free.json {at, by JB, until = at + 2 h}", r_.returncode == 0 and pj.get("by") == "JB" and u_ and (u_ - a_).total_seconds() == 7200, (r_.stdout, r_.stderr, pj))
+    acts_ = open(os.path.join(tm, "w1", "ACTIONS-from-JB.md")).read() if os.path.exists(os.path.join(tm, "w1", "ACTIONS-from-JB.md")) else ""
+    check("sync: appends one 'PHONE FREE' line to ACTIONS-from-JB.md", acts_.count("PHONE FREE") == 1 and "issue #31" in acts_ and "#32" not in acts_, acts_)
+    glog = open(gl).read()
+    check("sync: owner's issue is closed with a comment; another account's is closed and ignored", "issue close 31" in glog and "issue close 32" in glog and "Only the repo owner" in glog)
+
 # ---------- chat acting runs: chip states reach the page; the acting-run tests ----------
 with tempfile.TemporaryDirectory() as ta:
     _, DA_, _ = build(ta, [task("W1-1", "2026-10-26")], {}, {"w1/chat/V3.json": {"msgs": [

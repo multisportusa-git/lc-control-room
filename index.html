@@ -27,7 +27,7 @@ header{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;justify-cont
 .sub{color:var(--text2);font-size:13px;margin-top:5px}
 .hright{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .status{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px}
-.sbtns{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}.sbtn{border:2px solid transparent;cursor:pointer;font-family:inherit;font-size:15px;font-weight:800;padding:10px 18px;letter-spacing:.2px;box-shadow:0 4px 14px rgba(0,0,0,.45);transition:transform .12s,filter .12s}.sbtn.r-red{background:#E5484D;color:#fff;border-color:#ff8f8f;box-shadow:0 0 0 3px rgba(229,72,77,.28),0 4px 14px rgba(0,0,0,.45)}.sbtn.r-amber{background:#F5A524;color:#1a1200;border-color:#ffd27a;box-shadow:0 0 0 3px rgba(245,165,36,.25),0 4px 14px rgba(0,0,0,.45)}.sbtn:hover{filter:brightness(1.12);transform:translateY(-1px)}.sbtn::after{content:"›";font-size:18px;line-height:0;margin-left:2px}.sbtn:focus-visible{outline:2px solid var(--orange2);outline-offset:2px}
+.sbtns{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}.sbtn{border:2px solid transparent;cursor:pointer;font-family:inherit;font-size:15px;font-weight:800;padding:10px 18px;letter-spacing:.2px;box-shadow:0 4px 14px rgba(0,0,0,.45);transition:transform .12s,filter .12s}.sbtn.r-red{background:#E5484D;color:#fff;border-color:#ff8f8f;box-shadow:0 0 0 3px rgba(229,72,77,.28),0 4px 14px rgba(0,0,0,.45)}.sbtn.r-amber{background:#F5A524;color:#1a1200;border-color:#ffd27a;box-shadow:0 0 0 3px rgba(245,165,36,.25),0 4px 14px rgba(0,0,0,.45)}.sbtn:hover{filter:brightness(1.12);transform:translateY(-1px)}.sbtn::after{content:"›";font-size:18px;line-height:0;margin-left:2px}.sbtn.r-green{background:#1F9D55;color:#fff;border-color:#6fe0a0;cursor:default}.sbtn.r-green:hover,span.sbtn:hover{filter:none;transform:none}span.sbtn::after{content:none}.phtab{width:100%;border-collapse:collapse;margin-top:12px}.phtab th{text-align:left;font-size:11px;color:var(--text2);padding:4px 8px 4px 0}.phtab td{padding:8px 8px 8px 0;border-top:1px solid rgba(255,255,255,.08);vertical-align:top}.sbtn:focus-visible{outline:2px solid var(--orange2);outline-offset:2px}
 .it.flash{box-shadow:0 0 0 2px var(--orange2)}
 .stamp{color:var(--muted);font-size:12px;text-align:right}
 nav{position:sticky;top:0;z-index:20;background:rgba(10,10,12,.78);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line);margin:0 -16px 16px;padding:10px 16px;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none}
@@ -366,8 +366,24 @@ if(!seen)markSeen();
 /* ---------- header ---------- */
 $("#week").textContent=D.week;
 const trust=pageAge>STALE_MIN?["red",HOSTED?`Data is ${pageAge} min old: the Mac has not pushed (asleep, offline or the job stopped)`:`Page is ${pageAge} min old: the updater may have stopped`]:staleSrc.length?["amber",`${staleSrc.length} data source${staleSrc.length>1?"s":""} stale`]:["green","All sources fresh"];
+/* iPhone alert (JB 27 Oct 04:42): green none needed, amber needed, red needed now; "free" after JB's click until it expires or a phone job runs */
+const PH=D.phone||{state:"green",tasks:[],free:null};
+function phoneFree(){const f=PH.free,l=LS.get("w1dash.phonefree",null),now=Date.now();
+ if(f&&f.active&&Date.parse(f.until)>now)return {since:f.since};
+ if(l&&l.until>now&&!(f&&!f.active&&Date.parse(f.at)>=l.at-120000))return {since:new Date(l.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})};
+ return null}
+function phoneChip(){const fr=phoneFree();
+ if(fr&&PH.state!=="green")return `<span class="status sbtn r-green phone" id="phonechip">${RAG.green[0]} iPhone free (since ${esc(fr.since)})</span>`;
+ if(PH.state==="green")return `<span class="status sbtn r-green phone" id="phonechip">${RAG.green[0]} iPhone: not needed</span>`;
+ return `<button class="status sbtn r-${PH.state} phone" id="phonechip" data-phone="1" title="Which tasks need the iPhone connected">${RAG[PH.state][0]} iPhone needed${PH.state==="red"?" now":""}</button>`}
+function openPhone(){const rows=PH.tasks.map(t=>`<tr><td class="mono" style="white-space:nowrap"><b>${esc(t.id)}</b></td><td>${esc(t.title)}${t.due24?` ${pill("red","due within 24 h")}`:""}<div class="why">${esc(t.why)}</div></td><td style="white-space:nowrap">${t.min} min</td></tr>`).join("");
+ const fr=phoneFree();
+ $("#panel").innerHTML=`<button class="x" aria-label="Close">×</button><h3>iPhone ${PH.state==="red"?"needed now":"needed"}</h3><div class="meta">${PH.state==="red"?"A task on the critical path needs the phone connected within 24 hours.":"These open tasks need the phone connected. None is on the critical path in the next 24 hours."}</div>
+ <table class="phtab"><tr><th>Task</th><th>What and why</th><th>Needs</th></tr>${rows}</table>
+ <div style="margin-top:16px">${fr?`<div class="callout green" style="margin:0">✓ Sent: iPhone free (since ${esc(fr.since)}). The coordinator can run phone jobs for 2 hours.</div>`:`<button class="tbtn on" id="phonefree" style="font-size:15px;padding:12px 18px">iPhone is free and connected</button><div class="why" style="margin-top:8px">Tells the coordinator it may run the phone tasks now. The Mac records it within a minute; it lapses after 2 hours or when a phone job runs.</div>`}</div>`;openPanel()}
 {const sb=(rag,n,lab)=>`<button class="status sbtn r-${rag}" data-jump="${rag}" title="Go to ${lab} in Problems and attention">${RAG[rag][0]} ${n} ${lab}</button>`;
- $("#status").innerHTML=(nRed||nAmb)?`<div class="sbtns">${nRed?sb("red",nRed,"problem"+(nRed>1?"s":"")):""}${nAmb?sb("amber",nAmb,"attention"):""}</div>`:`<span class="status r-green">${RAG.green[0]} All on track</span>`}
+ function paintStatus(){$("#status").innerHTML=`<div class="sbtns">${nRed?sb("red",nRed,"problem"+(nRed>1?"s":"")):""}${nAmb?sb("amber",nAmb,"attention"):""}${(nRed||nAmb)?"":`<span class="status r-green">${RAG.green[0]} All on track</span>`}${phoneChip()}</div>`}
+ window.paintStatus=paintStatus;paintStatus()}
 $("#stamp").innerHTML=`Data ${esc(D.gen)} · <a href="#" data-go="health" style="color:${RCOL[trust[0]]}">${RAG[trust[0]][0]} ${esc(trust[1])}</a><br>${HOSTED?"Answers picked up within a minute · data at least every 10 min":"Rebuilt every minute"}`;
 
 /* ---------- module registry ---------- */
@@ -792,6 +808,9 @@ document.addEventListener("click",e=>{
   else{const inp=box.querySelector("[data-a]")||document.getElementById("a-"+id);const v=((inp||{}).value||"").trim();if(!v){inp&&inp.focus();return}title=`ACTION ${id}: ${v}`.slice(0,240)}
   const body="Reported from the control room.\n\n<!-- recorded by the Mac within a minute -->";ac.disabled=true;ac.textContent="Sending…";
   send(title,body,ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent(body)).then(()=>{const sv=LS.get("w1dash.sentact",{});sv[id]=new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});LS.set("w1dash.sentact",sv);rerender("you");rerender("iss");if(H.t)openTask(H.t)});return}
+ if(e.target.closest("#phonechip[data-phone]")){openPhone();return}
+ if(e.target.id==="phonefree"){const b=e.target;b.disabled=true;b.textContent="Sending…";const title="PHONE FREE",body="iPhone is free and connected (from the control room).\n\n<!-- recorded by the Mac within a minute -->";
+  send(title,body,ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent(body)).then(()=>{const n=Date.now();LS.set("w1dash.phonefree",{at:n,until:n+7200000});paintStatus();openPhone()});return}
  if(e.target.id==="gt-save"){const v=(document.getElementById("gt-in").value||"").trim();if(!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)){document.getElementById("gt-in").style.borderColor="var(--crit)";return}try{localStorage.setItem("w1dash.gt",v)}catch(x){}rerender("dec");return}
  const ap=e.target.closest("[data-approve]");if(ap){const id=ap.dataset.approve,ch=ap.dataset.choice,dcb=ap.closest(".deccard")||document,nt=(dcb.querySelector('[id="note-'+id+'"]')||{}).value||"";
   const url=ISSUE_NEW+"?title="+encodeURIComponent("DECISION "+id+": "+ch)+"&body="+encodeURIComponent((nt.trim()||"Approved from the control room.")+"\n\n<!-- recorded by the Mac within a minute -->");
