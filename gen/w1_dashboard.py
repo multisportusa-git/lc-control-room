@@ -127,9 +127,12 @@ def started(tid):
 def status(tid): return (state.get(tid) or {}).get("status", "todo")
 
 # ---------- projection: capacity-aware list scheduling ----------
-# Pools: 3 code lanes (CLAUDE.md max), 2 test runners, 1 coordinator, 1 Cowork, JB; scripts run at once.
+# Pools: code lanes from <notes>/v2/max_lanes (default 3, CLAUDE.md max; 4 in the JB 27 Oct trial), 2 test runners, 1 coordinator, 1 Cowork, JB; scripts run at once.
 # People (JB, Cowork) work 08:00-22:00. Nothing starts before its planned day at 08:00.
-POOLS = {"LANE": 3, "QUEUE": 2, "COORD": 1, "COWORK": 1, "JB": 1, "SCRIPT": 99}
+def _max_lanes():
+    try: return max(1, min(6, int(open(os.path.join(NOTES, "v2", "max_lanes")).read().strip())))
+    except Exception: return 3
+POOLS = {"LANE": _max_lanes(), "QUEUE": 2, "COORD": 1, "COWORK": 1, "JB": 1, "SCRIPT": 99}   # LANE from <notes>/v2/max_lanes (JB 27 Oct: 4-lane 12 h trial)
 kids = {}
 for t in T:
     for d in t.get("depends", []): kids.setdefault(d, []).append(t["id"])
