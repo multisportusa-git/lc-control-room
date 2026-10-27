@@ -296,7 +296,9 @@ def make_brief(target, cid, req, rd, jb_text):
              "- A decision only JB can make becomes a decision card (scripts/act_on_decided.sh need ...), then end BLOCKED naming the card.\n"
              "- Use only the tools you were given; never read secrets; do not widen permissions or work around a denied tool.\n"
              "- Nobody reads chat: your last line is posted back to JB in the Control Room.\n\n"
-             "Your LAST line must be exactly one of:\nDONE <what was done, with ids: task, job, lane, PR numbers, files>\nBLOCKED <exact reason and what JB must do>\n")
+             "Your LAST line must be exactly one of:\nDONE <what was done, with ids: task, job, lane, PR numbers, files>\nBLOCKED <exact reason and what JB must do>\n"
+             "DONE only if EVERY part of the request was done where JB asked (right file, right place). If any part was refused,\n"
+             "blocked by the sandbox or done somewhere else instead (e.g. /tmp), the line is BLOCKED and says which part.\n")
     room = 7800 - len((head + rules).encode())
     body = "\n".join(facts)
     while len(body.encode()) > max(room, 0): body = body[: int(len(body) * 0.9)]
