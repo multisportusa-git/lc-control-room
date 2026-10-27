@@ -667,7 +667,8 @@ overall = "red" if reds else "amber" if ambers else "green"
 PHONE_RE = re.compile(r"(?i)iphone|\bphone\b|mirroring")
 def needs_phone(t):
     if PHONE_RE.search(t.get("where") or ""): return True
-    if re.search(r"(?i)\binstall|phone check", " ".join(t.get("gates") or []) + " " + (t.get("title") or "")): return True
+    # "install" alone is not enough (W1-49 "gitleaks ... install" is a Mac task): it must be an install on the phone
+    if re.search(r"(?i)phone check|install\b[^.;]{0,40}\b(i?phone|device)|\b(i?phone|device)\b[^.;]{0,40}install", " ".join(t.get("gates") or []) + " " + (t.get("title") or "")): return True
     return t.get("owner") == "QUEUE" and bool(re.search(r"(?i)install", " ".join([str(t.get("targets") or ""), t.get("where") or "", t.get("title") or ""] + [str(x) for x in (t.get("steps") or [])])))
 owed_lines = [l.strip() for l in rd(os.path.join(NOTES, "v2", "owed_phone_checks.txt")).splitlines() if l.strip() and not l.strip().startswith("#")]
 owed_ids = {l.split()[0] for l in owed_lines if l.split()[0] in BY}
