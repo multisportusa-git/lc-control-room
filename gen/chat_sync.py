@@ -152,7 +152,7 @@ def sources(target):
     w1 = os.path.join(NOTES, "w1")
     ctx = "- %s (compact snapshot of the Control Room data: tasks, status, PRs, decisions, fuel; start here)\n" % "CONTEXT_FILE"
     if target == "COORD":
-        return ctx + ("- DIGEST_FILE (python3 v2/sup/digest.py, run just now: lanes, slots, PRs, queue, FLAGS; start here)\n- %s (the coordinator brief: rules, budget, what to do per FLAG)\n"
+        return ctx + ("- DIGEST_FILE (the digest, generated for this message: lanes, slots, PRs, queue, FLAGS; READ this file, do not try to run digest.py; start here)\n- %s (the coordinator brief: rules, budget, what to do per FLAG)\n"
                       "- %s (what the Controller did before; newest last)\n- %s/v2/sup/next.txt (plan and queue)\n- %s/announce.log (event log; read only its tail)\n"
                       "- %s/v2/kpi4/issues.md (known problems)\n- %s/w1/evidence/usage_pct.csv (JB's usage %%: ts,total,code,chats,cowork)\n"
                       "- %s/w1/evidence/jb_journey_20261027/DEFECTS.md (JB's commute defects J1-J14)\n") % (COORD_BRIEF, COORD_LOG, NOTES, NOTES, NOTES, NOTES, NOTES)
@@ -223,7 +223,7 @@ def plan(target, cid, rd):
               "- Your LAST line must be exactly one of:\n  INTENT: answer\n  INTENT: act <one-line imperative request>\n"
               "  Use act ONLY when JB asks for something to be done (start a task, run, fix, merge-train, check and act). Anything vague, a question or an opinion is answer. "
               "When you choose act, a separate acting run starts after your answer and reports back in this thread: say in one line what it will do, still add the record block above, and do not say you only read.\n") % (
-        role, sources(target).replace("CONTEXT_FILE", ctxf),
+        role, sources(target).replace("CONTEXT_FILE", ctxf).replace("DIGEST_FILE", os.path.join(rd, "digest.txt")),
         "\n".join("[%s %s] %s" % (x.get("at", "")[11:16], x.get("from"), (x.get("text") or "")[:1200]) for x in hist) or "(none)",
         me["text"], rec)
     if target == "COORD":
