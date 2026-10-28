@@ -198,6 +198,30 @@ for x in live_lanes:
     i = x["task"]
     if i and i in BY and status(i) != "done":   # the plan task this lane is doing: real start and ETC, its own row
         beg[i], fin[i], slot[i] = ts(x["beg_iso"]), ts(x["fin_iso"]), "LIVE " + x["lane"]
+LIVE_TASK = {x["task"]: x for x in live_lanes if x["task"] and x["task"] in BY and status(x["task"]) != "done"}
+
+# ---------- live test runners (JB 28 Oct 17:16: the timeline showed runners idle while 3 jobs ran) ----------
+# Each runner rN with testq/runners/rN.status "rN <date> <time> <job> running <target>" and that job in testq/running
+# is a live row from its claim to start + the per-target estimate (never drawn ending before now + 5 min). Planned
+# queue tasks go only into runner slots the live jobs leave free. Pool = runners with a lock and no .stop file.
+RUN_EST = {"unit": 20, "snapshot": 30, "replay": 20, "all": 30, "go": 5, "app": 15, "watch": 10, "v3kit": 10, "v3app": 15, "uitest": 30, "selftest": 2}
+QD = os.path.join(NOTES, "testq")
+live_runners = []
+for p in sorted(glob.glob(os.path.join(QD, "runners", "r*.status"))):
+    w = (rd(p, 300).splitlines() or [""])[0].split()
+    if len(w) < 5 or w[4] != "running": continue
+    jf = os.path.join(QD, "running", w[3] + ".job")
+    if not os.path.isfile(jf): continue
+    kv = dict(l.split("=", 1) for l in rd(jf, 2000).splitlines() if "=" in l)
+    b = ts(w[1] + "T" + w[2][:5]) or NOW
+    tg = (kv.get("targets") or "").split()
+    e = b + dt.timedelta(minutes=sum(RUN_EST.get(x_, 20) for x_ in tg) or 20)
+    live_runners.append({"runner": w[0], "job": w[3], "lane": kv.get("lane", ""), "targets": " ".join(tg), "sha": (kv.get("sha") or "")[:8],
+                         "beg_iso": b.isoformat(), "fin_iso": max(e, NOW + dt.timedelta(minutes=5)).isoformat(), "est": hm(e), "late": e < NOW})
+_nrun = len([p for p in glob.glob(os.path.join(QD, "runners", "r*.lock")) if not os.path.exists(p[:-5] + ".stop")])
+if _nrun or live_runners: free["QUEUE"] = [NOW] * max(_nrun, len(live_runners), 1)
+for k_, x in enumerate(sorted(live_runners, key=lambda x: x["fin_iso"])):
+    if k_ < len(free["QUEUE"]): free["QUEUE"][k_] = ts(x["fin_iso"])
 for t in T:  # finished and running work first
     i = t["id"]; st = status(i)
     if i in fin: continue
@@ -312,6 +336,11 @@ def rag(t):
         if "forced" in (s.get("note") or ""): r = ("green", "Done, closed with --force (model rail skipped)", "Coordinator: record the reason in the CHANGELOG")
     elif st == "blocked" or os.path.exists(blockfile):
         r = ("red", "Blocked: " + clean(s.get("note") or rd(blockfile, 300), 200), "Coordinator: clear the cause, then re-run or re-open the lane")
+    elif tid in LIVE_TASK:   # a live lane is on this task: its state wins over the plan's (JB 28 Oct 17:16)
+        x = LIVE_TASK[tid]; what = "running" if x["holds"] else {"waiting": "waiting for tests", "pr": "PR in review"}.get(x["state"], x["state"])
+        if not x["etc"]: r = ("amber", "Lane %s %s; no ETC set" % (x["lane"], what), "Coordinator: ctl.sh eta %s HH:MM" % x["lane"])
+        elif x["late"]: r = ("red", "Lane %s %s; ETC %s passed" % (x["lane"], what, x["etc"]), "Coordinator: check the lane and reset its ETC")
+        else: r = ("green" if x["holds"] else "blue", "Lane %s %s; ETC %s" % (x["lane"], what, x["etc"]), "")
     elif ln and ln["denied"] and st == "doing" and (not started(tid) or ln["mt"] >= started(tid)) and tid not in running_lanes:
         r = ("red", "Lane stopped: the sandbox refused %d command(s): %s" % (len(ln["denied"]), "; ".join(ln["denied"])[:160]),
              "Coordinator: allow that command in the lane settings (or run the step itself), then resume the lane session")
@@ -382,7 +411,7 @@ for t in T:
                   "pr": pr, "pr_state": (PR.get(pr) or {}).get("state") if pr else None, "lane": {k: v for k, v in (lanes.get(tid) or {}).items() if k != "mt"} or None,
                   "decision": t.get("decision"), "slot": slot.get(tid, ""), "beg_iso": beg[tid].isoformat() if beg.get(tid) else "", "fin_iso": fin[tid].isoformat() if fin.get(tid) else "",
                   "ndesc": NDESC.get(tid, 0), "slip_days": max(0, (fin[tid].date() - dt.date.fromisoformat(t["day"])).days) if fin.get(tid) and status(tid) != "done" else 0,
-                  "lane_running": tid in running_lanes, "impact": IMPACT.get(tid), "act": who_line(t, R), "brief_missing": t["owner"] == "JB" and not (notes.get(tid) or {}).get("owner_now") and status(tid) != "done" and not BRIEFS.get(tid), "ev": evidence_excerpt(tid) if status(tid) != "todo" or tid in lanes else [], **R})
+                  "lane_running": tid in running_lanes or bool(LIVE_TASK.get(tid, {}).get("holds")), "impact": IMPACT.get(tid), "act": who_line(t, R), "brief_missing": t["owner"] == "JB" and not (notes.get(tid) or {}).get("owner_now") and status(tid) != "done" and not BRIEFS.get(tid), "ev": evidence_excerpt(tid) if status(tid) != "todo" or tid in lanes else [], **R})
 
 for x in tasks:  # coordinator took a JB task over (notes owner_now): the page shows Claude as the owner, never "You"
     if (notes.get(x["id"]) or {}).get("owner_now") and x["owner"] == "JB": x["plan_owner"] = "JB"; x["owner"] = "COORD"
@@ -762,7 +791,7 @@ phone = {"state": ph_state, "tasks": ph_tasks, "free": ph_free}
 data = {"phone": phone, "gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
         "decisions": decisions, "ntfy": ntfy, "fuel": fuel, "chat": chat, "asks": asks_, "asks_verified": _asks.verified_at() if "_asks" in globals() else "", "v2": v2, "v2k": v2k, "jb": jb, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
         "loop": rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LOOP_LOG.md"), 6000),
-        "live_lanes": live_lanes, "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
+        "live_lanes": live_lanes, "live_runners": live_runners, "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
         "day_finish": max((fin[i] for i in today_ids if status(i) != "done"), default=NOW).strftime("%a %H:%M"),
         "week_finish": max(fin.values(), default=NOW).strftime("%a %d %b %H:%M")}
 

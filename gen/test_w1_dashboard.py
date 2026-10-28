@@ -386,5 +386,20 @@ if NODE:
     check("asks filters: bad saved values fall back safely", len(o_) == 4 and o_[3] == '{"cat":"","rags":[],"sts":["DONE"]}', o_)
 check("page: asks draw and click handler read askF(), the click saves with askFSave", PAGE.count("const F=askF();") == 2 and "askFSave(F);rerender(\"asks\")" in PAGE and "window._askF||(window._askF=" not in PAGE)
 
+# A97 (JB 28 Oct 17:16): a task a live lane holds is running, not "not started"; running test jobs are live runner rows
+with tempfile.TemporaryDirectory() as tmpR:
+    os.makedirs(os.path.join(tmpR, "v2", "locks", "lane-W197"))
+    _, DR, _ = build(tmpR, [task("W1-97", "2026-10-26"), task("W1-98", "2026-10-26", owner="QUEUE")], {}, {
+        "status/W197.txt": "running w1-97\n", "v2/sup/lane_eta.json": {"W197": {"eta": "2026-10-26T12:30"}},
+        "testq/runners/r1.status": "r1 2026-10-26 11:30:05 5-20261026-112900-W197-abcdef12-1 running unit\n", "testq/runners/r1.lock": "",
+        "testq/runners/r2.status": "r2 2026-10-26 11:00:00 old-job running unit\n", "testq/runners/r2.lock": "",
+        "testq/running/5-20261026-112900-W197-abcdef12-1.job": "lane=W197\nsha=abcdef1234\ntargets=unit snapshot\n"}, mtimes={"status/W197.txt": "2026-10-26T11:20"})
+    TR = {t["id"]: t for t in DR["tasks"]}
+    check("live lane: its plan task reads 'running' with the lane's ETC, never 'not started'", "not started" not in TR["W1-97"]["why"] and "running" in TR["W1-97"]["why"] and "12:30" in TR["W1-97"]["why"] and TR["W1-97"]["lane_running"], TR["W1-97"]["why"])
+    LRr = DR.get("live_runners") or []
+    check("live runners: only a runner whose job is in testq/running is live", [x["runner"] for x in LRr] == ["r1"] and LRr[0]["lane"] == "W197" and LRr[0]["est"] == "12:20", LRr)
+    check("live runners: planned queue work starts after the live job frees its runner or on the idle one", TR["W1-98"]["beg_iso"][11:16] in ("11:45", "12:20"), TR["W1-98"]["beg_iso"])
+check("page: timeline draws live runner rows and labels plan rows 'Planned runner'", 'owner:"RUNNER"' in PAGE and '"Planned runner "+n' in PAGE)
+
 print("ALL PASS" if not FAILS else "%d FAILED: %s" % (len(FAILS), ", ".join(FAILS)))
 sys.exit(1 if FAILS else 0)
