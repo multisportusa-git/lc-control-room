@@ -533,12 +533,16 @@ def finish_act(target, cid, state_word, sig, lane):
     else:
         line = sig if sig.upper().startswith("DONE") else "DONE %s" % (sig or "(no detail)")
     ev = evidence(lane, state_word, sig)
+    full = ""
+    if is_coord(target):
+        try: full = open(os.path.join(CDIR, "run", cid, "act_full.md")).read().strip()
+        except OSError: full = ""
     with Thread(target) as d:
         me = next((x for x in d["msgs"] if x.get("id") == cid), None)
         if me is not None and me.get("act"): me["act"]["state"] = "blocked" if blocked else ("partial" if line.startswith("PARTIAL") else "done")
         d["msgs"] = [x for x in d["msgs"] if x.get("id") != cid + "a"]
         d["msgs"].append({"id": cid + "a", "fu": cid, "from": "Claude (acting)", "at": now(), "error": blocked,
-                          "text": line + "".join("\n- " + e for e in ev)})
+                          "text": line + (("\n\n" + full) if full else "".join("\n- " + e for e in ev))})
     log("ACT %s %s %s %s" % ("BLOCKED" if blocked else "DONE", target, cid, line[:80]))
 
 def act_next(target):
@@ -609,6 +613,35 @@ def coord_brief(cid, a, me, target="COORD"):
             "NEEDS JB <the one physical step only JB can do, e.g. unlock the phone>\n") % (
         now(), (me or {}).get("text", "")[:2500], a.get("req", "")[:400], asks, CTL, CTL, COORD_BRIEF, NOTES, cid, COORD_LOG)
 
+def run_usage(p):
+    """Tokens a headless run actually processed, from its stream-json log: per request the whole context is re-read."""
+    T = [0, 0, 0, 0]; pk = 0; n = 0; res = {}
+    try: lines = open(p).read().splitlines()
+    except OSError: return None
+    for l in lines:
+        try: e = json.loads(l)
+        except ValueError: continue
+        if not isinstance(e, dict): continue
+        if e.get("type") == "assistant":
+            u = (e.get("message") or {}).get("usage") or {}
+            v = [int(u.get(k) or 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")]
+            if any(v): T = [x + y for x, y in zip(T, v)]; pk = max(pk, sum(v[:3])); n += 1
+        if e.get("type") == "result": res = e
+    return {"req": n, "in": T[0], "cw": T[1], "cr": T[2], "out": T[3], "total": sum(T), "peak": pk,
+            "cost": res.get("total_cost_usd"), "secs": round((res.get("duration_ms") or 0) / 1000, 1),
+            "model": ",".join((res.get("modelUsage") or {}).keys())}
+
+def usage_line(rd):
+    """One measured line for JB: answer run + action run, from their logs (JB 28 Oct 12:28)."""
+    a, b = run_usage(os.path.join(rd, "out.json")), run_usage(os.path.join(rd, "act.jsonl"))
+    parts, tot, cost = [], 0, 0.0
+    for name, u in (("answer", a), ("action", b)):
+        if not u: continue
+        tot += u["total"]; cost += u["cost"] or 0
+        parts.append("%s %s: %d requests, %s tokens processed (%s cache reads, %s output), peak context %s, $%.3f, %ss" % (
+            name, u["model"] or "?", u["req"], format(u["total"], ","), format(u["cr"], ","), format(u["out"], ","), format(u["peak"], ","), u["cost"] or 0, u["secs"]))
+    return ("Usage (measured from the run logs): " + "; ".join(parts) + ". Total %s tokens, $%.3f." % (format(tot, ","), cost)) if parts else ""
+
 def coord_act(target, cid, a, me):
     """The Controller's action run: one headless Claude run with the toolkit (not lane.sh: no worktree, no code-lane slot)."""
     rd = a.get("rundir") or os.path.join(CDIR, "run", cid); os.makedirs(rd, exist_ok=True)
@@ -639,6 +672,10 @@ def coord_act(target, cid, a, me):
     last = next((l for l in reversed(lines) if re.match(r"^(DONE|PARTIAL|NEEDS JB|BLOCKED)\b", l)), lines[-1] if lines else "")
     st = "done" if last.startswith("DONE") else "blocked" if last.startswith(("NEEDS JB", "BLOCKED")) else "partial"
     with open(COORD_LOG, "a") as f: f.write("%s coord(%s): %s\n" % (now()[:16].replace("T", " "), lane_id(cid), last[:300]))
+    # JB 28 Oct 12:28: post the whole final message (a report must reach JB intact), then the measured usage
+    body = "\n".join(l for l in str(res.get("result") or "").strip().splitlines() if l.strip() != last).strip()
+    try: open(os.path.join(rd, "act_full.md"), "w").write(SECRET.sub("[redacted]", body)[:6000] + "\n\n" + usage_line(rd))
+    except OSError: pass
     return last or "PARTIAL the run ended without a result line", st
 
 def act_run(target, cid):
