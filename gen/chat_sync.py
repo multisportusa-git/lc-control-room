@@ -32,9 +32,9 @@ ACT_TIMEOUT = int(arg("--act-timeout", str(90 * 60)))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GH = shutil.which("gh") or next((p for p in ("/opt/homebrew/bin/gh", "/usr/local/bin/gh") if os.path.exists(p)), "gh")
 OPENSSL = "/usr/bin/openssl" if os.path.exists("/usr/bin/openssl") else (shutil.which("openssl") or "openssl")
-TITLE = re.compile(r"^\s*CHAT\s+(COORD|V3|V2|A\d{1,4}|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})\s*$")
-TARGET = re.compile(r"^(COORD|V3|V2|A\d{1,4}|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$")
-ASK_T = re.compile(r"^A\d{1,4}$")   # per-ask breakout thread (JB 28 Oct 11:33): the Controller, scoped to one ask
+TITLE = re.compile(r"^\s*CHAT\s+(COORD|V3|V2|A\d{1,4}|D-\d{1,4}|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})\s*$")
+TARGET = re.compile(r"^(COORD|V3|V2|A\d{1,4}|D-\d{1,4}|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$")
+ASK_T = re.compile(r"^(A\d{1,4}|D-\d{1,4})$")   # per-ask breakout thread (JB 28 Oct 11:33): the Controller, scoped to one ask
 def is_coord(t): return t == "COORD" or bool(ASK_T.match(t or ""))
 CID = re.compile(r"^[A-Za-z0-9]{6,32}$")
 MODELS = {"haiku": "claude-haiku-5-5", "sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5"}
@@ -202,6 +202,13 @@ CAN = ("queue, hold or unhold lanes (JB's asks first), write lane briefs, start 
        "create decision cards, edit the Control Room page and scripts")
 def ask_get(aid):
     """One ask from the tracker (gen/asks.py), or None."""
+    if (aid or "").startswith("D-"):   # a decision card: synthesise from its file (JB 28 Oct: every card has the box)
+        try:
+            d = json.load(open(os.path.join(NOTES, "w1", "decisions", aid + ".json")))
+            return {"id": aid, "title": d.get("title", ""), "cat": "Your decisions", "state": "STAGED", "rag": "amber",
+                    "note": ("decision %s (status %s). Kinds JB may prefix: [DIRECT] [ESCALATE] [PRIORITISE] [COMMENT] [CLOSE]. To track work, `ctl.sh asks add`, "
+                             "not `asks set %s`. " % (aid, d.get("status"), aid)) + (d.get("situation") or "")[:300], "history": []}
+        except Exception: return None
     try:
         sys.path.insert(0, os.path.join(ROOT, "gen")); import asks as AK
         return next((a for a in AK.load()["asks"] if a.get("id") == aid), None)
