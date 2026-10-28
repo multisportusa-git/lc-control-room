@@ -21,6 +21,7 @@ T="$HOME/.config/lc-control-room/ntfy_topic"
 [[ -s $T ]] || { echo "lc-$(/usr/bin/openssl rand -hex 12)" > "$T"; chmod 600 "$T"; }
 "$PY" "$ROOT/gen/decisions_sync.py" || echo "decisions sync failed"
 [[ -f "$ROOT/gen/chat_sync.py" ]] && { "$PY" "$ROOT/gen/chat_sync.py" || echo "chat sync failed"; }
+[[ ! -f $HOME/.config/lc-wake.off ]] && { "$PY" "$ROOT/gen/wake.py" || echo "wake failed"; }
 # cut-over: any new closing-session brief in <notes>/cutover/ gets its lean headless successor (max 3 at once; backgrounded)
 ( zsh "$ROOT/mac/cutover.sh" --go >> "$STATE/cutover.log" 2>&1 & )
 age=$(( $(date +%s) - $( [[ -f $STAMP ]] && stat -f %m "$STAMP" || echo 0 ) ))

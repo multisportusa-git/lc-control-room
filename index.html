@@ -347,7 +347,7 @@ const ico=(k,c)=>`<div class="mi" style="background:${c}22;color:${c}"><svg widt
 /* ---------- state: hash for drill-downs, localStorage for layout ---------- */
 const H=Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
 function setH(k,v){if(v==null)delete H[k];else H[k]=v;history.replaceState(null,"","#"+new URLSearchParams(H).toString())}
-const DEFAULT_ORDER=["dec","you","sit","fuel","v2","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health"];
+const DEFAULT_ORDER=["asks","dec","you","sit","fuel","v2","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health"];
 let L=LS.get("w1dash.layout",{});L.order=(L.order||[]).filter(k=>DEFAULT_ORDER.includes(k));DEFAULT_ORDER.forEach((k,i)=>{if(!L.order.includes(k))L.order.splice(Math.min(i,L.order.length),0,k)});
 L.col=L.col||{};L.wide=L.wide||{};L.hide=L.hide||{};L.f=L.f||{};
 const saveL=()=>LS.set("w1dash.layout",L);
@@ -388,6 +388,7 @@ $("#stamp").innerHTML=`Data ${esc(D.gen)} · <a href="#" data-go="health" style=
 
 /* ---------- module registry ---------- */
 const M={
+ asks:{t:"Your asks",s:"Every ask and question you sent: state and when you will see it done",i:"board",c:"#19C3B1",w:"full",nav:"Asks"},
  dec:{prog:"",t:"Your decisions",s:"",i:"dec",c:"#FF6A00",w:"full",nav:"Decide",
   help:"Each decision shows the situation, the options with their trade-offs and a recommendation. Approve opens a GitHub issue already filled in (DECISION D-n: X); press Submit. The Mac reads it within a minute, records it, closes the issue, and the coordinator acts at its next step. Issues are public, so they carry only the number, the letter and any note you add. Only your GitHub account can record a decision."},
  sit:{t:"Situation report",s:"Where things stand, in a few lines",i:"sit",c:"#FF8A3D",w:"full",nav:"SITREP",
@@ -525,6 +526,40 @@ R.dec=()=>{const notif=D.ntfy&&!LS.get("w1dash.ntfyok",false)?NOTIF_HTML():"";co
  const tokCard=ghTok()?"":`<div class="callout amber" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:260px"><b>Turn on one-click approvals (once per device).</b><div class="why">1. Open the token page (already filled in), set <b>Repository access</b> to <b>Only select repositories → lc-control-room</b>, and press <b>Generate token</b>. 2. Copy it and paste it here. It stays in this browser only and can do nothing except open issues on lc-control-room. Without it, Approve opens GitHub and you press Create.</div></div><a class="tbtn" href="${TOKEN_NEW}" target="_blank" rel="noopener">Token page</a><input id="gt-in" class="inp" placeholder="Paste token" style="width:200px"><button class="tbtn on" id="gt-save">Save</button></div>`;
  return tokCard+notif+(OPEN_DEC.length?OPEN_DEC.map(card).join(""):`<div class="empty">Nothing needs your decision right now.</div>`)+
   (done.length?`<div class="pathlab" style="margin-top:14px">Decided</div><table>${done.map(d=>`<tr><td class="mono" style="white-space:nowrap"><b>${esc(d.id)}</b></td><td>${esc(d.title)}</td><td>${d.decided?pill("green",d.decided.choice):pill("grey",d.status)}</td><td class="why">${d.decided?esc((d.decided.at||"").replace("T"," ")+" · "+(d.decided.via||"")):""}${d.acted?`<br>${esc(d.acted)}`:""}</td></tr>`).join("")}</table>`:"")};
+R.asks=()=>{/* JB 28 Oct 10:55: every ask/question with state + ETC, category infographic, overall RAG with drill-down, bold AS OF */
+ const g=D.gen_iso?new Date(D.gen_iso):new Date(),now=Date.now();
+ const asOf=g.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+" · "+g.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+ const hm=s=>s?new Date(s).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"–";
+ const F=window._askF||(window._askF={cat:"",rag:""});
+ const A=(D.asks||[]).map(x=>Object.assign({},x));
+ (D.decisions||[]).filter(d=>d.status==="open").forEach(d=>A.push({id:d.id,title:d.title,cat:"Your decisions",state:"STAGED",needs_jb:true,eta:d.deadline||"",note:d.situation||"",history:[],rag:d.deadline&&Date.parse(d.deadline)<now?"red":"amber"}));
+ const open=A.filter(x=>x.state!=="DONE"),done=A.filter(x=>x.state==="DONE");
+ const work=open.concat((D.tasks||[]).filter(t=>t.status!=="done"&&t.rag).map(t=>({rag:t.rag,title:t.title,id:t.id,cat:"Plan task",state:t.status==="doing"?"WORKING":"STAGED",eta:"",tid:t.id})));
+ const n=r=>work.filter(x=>x.rag===r).length,G=n("green"),Am=n("amber"),Rd=n("red"),T=(G+Am+Rd)||1,overall=Rd?"red":Am?"amber":"green";
+ const C=2*Math.PI*38;let off=0;const seg=(v,r)=>{if(!v)return"";const el=`<circle r="38" cx="50" cy="50" fill="none" stroke="${RCOL[r]}" stroke-width="16" stroke-dasharray="${(v/T*C).toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-off/T*C).toFixed(1)}" transform="rotate(-90 50 50)" style="cursor:pointer" data-askf="rag:${r}"><title>${v} ${r}</title></circle>`;off+=v;return el};
+ const donut=`<svg viewBox="0 0 100 100" width="132" height="132" role="img" aria-label="Overall: ${G} green, ${Am} amber, ${Rd} red">${seg(Rd,"red")}${seg(Am,"amber")}${seg(G,"green")}<text x="50" y="47" text-anchor="middle" style="font:800 15px system-ui;fill:${RCOL[overall]}">${overall.toUpperCase()}</text><text x="50" y="63" text-anchor="middle" style="font:600 9px system-ui;fill:var(--muted)">${work.length} open</text></svg>`;
+ const SC={STAGED:"var(--grey)",WORKING:"var(--info)",PARTIAL:"var(--warn)",DONE:"var(--good)"},SL={STAGED:"Staged",WORKING:"Working",PARTIAL:"Partially done",DONE:"Done"};
+ const CATS=["Your decisions","Install & phone","Commute fixes","Merge train","Control Room","Ops & tooling","Question","Plan task"];
+ const tiles=CATS.map(c=>{const its=(c==="Plan task"?work.filter(x=>x.cat==="Plan task"):A.filter(x=>x.cat===c&&(x.state!=="DONE"||now-Date.parse(x.done_at||x.updated||0)<24*3600e3)));if(!its.length)return"";
+  const op=its.filter(x=>x.state!=="DONE"),w=op.some(x=>x.rag==="red")?"red":op.some(x=>x.rag==="amber")?"amber":"green";
+  const bar=["DONE","WORKING","PARTIAL","STAGED"].map(st=>{const k=its.filter(x=>x.state===st).length;return k?`<span style="flex:${k};background:${SC[st]}" title="${k} ${SL[st]}"></span>`:""}).join("");
+  return `<div class="tile click ${F.cat===c?"on":""}" data-askf="cat:${esc(c)}" style="padding:12px;${F.cat===c?"outline:2px solid var(--info)":""}"><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${RCOL[w]}"></span><b style="flex:1;font-size:13px">${esc(c)}</b><b style="font-size:18px">${op.length}</b></div><div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin-top:8px;background:rgba(255,255,255,.06)">${bar}</div><div class="why" style="margin-top:6px;font-size:11px">${["WORKING","PARTIAL","STAGED","DONE"].map(st=>{const k=its.filter(x=>x.state===st).length;return k?k+" "+SL[st].toLowerCase():""}).filter(Boolean).join(" · ")}</div></div>`}).join("");
+ let rows=work.concat(done.filter(x=>now-Date.parse(x.done_at||x.updated||0)<12*3600e3));
+ if(F.cat)rows=rows.filter(x=>x.cat===F.cat);if(F.rag)rows=rows.filter(x=>x.state!=="DONE"&&x.rag===F.rag);
+ const ord={red:0,amber:1,green:2};rows.sort((x,y)=>(x.state==="DONE")-(y.state==="DONE")||(ord[x.rag]-ord[y.rag])||String(x.eta||"~").localeCompare(String(y.eta||"~")));
+ const etaCell=x=>{if(x.state==="DONE")return `<span class="why">done ${hm(x.done_at||x.updated)}</span>`;if(!x.eta)return"–";const late=Date.parse(x.eta)<now;return `<b style="color:${late?"var(--crit)":"inherit"}">${hm(x.eta)}</b>${late?` <span class="why" style="color:var(--crit)">overdue</span>`:""}`};
+ const filt=(F.cat||F.rag)?`<div class="why" style="margin:4px 0 8px">Showing ${esc(F.cat||"")}${F.cat&&F.rag?" · ":""}${F.rag?F.rag+" only":""} · <a href="#" data-askf="clear:1">show all</a></div>`:"";
+ return `<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:12px">
+  <div style="font:900 22px/1.15 -apple-system,'SF Pro Display',system-ui,sans-serif;letter-spacing:.2px">AS OF ${esc(asOf)}</div>
+  ${pill(overall,overall==="red"?Rd+" red":overall==="amber"?Am+" amber":"All green")}<span class="why">${open.length} open asks · ${done.length} done</span></div>
+ <div style="display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start;margin-bottom:14px">
+  <div style="text-align:center">${donut}<div class="why" style="font-size:11px">Overall Control Room work<br><a href="#" data-askf="rag:red" style="color:var(--crit)">${Rd} red</a> · <a href="#" data-askf="rag:amber" style="color:var(--warn)">${Am} amber</a> · <a href="#" data-askf="rag:green" style="color:var(--good)">${G} green</a></div></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">${tiles||`<div class="empty">No asks yet.</div>`}</div></div>
+ ${filt}${rows.length?`<table style="width:100%"><thead><tr><th></th><th>Ask</th><th>Category</th><th>State</th><th>ETC</th></tr></thead><tbody>${rows.map(x=>`<tr ${x.tid?`class="click" data-t="${esc(x.tid)}"`:""}><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${RCOL[x.state==="DONE"?"green":x.rag]||"var(--grey)"}"></span></td>
+  <td style="max-width:520px"><details><summary style="cursor:pointer"><b>${esc(x.id||"")}</b> ${esc(x.title)}${x.needs_jb?` ${pill("amber","needs you")}`:""}</summary>${x.note?`<div class="why" style="margin-top:4px">${esc(x.note)}</div>`:""}${(x.history||[]).slice(-6).map(h=>`<div class="why" style="font-size:11px">${hm(h.at)} · ${esc(SL[h.state]||h.state)}${h.note?" · "+esc(h.note):""}</div>`).join("")}</details></td>
+  <td><span class="why">${esc(x.cat)}</span></td><td><span class="pill" style="background:${SC[x.state]||"var(--grey)"}22;color:${SC[x.state]||"inherit"};border:1px solid ${SC[x.state]||"var(--grey)"}">${esc(SL[x.state]||x.state)}</span></td><td style="white-space:nowrap">${etaCell(x)}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">Nothing in this view.</div>`}`;
+};
+if(!window._askH){window._askH=1;document.addEventListener("click",e=>{const f=e.target.closest("[data-askf]");if(!f)return;e.preventDefault();const [k,v]=f.dataset.askf.split(/:(.*)/s);const F=window._askF||(window._askF={cat:"",rag:""});if(k==="clear"){F.cat="";F.rag=""}else F[k]=F[k]===v?"":v;rerender("asks")})}
 R.sit=()=>{const IC={red:["✕","var(--crit)"],now:["▶","var(--info)"],next:["→","var(--c1)"],you:["●","var(--amber)"],plan:["◷","var(--orange2)"]};
  return `<div class="sit">${D.sit.filter(l=>showP(l.prog)).map(l=>`<div class="sl ${l.k==="red"?"red":""} p${l.prog||""}"><div class="ic" style="background:${IC[l.k][1]}22;color:${IC[l.k][1]}" aria-hidden="true">${IC[l.k][0]}</div><div>${pg(l.prog)} ${link(l.text)}</div></div>`).join("")}</div>`};
 R.fuel=()=>{const F=D.fuel||{sessions:[],events:[]};const S=(F.sessions||[]).filter(s=>showP(s.prog));
@@ -715,7 +750,7 @@ R.health=()=>{const rows=[{name:HOSTED?"Published data":"This page",detail:HOSTE
 
 /* ---------- module shell ---------- */
 function shell(k){const m=M[k];const wide=(L.wide[k]||m.w)==="full";const col=!!L.col[k];
- const sub=k==="dec"?(OPEN_DEC.length?`${OPEN_DEC.length} waiting for you`:"Nothing waiting"):k==="chg"?(changes.length?`${changes.length} change${changes.length>1?"s":""}`:"No changes"):k==="q"?`${D.queue.length} recent results`:m.s;
+ const sub=k==="asks"?((D.asks||[]).filter(x=>x.state!=="DONE").length+" open asks · as of "+(D.gen||"")):k==="dec"?(OPEN_DEC.length?`${OPEN_DEC.length} waiting for you`:"Nothing waiting"):k==="chg"?(changes.length?`${changes.length} change${changes.length>1?"s":""}`:"No changes"):k==="q"?`${D.queue.length} recent results`:m.s;
  const mp=m.prog||"";return `<section class="mod ${mp?"p-"+mp:""} ${wide?"full":""} ${col?"col":""} ${L.hide[k]||(mp&&!showP(mp))?"hidden":""}" id="m-${k}" data-k="${k}" aria-labelledby="t-${k}">
  <div class="mh">${ico(m.i,m.c)}<div class="grow"><div class="mt" id="t-${k}">${mp?pg(mp)+" ":""}${m.t}${mp==="V3"&&["tl","board","path","week","iss","chg"].includes(k)?' <span class="why" style="font-weight:500">Week 1</span>':""}</div><div class="ms ell">${esc(sub)}</div></div>
  <div class="ctl"><button data-a="help" title="How this is worked out" aria-label="How this is worked out">${svgI('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01"/>')}</button>
@@ -879,8 +914,8 @@ function renderChat(){const el=$("#chat");if(!el)return;const PASS=window._PASS,
  <div class="chf"><div class="row"><textarea id="chin" rows="1" maxlength="4000" placeholder="Message ${esc(CNAME(CT))}" aria-label="Message">${esc(SS.get("w1dash.chatdraft",""))}</textarea><button class="snd" data-cs aria-label="Send" ${PASS?"":"disabled"}>${svgI('<path d="M12 19V5M5 12l7-7 7 7"/>')}</button></div>
  <div class="opts"><button class="cdep ${dep==="auto"?"on":""}" data-cd="auto" title="Sonnet (Haiku for quick status questions)">Auto</button><button class="cdep ${dep==="deep"?"on":""}" data-cd="deep" title="Opus: slower, for judgment calls">Deep (Opus)</button><span style="flex:1"></span><span>🔒 Encrypted in your browser · ${CH.limit||20} an hour</span></div></div>`;
  const m=$("#chm");m.scrollTop=m.scrollHeight;const ta=$("#chin");ta.style.height="auto";ta.style.height=Math.min(160,ta.scrollHeight)+"px"}
-function openChat(){SS.set("w1dash.chatopen","1");document.body.classList.add("chaton");renderChat();$("#chat").classList.add("on");setTimeout(()=>{const t=$("#chin");if(t&&matchMedia("(hover:hover)").matches)t.focus()},250)}
-function closeChat(){SS.set("w1dash.chatopen",null);document.body.classList.remove("chaton");$("#chat").classList.remove("on")}
+function openChat(){SS.set("w1dash.chatopen","1");document.body.classList.add("chaton");renderChat();$("#chat").classList.add("on");setTimeout(()=>{const t=$("#chin");if(t&&matchMedia("(hover:hover)").matches){t.focus();t.selectionStart=t.selectionEnd=t.value.length}},250)}
+function closeChat(){SS.set("w1dash.chatopen",null);document.body.classList.remove("chaton");$("#chat").classList.remove("on");if(window._stale)setTimeout(()=>{if(document.activeElement)document.activeElement.blur();safeReload()},400)}
 async function sendChat(){const ta=$("#chin"),txt=(ta.value||"").trim(),PASS=window._PASS;if(!txt||!PASS)return;
  const b=$("[data-cs]");b.disabled=true;const cid=Array.from(crypto.getRandomValues(new Uint8Array(9)),x=>"abcdefghijkmnpqrstuvwxyz23456789"[x%32]).join("");
  const d=LS.get("w1dash.chatd","auto"),at=new Date().toISOString();
@@ -899,12 +934,19 @@ document.addEventListener("click",e=>{if(e.target.closest("#fab,#chatbtn")){e.pr
 document.addEventListener("change",e=>{if(e.target.matches("#chat [data-cl]")&&e.target.value){CT="L-"+e.target.value;SS.set("w1dash.chatt2",CT);renderChat()}});
 document.addEventListener("input",e=>{if(e.target.id==="chin"){SS.set("w1dash.chatdraft",e.target.value);e.target.style.height="auto";e.target.style.height=Math.min(160,e.target.scrollHeight)+"px"}});
 document.addEventListener("keydown",e=>{if(e.target.id==="chin"&&e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}if(e.key==="Escape"&&document.body.classList.contains("chaton"))closeChat()});
+function typing(){const ae=document.activeElement;return !!(ae&&(ae.tagName==="TEXTAREA"||ae.tagName==="INPUT"||ae.tagName==="SELECT"||ae.isContentEditable))}
+/* JB 28 Oct: the page never reloads while the chat is open or JB is typing (a reload wiped the cursor and blinked the screen).
+   New data then updates the chat thread in place; the full refresh waits until the chat is closed and nothing has focus. */
+function safeReload(){if(document.body.classList.contains("chaton")||typing())return false;try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload();return true}
+async function liveUpdate(t){SS.set("w1dash.enc",JSON.stringify({t,at:Date.now()}));if(safeReload())return;
+ try{const nd=await decrypt(t,window._PASS);window._ENC=t;window._stale=true;if(nd.chat){CH.threads=nd.chat.threads||CH.threads;CH.lanes=nd.chat.lanes||CH.lanes}
+  const m=$("#chm");if(m){const nb=m.scrollHeight-m.scrollTop-m.clientHeight<140;m.innerHTML=bubbles(CT);if(nb)m.scrollTop=m.scrollHeight}}catch(e){}}
 /* freshness: while an answer is pending, re-read the published data every ~15 s from the GitHub API (fresher than the CDN) */
 function startPoll(){if(window._poll||!HOSTED)return;window._poll=setInterval(async()=>{if(document.visibilityState!=="visible")return;
- const t=await fetchEnc(true);if(t&&t!==window._ENC){SS.set("w1dash.enc",JSON.stringify({t,at:Date.now()}));try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload()}},ghTok()?15000:75000)}
+ const t=await fetchEnc(true);if(t&&t!==window._ENC)liveUpdate(t)},ghTok()?15000:75000)}
 if(SS.get("w1dash.chatopen",""))openChat();
 if(pendingAns||chatPending())startPoll();
-setInterval(()=>{if(!$("#panel").classList.contains("on")&&!document.body.classList.contains("custom")&&!document.body.classList.contains("chaton")&&document.visibilityState==="visible"){try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload()}},HOSTED&&!pendingAns&&!chatPending()?300000:45000);
+setInterval(()=>{if(!$("#panel").classList.contains("on")&&!document.body.classList.contains("custom")&&!document.body.classList.contains("chaton")&&document.visibilityState==="visible"){safeReload()}},HOSTED&&!pendingAns&&!chatPending()?300000:45000);
 }
 
 /* ---------- loader: passphrase, fetch, decrypt (AES-256-CBC + PBKDF2-SHA256, openssl enc format), gunzip ---------- */

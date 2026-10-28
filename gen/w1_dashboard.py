@@ -520,6 +520,10 @@ for p_ in glob.glob(os.path.join(NOTES, "*-status.md")) + glob.glob(os.path.join
     if not m or m.group(1).startswith("JB") or re.match(r"^K\d+$", m.group(1)): continue
     a_ = os.path.getmtime(p_)
     if NOW_TS - a_ < 12 * 3600: lanes_[m.group(1)] = max(lanes_.get(m.group(1), 0), a_)
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import asks as _asks
+    asks_ = [a for a in _asks.load().get("asks", []) if a.get("state") != "DONE" or (NOW - dt.datetime.fromisoformat(a.get("done_at") or a.get("updated") or "2000-01-01T00:00")).total_seconds() < 86400]
+except Exception: asks_ = []
 chat = {"threads": threads, "lanes": [{"id": k, "age_min": max(0, int((NOW_TS - v) / 60))} for k, v in sorted(lanes_.items(), key=lambda kv: -kv[1])][:16], "limit": 20}
 
 # ---------- V2 mirror KPIs: the same tiles as V3, read from ROADMAP_TO_BETA.html, V2 status files, PRs, the queue, tokens ----------
@@ -704,7 +708,7 @@ else:
 phone = {"state": ph_state, "tasks": ph_tasks, "free": ph_free}
 
 data = {"phone": phone, "gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
-        "decisions": decisions, "ntfy": ntfy, "fuel": fuel, "chat": chat, "v2": v2, "v2k": v2k, "jb": jb, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
+        "decisions": decisions, "ntfy": ntfy, "fuel": fuel, "chat": chat, "asks": asks_, "v2": v2, "v2k": v2k, "jb": jb, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
         "loop": rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LOOP_LOG.md"), 6000),
         "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
         "day_finish": max((fin[i] for i in today_ids if status(i) != "done"), default=NOW).strftime("%a %H:%M"),
