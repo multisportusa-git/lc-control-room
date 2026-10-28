@@ -118,7 +118,7 @@ def sync():
             gh("issue", "close", str(n), "-R", REPO, "-c", "Message target does not match the title; nothing recorded."); log("target mismatch #%d" % n); continue
         cid = str(msg.get("cid") or "") if CID.match(str(msg.get("cid") or "")) else "i%d" % n
         depth = "deep" if msg.get("d") == "deep" else "auto"
-        text = str(msg["m"]).strip()[:4000]
+        text = str(msg["m"]).strip()[:12000]   # JB 28 Oct: a 4,000 cap cut a test prompt in half
         with Thread(target) as d:
             if any(x.get("id") == cid for x in d["msgs"]):
                 dup = True
@@ -618,7 +618,7 @@ def coord_brief(cid, a, me, target="COORD"):
             "that PR or branch (it owns the fix). Never remove lock directories.\n\n"
             "Your LAST line must be exactly one of:\nDONE <what was done, with ids>\nPARTIAL <what was done> | NEXT <what continues and when>\n"
             "NEEDS JB <the one physical step only JB can do, e.g. unlock the phone>\n") % (
-        now(), (me or {}).get("text", "")[:2500], a.get("req", "")[:400], asks, CTL, CTL, COORD_BRIEF, NOTES, cid, COORD_LOG)
+        now(), (me or {}).get("text", "")[:12000], a.get("req", "")[:400], asks, CTL, CTL, COORD_BRIEF, NOTES, cid, COORD_LOG)
 
 def run_usage(p):
     """Tokens a headless run actually processed, from its stream-json log: per request the whole context is re-read."""
