@@ -77,7 +77,10 @@ p,L,hm=sys.argv[1:4]; n=d.datetime.now(); t=n.replace(hour=int(hm[:2]),minute=in
 t=t+d.timedelta(days=1) if t<n-d.timedelta(hours=1) else t
 try: e=json.load(open(p))
 except (OSError,ValueError): e={}
-e[L]={"eta":t.strftime("%Y-%m-%dT%H:%M"),"at":n.strftime("%Y-%m-%dT%H:%M"),"note":" ".join(sys.argv[4:])[:200]}
+o=e.get(L) or {}; why=" ".join(sys.argv[4:])[:200]; new=t.strftime("%Y-%m-%dT%H:%M")
+if o.get("eta") and o["eta"]!=new and not why: sys.exit("ETC %s -> %s needs a reason (JB A99: no unexplained ETC changes): eta %s HH:MM <why>"%(o["eta"][11:],new[11:],L))
+h=(o.get("hist") or [])+([{k:o[k] for k in ("eta","at","note") if k in o}] if o.get("eta") and o["eta"]!=new else [])
+e[L]={"eta":new,"at":n.strftime("%Y-%m-%dT%H:%M"),"note":why,"hist":h[-5:]}
 json.dump(e,open(p+".tmp","w"),indent=1); os.replace(p+".tmp",p); print("lane %s ETC %s"%(L,e[L]["eta"]))' "$N/v2/sup/lane_eta.json" "$@" && log "lane $1 ETC $2 ${*:3}" ;;
   log) log "$*"; echo logged ;;
   *) sed -n 2,26p "$0"; exit 2 ;;
