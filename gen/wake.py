@@ -56,7 +56,11 @@ def mark(name, text=""):
     if DRY: return
     os.makedirs(MK, exist_ok=True); open(os.path.join(MK, name), "w").write(text or now())
 
+AUTH = os.path.join(NOTES, "w1", "evidence", "usage_authorized")   # first line starts YYYY-MM-DD: JB authorised usage that day
 def usage_pct():
+    try:
+        if open(AUTH).read()[:10] == dt.date.today().isoformat(): return None
+    except OSError: pass
     try: rows = [l.split(",") for l in open(USAGE).read().splitlines() if re.match(r"\d{4}-", l)]
     except OSError: return None
     try: return float(rows[-1][1])
