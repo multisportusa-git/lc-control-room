@@ -404,7 +404,7 @@ tasks = []
 for t in T:
     tid = t["id"]; s = state.get(tid) or {}; R = rag(t); pr = pr_for(tid)
     tasks.append({**{k: t.get(k) for k in ("id", "day", "title", "owner", "model", "effort", "depends", "steps", "done_check", "evidence", "where", "gates", "why_opus", "review_of", "manual_start")},
-                  "status": status(tid), "updated": s.get("updated", ""), "state_note": clean(s.get("note"), 300),
+                  "status": "doing" if tid in LIVE_TASK and status(tid) == "todo" else status(tid), "updated": s.get("updated", ""), "state_note": clean(s.get("note"), 300),
                   "opened": s.get("opened", []), "escalations": s.get("escalations", []),
                   "est": est(t), "start": hm(beg.get(tid)), "start_day": beg[tid].date().isoformat() if beg.get(tid) else "",
                   "finish": hm(fin.get(tid)), "finish_day": fin[tid].date().isoformat() if fin.get(tid) else "",

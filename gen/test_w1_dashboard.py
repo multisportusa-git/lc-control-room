@@ -396,6 +396,7 @@ with tempfile.TemporaryDirectory() as tmpR:
         "testq/running/5-20261026-112900-W197-abcdef12-1.job": "lane=W197\nsha=abcdef1234\ntargets=unit snapshot\n"}, mtimes={"status/W197.txt": "2026-10-26T11:20"})
     TR = {t["id"]: t for t in DR["tasks"]}
     check("live lane: its plan task reads 'running' with the lane's ETC, never 'not started'", "not started" not in TR["W1-97"]["why"] and "running" in TR["W1-97"]["why"] and "12:30" in TR["W1-97"]["why"] and TR["W1-97"]["lane_running"], TR["W1-97"]["why"])
+    check("live lane: its plan task's status is 'doing' (board Now, timeline active), never 'todo' (A98)", TR["W1-97"]["status"] == "doing", TR["W1-97"]["status"])
     LRr = DR.get("live_runners") or []
     check("live runners: only a runner whose job is in testq/running is live", [x["runner"] for x in LRr] == ["r1"] and LRr[0]["lane"] == "W197" and LRr[0]["est"] == "12:20", LRr)
     check("live runners: planned queue work starts after the live job frees its runner or on the idle one", TR["W1-98"]["beg_iso"][11:16] in ("11:45", "12:20"), TR["W1-98"]["beg_iso"])
