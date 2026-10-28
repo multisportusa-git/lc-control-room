@@ -544,14 +544,16 @@ R.asks=()=>{/* JB 28 Oct 10:55: every ask/question with state + ETC, category in
   const op=its.filter(x=>x.state!=="DONE"),w=op.some(x=>x.rag==="red")?"red":op.some(x=>x.rag==="amber")?"amber":"green";
   const bar=["DONE","WORKING","PARTIAL","STAGED"].map(st=>{const k=its.filter(x=>x.state===st).length;return k?`<span style="flex:${k};background:${SC[st]}" title="${k} ${SL[st]}"></span>`:""}).join("");
   return `<div class="tile click ${F.cat===c?"on":""}" data-askf="cat:${esc(c)}" style="padding:12px;${F.cat===c?"outline:2px solid var(--info)":""}"><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${RCOL[w]}"></span><b style="flex:1;font-size:13px">${esc(c)}</b><b style="font-size:18px">${op.length}</b></div><div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin-top:8px;background:rgba(255,255,255,.06)">${bar}</div><div class="why" style="margin-top:6px;font-size:11px">${["WORKING","PARTIAL","STAGED","DONE"].map(st=>{const k=its.filter(x=>x.state===st).length;return k?k+" "+SL[st].toLowerCase():""}).filter(Boolean).join(" · ")}</div></div>`}).join("");
+ /* default view: JB's own asks and decisions; plan tasks only when their tile or a colour is picked (drill-down) */
  let rows=work.concat(done.filter(x=>now-Date.parse(x.done_at||x.updated||0)<12*3600e3));
- if(F.cat)rows=rows.filter(x=>x.cat===F.cat);if(F.rag)rows=rows.filter(x=>x.state!=="DONE"&&x.rag===F.rag);
- const ord={red:0,amber:1,green:2};rows.sort((x,y)=>(x.state==="DONE")-(y.state==="DONE")||(ord[x.rag]-ord[y.rag])||String(x.eta||"~").localeCompare(String(y.eta||"~")));
+ if(F.cat)rows=rows.filter(x=>x.cat===F.cat);else if(!F.rag)rows=rows.filter(x=>x.cat!=="Plan task");
+ if(F.rag)rows=rows.filter(x=>x.state!=="DONE"&&x.rag===F.rag);
+ const ord={red:0,amber:1,green:2};rows.sort((x,y)=>(x.state==="DONE")-(y.state==="DONE")||((x.cat==="Plan task")-(y.cat==="Plan task"))||(ord[x.rag]-ord[y.rag])||String(x.eta||"~").localeCompare(String(y.eta||"~")));
  const etaCell=x=>{if(x.state==="DONE")return `<span class="why">done ${hm(x.done_at||x.updated)}</span>`;if(!x.eta)return"–";const late=Date.parse(x.eta)<now;return `<b style="color:${late?"var(--crit)":"inherit"}">${hm(x.eta)}</b>${late?` <span class="why" style="color:var(--crit)">overdue</span>`:""}`};
  const filt=(F.cat||F.rag)?`<div class="why" style="margin:4px 0 8px">Showing ${esc(F.cat||"")}${F.cat&&F.rag?" · ":""}${F.rag?F.rag+" only":""} · <a href="#" data-askf="clear:1">show all</a></div>`:"";
  return `<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:12px">
   <div style="font:900 22px/1.15 -apple-system,'SF Pro Display',system-ui,sans-serif;letter-spacing:.2px">AS OF ${esc(asOf)}</div>
-  ${pill(overall,overall==="red"?Rd+" red":overall==="amber"?Am+" amber":"All green")}<span class="why">${open.length} open asks · ${done.length} done</span></div>
+  ${pill(overall,overall==="red"?Rd+" red":overall==="amber"?Am+" amber":"All green")}<span class="why">${open.length} open asks · ${done.length} done · donut and colours include the ${work.length-open.length} open plan tasks</span></div>
  <div style="display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start;margin-bottom:14px">
   <div style="text-align:center">${donut}<div class="why" style="font-size:11px">Overall Control Room work<br><a href="#" data-askf="rag:red" style="color:var(--crit)">${Rd} red</a> · <a href="#" data-askf="rag:amber" style="color:var(--warn)">${Am} amber</a> · <a href="#" data-askf="rag:green" style="color:var(--good)">${G} green</a></div></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">${tiles||`<div class="empty">No asks yet.</div>`}</div></div>
