@@ -10,7 +10,7 @@ NOTES="$HOME/Library/Application Support/Claude/side-session-notes/local_eb83ac5
 STATE="$NOTES/w1/control-room"
 PY=/Library/Frameworks/Python.framework/Versions/3.11/bin/python3; [[ -x $PY ]] || PY=python3
 T="$1"; C="$2"
-[[ "$T" =~ '^(COORD|V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$' && "$C" =~ '^[A-Za-z0-9]{6,32}$' ]] || { echo "bad args"; exit 2; }
+[[ "$T" =~ '^(COORD|V3|V2|A[0-9]{1,4}|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$' && "$C" =~ '^[A-Za-z0-9]{6,32}$' ]] || { echo "bad args"; exit 2; }
 W="$NOTES/w1/chat/run/$C"; mkdir -p "$W/cwd"
 CL=$(ls -d "$HOME"/.local/share/claude/versions/* 2>/dev/null | sort -V | tail -1)
 [[ -x "$CL" ]] || CL="$HOME/.local/bin/claude"

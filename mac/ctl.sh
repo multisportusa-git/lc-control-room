@@ -25,7 +25,10 @@ R="$HOME/Claude_London Commuter"; ROOT="${0:A:h:h}"
 PY=/Library/Frameworks/Python.framework/Versions/3.11/bin/python3; [[ -x $PY ]] || PY=python3
 D=00008110-0009399002FA801E
 cmd="${1:-}"; shift 2>/dev/null
-log() { print -r -- "$(date '+%F %H:%M') coord(ctl): $*" >> "$N/v2/sup/COORD_LOG.md"; }
+log() { print -r -- "$(date '+%F %H:%M') coord(ctl): $*" >> "${LC_COORD_LOG:-$N/v2/sup/COORD_LOG.md}"; }
+# simulations (gen/sim_controller.py sets LC_CTL_SIM=1): only read-only commands run; anything that changes lanes, jobs or the phone is refused
+if [[ -n "${LC_CTL_SIM:-}" && "$cmd" =~ '^(queue|hold|unhold|full|install-tick|phone-free|appium-start|appium-check|review)$' ]]; then
+  echo "SIM: '$cmd' refused in a simulation (read-only commands only)"; log "SIM refused $cmd $*"; exit 0; fi
 case "$cmd" in
   digest) $PY "$N/v2/sup/digest.py" | grep -v 'install gate: no current' ;;
   queue)

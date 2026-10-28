@@ -531,6 +531,11 @@ R.asks=()=>{/* JB 28 Oct 10:55: every ask/question with state + ETC, category in
  const asOf=g.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+" · "+g.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
  const hm=s=>s?new Date(s).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"–";
  const F=window._askF||(window._askF={cat:"",rag:""});
+ const AO=askOpen();
+ const askBox=id=>{let dr="";try{dr=sessionStorage.getItem("w1dash.askdraft."+id)||""}catch(e){}
+  return `<div class="askbrk" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><div class="why" style="font-size:11px;font-weight:700;letter-spacing:.3px">BREAKOUT WITH THE CONTROLLER · ${esc(id)}</div>
+  <div class="chm" data-askthr="${esc(id)}" style="flex:none;max-height:340px;padding:8px 2px" aria-live="polite">${askThr(id)}</div>
+  <div style="display:flex;gap:8px;align-items:flex-end;margin-top:6px"><textarea data-askin="${esc(id)}" rows="2" maxlength="4000" placeholder="Ask the Controller about ${esc(id)} (Enter sends, Shift+Enter new line)" aria-label="Message about ${esc(id)}" style="flex:1;resize:vertical;min-height:40px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;color:inherit;font:inherit;font-size:13px;padding:8px">${esc(dr)}</textarea><button class="tbtn" data-asksend="${esc(id)}" ${window._PASS?"":"disabled title=\"Works on the published page (needs the passphrase)\""}>Send</button></div></div>`};
  const A=(D.asks||[]).map(x=>Object.assign({},x));
  (D.decisions||[]).filter(d=>d.status==="open").forEach(d=>A.push({id:d.id,title:d.title,cat:"Your decisions",state:"STAGED",needs_jb:true,eta:d.deadline||"",note:d.situation||"",history:[],rag:d.deadline&&Date.parse(d.deadline)<now?"red":"amber"}));
  const open=A.filter(x=>x.state!=="DONE"),done=A.filter(x=>x.state==="DONE");
@@ -558,10 +563,24 @@ R.asks=()=>{/* JB 28 Oct 10:55: every ask/question with state + ETC, category in
   <div style="text-align:center">${donut}<div class="why" style="font-size:11px">Overall Control Room work<br><a href="#" data-askf="rag:red" style="color:var(--crit)">${Rd} red</a> · <a href="#" data-askf="rag:amber" style="color:var(--warn)">${Am} amber</a> · <a href="#" data-askf="rag:green" style="color:var(--good)">${G} green</a></div></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">${tiles||`<div class="empty">No asks yet.</div>`}</div></div>
  ${filt}${rows.length?`<table style="width:100%"><thead><tr><th></th><th>Ask</th><th>Category</th><th>State</th><th>ETC</th></tr></thead><tbody>${rows.map(x=>`<tr ${x.tid?`class="click" data-t="${esc(x.tid)}"`:""}><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${RCOL[x.state==="DONE"?"green":x.rag]||"var(--grey)"}"></span></td>
-  <td style="max-width:520px"><details><summary style="cursor:pointer"><b>${esc(x.id||"")}</b> ${esc(x.title)}${x.needs_jb?` ${pill("amber","needs you")}`:""}</summary>${x.note?`<div class="why" style="margin-top:4px">${esc(x.note)}</div>`:""}${(x.history||[]).slice(-6).map(h=>`<div class="why" style="font-size:11px">${hm(h.at)} · ${esc(SL[h.state]||h.state)}${h.note?" · "+esc(h.note):""}</div>`).join("")}</details></td>
+  <td style="max-width:620px"><details data-askd="${esc(x.id||"")}" ${AO[x.id]?"open":""}><summary style="cursor:pointer"><b>${esc(x.id||"")}</b> ${esc(x.title)}${x.needs_jb?` ${pill("amber","needs you")}`:""}</summary>${x.note?`<div class="why" style="margin-top:4px">${esc(x.note)}</div>`:""}${(x.history||[]).slice(-6).map(h=>`<div class="why" style="font-size:11px">${hm(h.at)} · ${esc(SL[h.state]||h.state)}${h.note?" · "+esc(h.note):""}</div>`).join("")}${/^A\d{1,4}$/.test(x.id||"")?askBox(x.id):""}</details></td>
   <td><span class="why">${esc(x.cat)}</span></td><td><span class="pill" style="background:${SC[x.state]||"var(--grey)"}22;color:${SC[x.state]||"inherit"};border:1px solid ${SC[x.state]||"var(--grey)"}">${esc(SL[x.state]||x.state)}</span></td><td style="white-space:nowrap">${etaCell(x)}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">Nothing in this view.</div>`}`;
 };
 if(!window._askH){window._askH=1;document.addEventListener("click",e=>{const f=e.target.closest("[data-askf]");if(!f)return;e.preventDefault();const [k,v]=f.dataset.askf.split(/:(.*)/s);const F=window._askF||(window._askF={cat:"",rag:""});if(k==="clear"){F.cat="";F.rag=""}else F[k]=F[k]===v?"":v;rerender("asks")})}
+/* JB 28 Oct 11:33: per-ask breakout threads. Each A<n> row opens its own thread with the Controller (chat target "A<n>").
+   Open rows (window._askOpen) and drafts survive rerender("asks") and reloads (sessionStorage). */
+function askOpen(){if(!window._askOpen){try{window._askOpen=JSON.parse(sessionStorage.getItem("w1dash.askopen")||"{}")||{}}catch(e){window._askOpen={}}}return window._askOpen}
+function askThr(id){try{if(!chatMsgs(id).length)return `<div class="why" style="font-size:12px">No messages yet. Ask the Controller anything about ${esc(id)}: what is happening, what it is doing next, when it will be done. Asks for action start an action run on this ask; updates post here.</div>`;return bubbles(id)}catch(e){return `<div class="why" style="font-size:12px">Loading the thread…</div>`}}
+function refreshAskThreads(){document.querySelectorAll("details[data-askd][open] [data-askthr]").forEach(el=>{const nb=el.scrollHeight-el.scrollTop-el.clientHeight<120;el.innerHTML=askThr(el.dataset.askthr);if(nb)el.scrollTop=el.scrollHeight})}
+const askBrkOpen=()=>!!document.querySelector("details[data-askd][open] [data-askthr]");
+if(!window._askH2){window._askH2=1;
+ document.addEventListener("toggle",e=>{const d=e.target;if(!(d.matches&&d.matches("details[data-askd]")))return;const id=d.dataset.askd,AO=askOpen();if(d.open)AO[id]=1;else delete AO[id];
+  try{sessionStorage.setItem("w1dash.askopen",JSON.stringify(AO))}catch(x){}
+  if(d.open){const th=d.querySelector("[data-askthr]");if(th)th.scrollTop=th.scrollHeight}
+  else if(window._stale&&!askBrkOpen())setTimeout(()=>{if(!askBrkOpen())safeReload()},400)},true);
+ document.addEventListener("input",e=>{const t=e.target.closest&&e.target.closest("[data-askin]");if(t){try{sessionStorage.setItem("w1dash.askdraft."+t.dataset.askin,t.value)}catch(x){}}});
+ document.addEventListener("keydown",e=>{const t=e.target.closest&&e.target.closest("[data-askin]");if(t&&e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendAsk(t.dataset.askin)}});
+ document.addEventListener("click",e=>{const b=e.target.closest("[data-asksend]");if(b){e.preventDefault();sendAsk(b.dataset.asksend)}})}
 R.sit=()=>{const IC={red:["✕","var(--crit)"],now:["▶","var(--info)"],next:["→","var(--c1)"],you:["●","var(--amber)"],plan:["◷","var(--orange2)"]};
  return `<div class="sit">${D.sit.filter(l=>showP(l.prog)).map(l=>`<div class="sl ${l.k==="red"?"red":""} p${l.prog||""}"><div class="ic" style="background:${IC[l.k][1]}22;color:${IC[l.k][1]}" aria-hidden="true">${IC[l.k][0]}</div><div>${pg(l.prog)} ${link(l.text)}</div></div>`).join("")}</div>`};
 R.fuel=()=>{const F=D.fuel||{sessions:[],events:[]};const S=(F.sessions||[]).filter(s=>showP(s.prog));
@@ -894,8 +913,8 @@ const SS={get(k,d){try{const v=sessionStorage.getItem(k);return v==null?d:v}catc
 const CHQ=()=>{const q=LS.get("w1dash.chatq",{});let ch=false;for(const [cid,x] of Object.entries(q)){if((CH.threads[x.t]||[]).some(m=>m.id===cid)||Date.now()-x.ts>45*60000){delete q[cid];ch=true}}if(ch)LS.set("w1dash.chatq",q);return q};
 const actOpen=m=>m.act&&/^(answered|acting|queued)$/.test(m.act.state);
 const chatPending=()=>Object.values(CH.threads).some(th=>th.some(m=>m.pending||actOpen(m)))||Object.keys(CHQ()).length>0;
-let CT=SS.get("w1dash.chatt2","COORD");if(!/^(COORD|V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$/.test(CT))CT="COORD";
-const CNAME=t=>t==="V3"?"V3 coordinator":t==="V2"?"V2 coordinator":"Lane "+t.slice(2);
+let CT=SS.get("w1dash.chatt2","COORD");if(!/^(COORD|V3|V2|A\d{1,4}|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$/.test(CT))CT="COORD";
+const CNAME=t=>t==="V3"?"V3 coordinator":t==="V2"?"V2 coordinator":t==="COORD"?"Controller":/^A\d{1,4}$/.test(t)?"Ask "+t:"Lane "+t.slice(2);
 const CCOL=t=>t==="V3"?"var(--v3)":t==="V2"?"var(--v2)":"#AEB6C8";
 const hhmm=s=>{const d=new Date(String(s).length>19?s:String(s).replace(" ","T"));return isNaN(d)?"":d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(d.toDateString()===new Date().toDateString()?"":" "+d.toLocaleDateString("en-GB",{weekday:"short"}))};
 function chatMsgs(t){const th=(CH.threads[t]||[]).slice();Object.entries(CHQ()).filter(([c,x])=>x.t===t).forEach(([c,x])=>th.push({id:c,from:"JB",at:x.at,text:x.m,depth:x.d,pending:true,local:x.via}));return th}
@@ -926,6 +945,15 @@ async function sendChat(){const ta=$("#chin"),txt=(ta.value||"").trim(),PASS=win
  if(!r.ok)window.open(ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent(enc),"_blank","noopener");
  const q=LS.get("w1dash.chatq",{});q[cid]={t:CT,m:txt,d,at,ts:Date.now(),via:r.ok?"direct":"github"};LS.set("w1dash.chatq",q);
  SS.set("w1dash.chatdraft",null);renderChat();startPoll()}
+/* a breakout message: exactly like sendChat, target "A<n>" */
+async function sendAsk(id){if(!/^A\d{1,4}$/.test(id||""))return;const ta=document.querySelector(`[data-askin="${id}"]`),txt=((ta&&ta.value)||"").trim(),PASS=window._PASS;if(!txt||!PASS)return;
+ const b=document.querySelector(`[data-asksend="${id}"]`);if(b)b.disabled=true;const cid=Array.from(crypto.getRandomValues(new Uint8Array(9)),x=>"abcdefghijkmnpqrstuvwxyz23456789"[x%32]).join("");
+ const d=LS.get("w1dash.chatd","auto"),at=new Date().toISOString(),t=id;
+ let enc;try{enc=await encryptTxt(JSON.stringify({t,m:txt,cid,d,at}),PASS)}catch(e){if(b)b.disabled=false;return alert("Could not encrypt the message in this browser.")}
+ const title="CHAT "+t,r=await postIssue(title,enc);
+ if(!r.ok)window.open(ISSUE_NEW+"?title="+encodeURIComponent(title)+"&body="+encodeURIComponent(enc),"_blank","noopener");
+ const q=LS.get("w1dash.chatq",{});q[cid]={t,m:txt,d,at,ts:Date.now(),via:r.ok?"direct":"github"};LS.set("w1dash.chatq",q);
+ SS.set("w1dash.askdraft."+id,null);if(ta)ta.value="";if(b)b.disabled=false;refreshAskThreads();startPoll()}
 document.body.insertAdjacentHTML("beforeend",`<aside class="chat" id="chat" aria-label="Chat"></aside><button class="fab" id="fab" aria-label="Open chat" title="Chat with a coordinator or lane">${svgI('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>').replace('width="15" height="15"','width="24" height="24"')}${chatPending()?'<span class="dotp" aria-label="answer pending"></span>':""}</button>`);
 document.addEventListener("click",e=>{if(e.target.closest("#fab,#chatbtn")){e.preventDefault();return openChat()}
  if(!e.target.closest("#chat"))return;
@@ -939,15 +967,18 @@ document.addEventListener("keydown",e=>{if(e.target.id==="chin"&&e.key==="Enter"
 function typing(){const ae=document.activeElement;return !!(ae&&(ae.tagName==="TEXTAREA"||ae.tagName==="INPUT"||ae.tagName==="SELECT"||ae.isContentEditable))}
 /* JB 28 Oct: the page never reloads while the chat is open or JB is typing (a reload wiped the cursor and blinked the screen).
    New data then updates the chat thread in place; the full refresh waits until the chat is closed and nothing has focus. */
-function safeReload(){if(document.body.classList.contains("chaton")||typing())return false;try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload();return true}
+function safeReload(){if(document.body.classList.contains("chaton")||typing()||askBrkOpen())return false;try{sessionStorage.setItem("w1dash.y",String(scrollY))}catch(e){}location.reload();return true}
 async function liveUpdate(t){SS.set("w1dash.enc",JSON.stringify({t,at:Date.now()}));if(safeReload())return;
  try{const nd=await decrypt(t,window._PASS);window._ENC=t;window._stale=true;if(nd.chat){CH.threads=nd.chat.threads||CH.threads;CH.lanes=nd.chat.lanes||CH.lanes}
-  const m=$("#chm");if(m){const nb=m.scrollHeight-m.scrollTop-m.clientHeight<140;m.innerHTML=bubbles(CT);if(nb)m.scrollTop=m.scrollHeight}}catch(e){}}
+  const m=$("#chm");if(m){const nb=m.scrollHeight-m.scrollTop-m.clientHeight<140;m.innerHTML=bubbles(CT);if(nb)m.scrollTop=m.scrollHeight}
+  refreshAskThreads()}catch(e){}}   /* open breakout threads update in place; their textareas are untouched */
 /* freshness: while an answer is pending, re-read the published data every ~15 s from the GitHub API (fresher than the CDN) */
 function startPoll(){if(window._poll||!HOSTED)return;window._poll=setInterval(async()=>{if(document.visibilityState!=="visible")return;
  const t=await fetchEnc(true);if(t&&t!==window._ENC)liveUpdate(t)},ghTok()?15000:75000)}
 if(SS.get("w1dash.chatopen",""))openChat();
 if(pendingAns||chatPending())startPoll();
+/* the asks module rendered before the chat data existed: fill any breakout threads left open (reload, rerender) */
+refreshAskThreads();if(askBrkOpen())startPoll();
 setInterval(()=>{if(!$("#panel").classList.contains("on")&&!document.body.classList.contains("custom")&&!document.body.classList.contains("chaton")&&document.visibilityState==="visible"){safeReload()}},HOSTED&&!pendingAns&&!chatPending()?300000:45000);
 }
 
