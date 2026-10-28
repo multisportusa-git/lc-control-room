@@ -561,9 +561,15 @@ def act_next(target):
 CL_BIN = (sorted(glob.glob(os.path.join(HOME, ".local/share/claude/versions/*")), key=lambda p: [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", os.path.basename(p))]) or [os.path.join(HOME, ".local/bin/claude")])[-1]
 # The Controller's permissions: the fixed-command toolkit (mac/ctl.sh) plus read-only git/gh. No push, no PR creation, no free shell,
 # no edits in the app repo (lanes do code), no secrets.
-CTL_ALLOW = ["Read", "Grep", "Glob", "Write", "Edit", "Bash(%s:*)" % CTL,
-             "Bash(git log:*)", "Bash(git status:*)", "Bash(git fetch:*)", "Bash(gh pr view:*)", "Bash(gh pr list:*)"]
-CTL_DENY = [x for x in DENY if x not in ("Write", "Edit")] + [
+# JB 28 Oct 12:01: "I want the controller's permissions to match yours, I authorize it." Full shell like the coordinator
+# session; the standing project rules stay as denies (no gcloud, secrets, hand merges, force pushes, branch switching in the
+# main checkout, workflow runs, app-repo edits outside lanes, phone settings).
+CTL_ALLOW = ["Read", "Grep", "Glob", "Write", "Edit", "Bash"]
+CTL_DENY = [x for x in DENY if x not in ("Write", "Edit") and not x.startswith("Bash(git -C * ")] + [
+    "Bash(gcloud:*)", "Bash(gh pr merge:*)", "Bash(gh workflow:*)", "Bash(gh api -X DELETE:*)", "Bash(git push --force:*)", "Bash(git push -f:*)",
+    "Bash(git push origin main:*)", "Bash(git push origin HEAD:main:*)", "Bash(git reset --hard:*)", "Bash(git checkout:*)", "Bash(git switch:*)",
+    "Bash(rm -rf /:*)", "Bash(rm -rf ~:*)", "Bash(sudo:*)", "Bash(defaults write:*)", "Bash(security:*)",
+    "Bash(git -C * checkout:*)", "Bash(git -C * switch:*)", "Bash(git -C * reset --hard:*)", "Bash(git -C * push --force:*)", "Bash(git -C * push -f:*)",
     "Edit(//Users/multisportusa/Claude_London Commuter/**)", "Write(//Users/multisportusa/Claude_London Commuter/**)",
     "Edit(//**/.github/workflows/**)", "Write(//**/.github/workflows/**)", "Edit(//**/*.xcconfig)", "Write(//**/*.xcconfig)"]
 CTL_TIMEOUT = 25 * 60
@@ -584,7 +590,9 @@ def coord_brief(cid, a, me, target="COORD"):
     return pre + ("You are the London Commuter CONTROLLER (coordinator). JB asked in the Control Room chat; you already told him what you are doing "
             "and by when. Now DO it, fully, right now. Time: %s.\n\nJB's message:\n<<<\n%s\n>>>\nYour summary of the work: %s\n"
             "Asks to update as you go: %s\n\n"
-            "How:\n- Your toolkit: %s <command> (no args lists them): digest, queue, hold, unhold, train, job, fails, full, install-tick, phone, "
+            "How:\n- You have a full shell (JB authorized 28 Oct 12:01) within the standing rules: no gcloud, secrets, hand merges (the train merges), "
+            "force pushes, branch switching in the main checkout, workflow runs, phone settings; app code changes go through lanes.\n"
+            "- Your toolkit first: %s <command> (no args lists them): digest, queue, hold, unhold, train, job, fails, full, install-tick, phone, "
             "phone-free, appium-start, appium-check, review, asks, log. Start with `%s digest`.\n"
             "- Rules: %s (read the sections that matter; CLAUDE.md wins). JB's standing rule: his asks are P0; when a slot is free take it for his "
             "work and hold non-P0 queued lanes (`ctl.sh hold <L>`). Max 2 code lanes; no new lane at >= 85%% weekly usage.\n"
@@ -608,7 +616,8 @@ def coord_act(target, cid, a, me):
     sp = os.path.join(rd, "act_settings.json")
     allow, deny = CTL_ALLOW, CTL_DENY
     if os.environ.get("LC_CTL_SIM"):   # simulations only ever narrow the Controller: no Write/Edit at all
-        allow = [x for x in CTL_ALLOW if x not in ("Write", "Edit")]; deny = CTL_DENY + ["Write", "Edit"]
+        allow = ["Read", "Grep", "Glob", "Bash(%s:*)" % CTL, "Bash(git log:*)", "Bash(git status:*)", "Bash(gh pr view:*)", "Bash(gh pr list:*)"]
+        deny = CTL_DENY + ["Write", "Edit"]
     json.dump({"enableArtifact": False, "disableWorkflows": True, "permissions": {"allow": allow, "deny": deny, "defaultMode": "default"}}, open(sp, "w"), indent=1)
     mp = os.path.join(rd, "mcp.json")
     if not os.path.exists(mp): json.dump({"mcpServers": {}}, open(mp, "w"))
