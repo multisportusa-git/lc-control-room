@@ -32,6 +32,7 @@ git -C "$ROOT" pull -q --ff-only origin main || echo "code pull failed; kept the
 FU="$STATE/fuel"; rm -rf "$FU.tmp"; mkdir -p "$FU.tmp/state"
 find "$HOME/.config/lc-fuel/state" -name '*.json' -mmin -1440 -exec cp {} "$FU.tmp/state/" \; 2>/dev/null; cp "$HOME/.config/lc-fuel/compact_points.json" "$FU.tmp/" 2>/dev/null
 tail -n 200 "$NOTES/w1/fuel/events.jsonl" > "$FU.tmp/events.jsonl" 2>/dev/null; rm -rf "$FU"; mv "$FU.tmp" "$FU"
+"$PY" "$ROOT/gen/asks.py" stale >/dev/null 2>&1 || true  # 0-token: staleness alert for the coordinator (2/5/15 min)
 nice -n 15 "$PY" "$ROOT/gen/w1_dashboard.py" --json "$STATE/w1.json" --out "$NOTES/w1/W1_DASHBOARD.html" || { echo "build failed"; exit 1; }
 gzip -9nc "$STATE/w1.json" | /usr/bin/openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -md sha256 -salt -pass file:"$KEY" -base64 -A > "$STATE/w1.enc.tmp" \
   && [[ -s "$STATE/w1.enc.tmp" ]] && mv "$STATE/w1.enc.tmp" "$STATE/pub/w1.enc" || { echo "encrypt failed"; exit 1; }

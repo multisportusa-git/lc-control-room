@@ -57,8 +57,31 @@ class Store:
     def __exit__(self, *e):
         if not e[0]:
             self.d["asks"] = self.d["asks"][-300:]
+            self.d["verified_at"] = now().strftime("%Y-%m-%dT%H:%M:%S")  # only a Controller add/set/verify resets the page's AS OF
             tmp = P + ".tmp"; json.dump(self.d, open(tmp, "w"), indent=1); os.replace(tmp, P)
         fcntl.flock(self.lk, fcntl.LOCK_UN); self.lk.close()
+
+LEVELS = ((15, "darkred"), (5, "red"), (2, "amber"), (0, "ok"))
+def verified_at():
+    try: return json.load(open(P)).get("verified_at", "")
+    except (OSError, ValueError): return ""
+
+def stale_check():
+    """0-token watcher (launchd, every minute): alert the coordinator once per level; P0 at 15 min."""
+    try: age = (now() - dt.datetime.fromisoformat(verified_at())).total_seconds() / 60
+    except ValueError: age = 999
+    lv = next(n for m, n in LEVELS if age >= m); sf = os.path.join(NOTES, "w1", "asks_stale.state")
+    try: last = open(sf).read().strip()
+    except OSError: last = "ok"
+    if lv != last:
+        open(sf, "w").write(lv)
+        if lv != "ok":
+            msg = {"amber": "UPDATE needed", "red": "LOOK INTO / ESCALATE / UPDATE", "darkred": "P0 ESCALATION: address and resolve now"}[lv]
+            line = "%s%s ASKS-STALE %s: your-asks 'as of' is %d min old (%s). Verify each ask, then `ctl.sh asks set <id> ...` or `ctl.sh asks verify`.\n" % ("[P0] " if lv == "darkred" else "", now().strftime("%Y-%m-%d %H:%M"), msg, age, lv)
+            for f in ("ALERTS.txt", "announce.log"):
+                try: open(os.path.join(NOTES, f), "a").write(line)
+                except OSError: pass
+    print(lv, int(age))
 
 def next_id(d):
     n = max([int(a["id"][1:]) for a in d["asks"] if re.match(r"^A\d+$", a.get("id", ""))] or [0])
@@ -109,6 +132,10 @@ if __name__ == "__main__":
     elif c == "add":
         a = add(opt("--title"), opt("--cat"), opt("--eta"), opt("--state", "STAGED"), opt("--msg"), opt("--note"), "--needs-jb" in sys.argv)
         print("added %s" % a["id"] if a else "already there")
+    elif c == "stale": stale_check()
+    elif c == "verify":
+        with Store() as d: pass  # the Controller confirmed every open ask is accurate
+        print("verified", verified_at())
     elif c == "set":
         yn = lambda k: None if k not in sys.argv else opt(k).lower() in ("yes", "y", "true", "1")
         a = set_(sys.argv[2], opt("--state"), opt("--eta"), opt("--note"), yn("--needs-jb"), yn("--blocked"))
