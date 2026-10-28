@@ -9,7 +9,7 @@ The page's Approve button opens a GitHub issue titled "DECISION D-3: A" in the p
   1. reads open issues whose title starts with DECISION, accepts them only from the repo owner, writes the choice into
      the decision file (status "decided", choice, at, via, note), comments and closes the issue;
   2. notifies once for each new open decision: a push via ntfy.sh to JB's private topic (no details, just the number
-     and a link) and a macOS notification;
+     and a link that opens the page); no macOS banner (it could not open the page);
   3. appends every change to <notes>/w1/decisions/decisions.log for the coordinator, which acts at its next step.
 Usage: decisions_sync.py [--notes DIR] [--repo owner/name] [--dry-run]"""
 import glob, json, os, re, subprocess, sys, time, datetime as dt
@@ -206,12 +206,8 @@ def notify(decs):
                                 "-H", "Tags: railway_car", "-H", "Priority: high", "-d", msg, "https://ntfy.sh/" + t], capture_output=True, text=True)
             if r.returncode == 0: sent.append("phone")
             else: log("ntfy failed for %s: %s" % (did, (r.stderr or r.stdout)[:120]))
-        if not DRY:
-            try:
-                subprocess.run(["osascript", "-e", 'display notification "%s" with title "London Commuter" sound name "Glass"' % msg.replace('"', "'")], capture_output=True, timeout=10)
-                sent.append("mac")
-            except (OSError, subprocess.SubprocessError):
-                pass
+        # No macOS banner: an osascript notification can't carry a link, so clicking it opened
+        # Script Editor's Applications folder (JB, A101). The ntfy push above opens the page.
         d["notified"] = now(); d["notified_phone"] = "phone" in sent or not t
         if not DRY: save(p, d)
         log("notified %s (%s)" % (did, ", ".join(sent) or ("dry run" if DRY else "no channel reachable")))
