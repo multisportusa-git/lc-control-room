@@ -9,7 +9,7 @@ NOTES="$HOME/Library/Application Support/Claude/side-session-notes/local_eb83ac5
 STATE="$NOTES/w1/control-room"
 PY=/Library/Frameworks/Python.framework/Versions/3.11/bin/python3; [ -x "$PY" ] || PY=python3
 T="$1"; C="$2"
-echo "$T" | grep -qE '^(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$' && echo "$C" | grep -qE '^[A-Za-z0-9]{6,32}$' || { echo "bad args"; exit 2; }
+echo "$T" | grep -qE '^(COORD|V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$' && echo "$C" | grep -qE '^[A-Za-z0-9]{6,32}$' || { echo "bad args"; exit 2; }
 echo "$(date '+%F %T') action run for $T $C"
 "$PY" "$ROOT/gen/chat_sync.py" act-run "$T" "$C"
 echo "$(date '+%F %T') action run ended"

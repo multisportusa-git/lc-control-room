@@ -253,7 +253,7 @@ body.chaton .fab{display:none}
 .cht button,.cht select{border:1px solid var(--line2);background:rgba(255,255,255,.04);color:var(--text2);padding:6px 11px;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:600;line-height:1.2;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .cht select{appearance:none;-webkit-appearance:none;padding-right:24px;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 13px) 50%,calc(100% - 9px) 50%;background-size:4px 4px;background-repeat:no-repeat}
 .cht .d{width:8px;height:8px;border-radius:50%}
-.cht button.on[data-ct="V3"]{background:var(--v3);border-color:var(--v3);color:#0A0A0C}.cht button.on[data-ct="V2"]{background:var(--v2);border-color:var(--v2);color:#0A0A0C}
+.cht button.on[data-ct="COORD"]{background:#19C3B1;border-color:#19C3B1;color:#0A0A0C}.cht button.on[data-ct="V3"]{background:var(--v3);border-color:var(--v3);color:#0A0A0C}.cht button.on[data-ct="V2"]{background:var(--v2);border-color:var(--v2);color:#0A0A0C}
 .cht select.on{background-color:#3a465e;border-color:#6F7890;color:#fff}
 .chm{flex:1;overflow-y:auto;padding:14px 16px 8px;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain}
 .bub{max-width:86%;padding:9px 13px;border-radius:18px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere;font-size:14px;line-height:1.42}
@@ -519,7 +519,7 @@ function askCard(t,mode){const b=BRF()[t.id];const imp=impactTxt(t);
 function copyTxt(txt,btn){const ok=()=>{window._lastCopy=txt;if(btn){btn.textContent="Copied ✓";setTimeout(()=>{btn.textContent="Copy"},1600)}};
  const fb=()=>{const ta=document.createElement("textarea");ta.value=txt;ta.setAttribute("readonly","");ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();let r=false;try{r=document.execCommand("copy")}catch(e){}ta.remove();if(r)ok();else if(btn)btn.textContent="Select and copy by hand"};
  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(txt).then(ok,fb);else fb()}
-function askClaude(id){const t=T[id];CT="V3";SS.set("w1dash.chatt",CT);SS.set("w1dash.chatdraft",`About ${id} (${t?t.title:""}): ${t?t.why:""}. What is happening, what are you doing about it, and do you need anything from me?`);closePanel();openChat()}
+function askClaude(id){const t=T[id];CT="V3";SS.set("w1dash.chatt2",CT);SS.set("w1dash.chatdraft",`About ${id} (${t?t.title:""}): ${t?t.why:""}. What is happening, what are you doing about it, and do you need anything from me?`);closePanel();openChat()}
 R.dec=()=>{const notif=D.ntfy&&!LS.get("w1dash.ntfyok",false)?NOTIF_HTML():"";const card=decCard;
  const done=(D.decisions||[]).filter(d=>d.status!=="open").slice(0,8);
  const tokCard=ghTok()?"":`<div class="callout amber" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:260px"><b>Turn on one-click approvals (once per device).</b><div class="why">1. Open the token page (already filled in), set <b>Repository access</b> to <b>Only select repositories → lc-control-room</b>, and press <b>Generate token</b>. 2. Copy it and paste it here. It stays in this browser only and can do nothing except open issues on lc-control-room. Without it, Approve opens GitHub and you press Create.</div></div><a class="tbtn" href="${TOKEN_NEW}" target="_blank" rel="noopener">Token page</a><input id="gt-in" class="inp" placeholder="Paste token" style="width:200px"><button class="tbtn on" id="gt-save">Save</button></div>`;
@@ -620,7 +620,7 @@ const QF=(()=>{const u=D.usage;if(!u.length)return{text:"needs a reading",ok:nul
  const lastReset=(e=>{const d=new Date(e*1000);const back=(d.getDay()-5+7)%7;const r=new Date(d);r.setDate(d.getDate()-back);r.setHours(16,0,0,0);if(r/1000>e)r.setDate(r.getDate()-7);return r/1000})(at);const next=lastReset+7*86400;
  let tokSince=0,tok24=0;TK.buckets.forEach(b=>{const v=b[3]+b[4]+b[5]+b[6];if(b[1]>=lastReset&&b[1]<at)tokSince+=v;if(b[1]>=genEpoch-86400)tok24+=v});
  const code=l.code!=null?l.code:l.week,other=l.week-code,hrsLeft=Math.max(0,(next-genEpoch)/3600),elapsed=Math.max(1,(at-lastReset)/3600);
- if(tokSince<5e6||elapsed<12)return {text:"needs more data",ok:null,thin:true,last:l,ageH:(genEpoch-at)/3600};
+ if(tokSince<5e6||elapsed<12){const recent=u.filter(r=>{const e=Date.parse(r.at.length<=16?r.at+":00Z":r.at)/1000;return e>=lastReset;});if(recent.length>=2){const t0=Date.parse(recent[0].at.length<=16?recent[0].at+":00Z":recent[0].at)/1000,t1=Date.parse(recent[recent.length-1].at.length<=16?recent[recent.length-1].at+":00Z":recent[recent.length-1].at)/1000,rate=(recent[recent.length-1].week-recent[0].week)/Math.max(1,(t1-t0)/3600),nowV=recent[recent.length-1].week+rate*Math.max(0,(genEpoch-t1)/3600),proj=nowV+rate*hrsLeft;return{text:proj>150?"over 150% by Fri 16:00":`~${Math.round(proj)}% by Fri 16:00`,proj,now:nowV,last:l,next,hrsLeft,ok:proj<100,ageH:(genEpoch-at)/3600,fromReadings:true};}return {text:"needs more data",ok:null,thin:true,last:l,ageH:(genEpoch-at)/3600};}
  const codeRate=code/tokSince;const codeNow=code+codeRate*(TK.buckets.filter(b=>b[1]>=at).reduce((a,b)=>a+b[3]+b[4]+b[5]+b[6],0));
  const proj=codeNow+codeRate*tok24/24*hrsLeft+other+other/elapsed*hrsLeft;
  return {text:proj>150?"over 150% by Fri 16:00":`~${Math.round(proj)}% by Fri 16:00`,proj,now:codeNow+other+other/elapsed*Math.max(0,(genEpoch-at)/3600),last:l,next,hrsLeft,ok:proj<100,ageH:(genEpoch-at)/3600}})();
@@ -632,7 +632,7 @@ R.quota=()=>{if(QF.ok===null)return QF.thin?`<div class="empty">Not enough data 
  s+=`<polyline fill="none" stroke="var(--c4)" stroke-width="2.4" stroke-dasharray="6 5" points="${x(pts[pts.length-1].e)},${y(pts[pts.length-1].v)} ${x(nowE)},${y(QF.now)} ${x(e1)},${y(QF.proj)}"/>`;
  s+=pts.map(p=>`<circle cx="${x(p.e)}" cy="${y(p.v)}" r="4.5" fill="var(--c4)" stroke="#131e34" stroke-width="2"/>`).join("")+`<line x1="${x(nowE)}" x2="${x(nowE)}" y1="10" y2="${Hq-22}" stroke="var(--orange)" stroke-width="1.5"/><text x="${x(e1)-4}" y="${Math.max(14,y(QF.proj)-8)}" text-anchor="end" style="fill:#fff;font-weight:700">${QF.proj>150?">150":Math.round(QF.proj)}%</text></svg>`;
  const verdict=QF.proj>=100?["red","Runs out before Friday 16:00 at this pace"]:QF.proj>=85?["amber","Tight: close to the limit by Friday"]:["green","Lasts until Friday 16:00 at this pace"];
- return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">${pill(verdict[0],verdict[1])}<span class="why">last reading ${QF.last.week}% · ${QF.ageH.toFixed(0)} h old${QF.ageH>14?" · <b style='color:var(--warn)'>W1-05 reading due</b>":""}</span></div>${s}<div class="legend"><span><i style="background:var(--c4)"></i>Recorded</span><span style="color:var(--c4)"><i class="dash"></i>Forecast (rough)</span><span style="color:var(--crit)"><i class="dash"></i>Weekly limit</span></div>`};
+ return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">${pill(verdict[0],verdict[1])}<span class="why">last reading ${QF.last.week}% · ${QF.ageH.toFixed(0)} h old${QF.ageH>14?" · <b style='color:var(--warn)'>W1-05 reading due</b>":""}</span></div>${s}<div class="legend"><span><i style="background:var(--c4)"></i>Recorded</span><span style="color:var(--c4)"><i class="dash"></i>Forecast${QF.fromReadings?" (from readings)":""}</span><span style="color:var(--crit)"><i class="dash"></i>Weekly limit</span></div>`};
 /* tokens */
 const WINS=[["today","Today"],["48h","48 h"],["72h","72 h"],["7d","7 days"],["30d","30 days"],["90d","90 days"]];
 const KINDS=["coordinator","lane","subagent","cowork","spare","other"];
@@ -857,7 +857,7 @@ const SS={get(k,d){try{const v=sessionStorage.getItem(k);return v==null?d:v}catc
 const CHQ=()=>{const q=LS.get("w1dash.chatq",{});let ch=false;for(const [cid,x] of Object.entries(q)){if((CH.threads[x.t]||[]).some(m=>m.id===cid)||Date.now()-x.ts>45*60000){delete q[cid];ch=true}}if(ch)LS.set("w1dash.chatq",q);return q};
 const actOpen=m=>m.act&&/^(answered|acting|queued)$/.test(m.act.state);
 const chatPending=()=>Object.values(CH.threads).some(th=>th.some(m=>m.pending||actOpen(m)))||Object.keys(CHQ()).length>0;
-let CT=SS.get("w1dash.chatt","V3");if(!/^(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$/.test(CT))CT="V3";
+let CT=SS.get("w1dash.chatt2","COORD");if(!/^(COORD|V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$/.test(CT))CT="COORD";
 const CNAME=t=>t==="V3"?"V3 coordinator":t==="V2"?"V2 coordinator":"Lane "+t.slice(2);
 const CCOL=t=>t==="V3"?"var(--v3)":t==="V2"?"var(--v2)":"#AEB6C8";
 const hhmm=s=>{const d=new Date(String(s).length>19?s:String(s).replace(" ","T"));return isNaN(d)?"":d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+(d.toDateString()===new Date().toDateString()?"":" "+d.toLocaleDateString("en-GB",{weekday:"short"}))};
@@ -872,7 +872,7 @@ function bubbles(t){const ms=chatMsgs(t);if(!ms.length)return `<div class="chemp
 function renderChat(){const el=$("#chat");if(!el)return;const PASS=window._PASS,dep=LS.get("w1dash.chatd","auto");
  const lanes=CH.lanes||[];const isL=CT.startsWith("L-");
  el.innerHTML=`<div class="chh"><div class="logo" style="width:34px;height:34px;border-radius:10px;box-shadow:none;background:${CCOL(CT)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div><div class="ttl">${esc(CNAME(CT))}<div class="why" style="font-weight:500;font-size:12px">Each message gets a short read-only answer; asks for action start an acting run</div></div><button class="x" data-cx aria-label="Close chat">${svgI('<path d="M6 6l12 12M18 6L6 18"/>')}</button></div>
- <div class="cht" role="tablist" aria-label="Talk to"><button data-ct="V3" class="${CT==="V3"?"on":""}" role="tab" aria-selected="${CT==="V3"}"><span class="d" style="background:var(--v3)"></span>V3 coordinator</button><button data-ct="V2" class="${CT==="V2"?"on":""}" role="tab" aria-selected="${CT==="V2"}"><span class="d" style="background:var(--v2)"></span>V2 coordinator</button>
+ <div class="cht" role="tablist" aria-label="Talk to"><button data-ct="COORD" class="${CT==="COORD"?"on":""}" role="tab" aria-selected="${CT==="COORD"}"><span class="d" style="background:#19C3B1"></span>Controller</button><button data-ct="V3" class="${CT==="V3"?"on":""}" role="tab" aria-selected="${CT==="V3"}"><span class="d" style="background:var(--v3)"></span>V3 coordinator</button><button data-ct="V2" class="${CT==="V2"?"on":""}" role="tab" aria-selected="${CT==="V2"}"><span class="d" style="background:var(--v2)"></span>V2 coordinator</button>
  <select data-cl aria-label="Lane" class="${isL?"on":""}"><option value="">Lane…</option>${lanes.map(l=>`<option value="${esc(l.id)}" ${CT==="L-"+l.id?"selected":""}>${esc(l.id)} · ${l.age_min<60?l.age_min+" min":Math.round(l.age_min/60)+" h"}</option>`).join("")}${isL&&!lanes.some(l=>"L-"+l.id===CT)?`<option selected value="${esc(CT.slice(2))}">${esc(CT.slice(2))}</option>`:""}</select></div>
  ${!PASS?`<div class="chnote" style="margin-top:10px">Chat works on the published page: it needs the passphrase to encrypt your message.</div>`:!ghTok()?`<div class="chnote" style="margin-top:10px">No GitHub token in this browser: Send opens GitHub with the encrypted message filled in; press Submit there.</div>`:""}
  <div class="chm" id="chm" aria-live="polite">${bubbles(CT)}</div>
@@ -893,10 +893,10 @@ document.body.insertAdjacentHTML("beforeend",`<aside class="chat" id="chat" aria
 document.addEventListener("click",e=>{if(e.target.closest("#fab,#chatbtn")){e.preventDefault();return openChat()}
  if(!e.target.closest("#chat"))return;
  if(e.target.closest("[data-cx]"))return closeChat();
- const ct=e.target.closest("[data-ct]");if(ct){CT=ct.dataset.ct;SS.set("w1dash.chatt",CT);return renderChat()}
+ const ct=e.target.closest("[data-ct]");if(ct){CT=ct.dataset.ct;SS.set("w1dash.chatt2",CT);return renderChat()}
  const cd=e.target.closest("[data-cd]");if(cd){LS.set("w1dash.chatd",cd.dataset.cd);return renderChat()}
  if(e.target.closest("[data-cs]"))return sendChat()});
-document.addEventListener("change",e=>{if(e.target.matches("#chat [data-cl]")&&e.target.value){CT="L-"+e.target.value;SS.set("w1dash.chatt",CT);renderChat()}});
+document.addEventListener("change",e=>{if(e.target.matches("#chat [data-cl]")&&e.target.value){CT="L-"+e.target.value;SS.set("w1dash.chatt2",CT);renderChat()}});
 document.addEventListener("input",e=>{if(e.target.id==="chin"){SS.set("w1dash.chatdraft",e.target.value);e.target.style.height="auto";e.target.style.height=Math.min(160,e.target.scrollHeight)+"px"}});
 document.addEventListener("keydown",e=>{if(e.target.id==="chin"&&e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}if(e.key==="Escape"&&document.body.classList.contains("chaton"))closeChat()});
 /* freshness: while an answer is pending, re-read the published data every ~15 s from the GitHub API (fresher than the CDN) */

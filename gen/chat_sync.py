@@ -31,8 +31,8 @@ ACT_TIMEOUT = int(arg("--act-timeout", str(90 * 60)))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GH = shutil.which("gh") or next((p for p in ("/opt/homebrew/bin/gh", "/usr/local/bin/gh") if os.path.exists(p)), "gh")
 OPENSSL = "/usr/bin/openssl" if os.path.exists("/usr/bin/openssl") else (shutil.which("openssl") or "openssl")
-TITLE = re.compile(r"^\s*CHAT\s+(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})\s*$")
-TARGET = re.compile(r"^(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$")
+TITLE = re.compile(r"^\s*CHAT\s+(COORD|V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})\s*$")
+TARGET = re.compile(r"^(COORD|V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$")
 CID = re.compile(r"^[A-Za-z0-9]{6,32}$")
 MODELS = {"haiku": "claude-haiku-5-5", "sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5"}
 
@@ -142,11 +142,20 @@ def sync():
                                       "text": "No answer arrived within %d minutes (the run may have failed). Please send it again." % STALE_MIN})
 
 # ---------- one answer: prompt, profile, store ----------
-ROLE = {"V3": "the V3 coordinator (London Commuter v3 rebuild, Week 1 plan)",
+COORD_BRIEF = os.path.join(NOTES, "cutover", "COORD_BRIEF.md")
+COORD_LOG = os.path.join(NOTES, "v2", "sup", "COORD_LOG.md")
+DIGEST = os.path.join(NOTES, "v2", "sup", "digest.py")
+ROLE = {"COORD": "the London Commuter Controller: the coordinator that owns the lanes, the queue, reviews, the merge train and the plan (JB's one point of contact)",
+        "V3": "the V3 coordinator (London Commuter v3 rebuild, Week 1 plan)",
         "V2": "the V2 coordinator (the current London Commuter app's Roadmap to Beta)"}
 def sources(target):
     w1 = os.path.join(NOTES, "w1")
     ctx = "- %s (compact snapshot of the Control Room data: tasks, status, PRs, decisions, fuel; start here)\n" % "CONTEXT_FILE"
+    if target == "COORD":
+        return ctx + ("- DIGEST_FILE (python3 v2/sup/digest.py, run just now: lanes, slots, PRs, queue, FLAGS; start here)\n- %s (the coordinator brief: rules, budget, what to do per FLAG)\n"
+                      "- %s (what the Controller did before; newest last)\n- %s/v2/sup/next.txt (plan and queue)\n- %s/announce.log (event log; read only its tail)\n"
+                      "- %s/v2/kpi4/issues.md (known problems)\n- %s/w1/evidence/usage_pct.csv (JB's usage %%: ts,total,code,chats,cowork)\n"
+                      "- %s/w1/evidence/jb_journey_20261027/DEFECTS.md (JB's commute defects J1-J14)\n") % (COORD_BRIEF, COORD_LOG, NOTES, NOTES, NOTES, NOTES, NOTES)
     if target == "V3":
         return ctx + "- %s/state.json (task state written by lc_state.py)\n- %s/evidence/ (evidence files)\n- %s/decisions/ (decision cards)\n- %s/docs/handover/v3/ (plan docs, read-only)\n" % (w1, w1, w1, LC)
     if target == "V2":
@@ -187,12 +196,17 @@ def plan(target, cid, rd):
     if not TARGET.match(target) or not CID.match(cid): raise SystemExit("bad target or id")
     os.makedirs(os.path.join(rd, "cwd"), exist_ok=True)  # empty working dir: no CLAUDE.md, no project settings
     with Thread(target) as d: msgs = list(d["msgs"])
-    me = next((x for x in msgs if x.get("id") == cid and x.get("from") == "JB"), None)
+    me = next((x for x in msgs if x.get("id") == cid and x.get("from") in ("JB", "Watchdog")), None)
     if not me: raise SystemExit("message %s not in thread %s" % (cid, target))
+    if target == "COORD":
+        try: dg = subprocess.run([sys.executable, DIGEST], capture_output=True, text=True, timeout=90).stdout
+        except Exception as e: dg = "digest failed: %r" % e
+        open(os.path.join(rd, "digest.txt"), "w").write("\n".join(l for l in dg.splitlines() if "install gate" not in l)[-12000:])
     hist = [x for x in msgs[: msgs.index(me)]][-6:]
     ctxf = os.path.join(rd, "context.json"); context_snapshot(ctxf)
     role = ROLE.get(target) or "the status voice of London Commuter lane %s (you are NOT that lane's running session; you read its status file)" % target[2:]
-    rec = {"V2": "a note the V2 coordinator reads (type \"note\")",
+    rec = {"COORD": "a note in the Controller's inbox (type \"note\") or a decision card (type \"decision\")",
+           "V2": "a note the V2 coordinator reads (type \"note\")",
            "V3": "a decision card for the coordinator (type \"decision\") or an action note (type \"note\")"}.get(target, "a note for that lane (type \"note\") or a decision card (type \"decision\")")
     prompt = ("You are answering JB in the London Commuter Control Room chat, speaking as %s. This is one short, fresh, read-only run.\n\n"
               "Sources (read only what you need; quote facts from them, do not guess):\n%s\n"
@@ -212,6 +226,10 @@ def plan(target, cid, rd):
         role, sources(target).replace("CONTEXT_FILE", ctxf),
         "\n".join("[%s %s] %s" % (x.get("at", "")[11:16], x.get("from"), (x.get("text") or "")[:1200]) for x in hist) or "(none)",
         me["text"], rec)
+    if target == "COORD":
+        prompt = prompt.replace("JB's new message:", "JB's new message (from \"Watchdog\" = an automatic judgement event, not JB):" if me.get("from") == "Watchdog" else "JB's new message:")
+        prompt += ("- You are the Controller. Things must keep moving without JB having to ask twice: if the message asks for anything to happen, "
+                   "or the digest shows a FLAG that needs acting on, choose INTENT: act. Answer with facts from the digest (lanes, PRs, usage), not from memory.\n")
     model = route(me.get("depth"), me["text"])
     open(os.path.join(rd, "prompt.txt"), "w").write(prompt)
     open(os.path.join(rd, "model.txt"), "w").write(MODELS[model])
@@ -241,7 +259,8 @@ def record(target, cid, rec):
         log("RECORDED %s decision %s" % (target, did)); return "Recorded as decision %s (Your decisions)." % did
     text = SECRET.sub("[redacted]", str(rec.get("text", "")).strip())[:1500]
     if not text: return ""
-    if target == "V2": f = os.path.join(NOTES, "status", "JB-to-V2-coordinator.md")
+    if target == "COORD": f = os.path.join(NOTES, "v2", "sup", "JB-to-controller.md")
+    elif target == "V2": f = os.path.join(NOTES, "status", "JB-to-V2-coordinator.md")
     elif target == "V3": f = os.path.join(NOTES, "w1", "ACTIONS-from-JB.md")
     else: f = os.path.join(NOTES, "status", "JB-to-%s.md" % target[2:])
     os.makedirs(os.path.dirname(f), exist_ok=True)
@@ -299,6 +318,14 @@ def make_brief(target, cid, req, rd, jb_text):
              "Your LAST line must be exactly one of:\nDONE <what was done, with ids: task, job, lane, PR numbers, files>\nBLOCKED <exact reason and what JB must do>\n"
              "DONE only if EVERY part of the request was done where JB asked (right file, right place). If any part was refused,\n"
              "blocked by the sandbox or done somewhere else instead (e.g. /tmp), the line is BLOCKED and says which part.\n")
+    if target == "COORD":
+        head = head.replace("CHAT ACTION RUN.", "CONTROLLER RUN (you are the London Commuter Controller/coordinator).", 1)
+        head += ("You are the Controller. First read %s (the coordinator brief) and %s/digest.txt (the digest, generated minutes ago). Then do what JB asked "
+                 "AND act on every FLAG in the digest, as the brief says. Launch or requeue lanes ONLY by writing %s/v2/queue/<L>-<task>.req (7 lines) with the "
+                 "Write tool; lc_watch starts it within a minute. NEVER run scripts/lane.sh yourself (a lane started from your shell dies with you). Max %s code "
+                 "lanes; no new lane at >= 85%% weekly usage. Things you cannot do with your tools (git push, gh pr create, review.sh, test-submit) go in your last line "
+                 "as BLOCKED with the exact one-line command for JB or a session. Append one line per action to %s.\n") % (
+            COORD_BRIEF, rd, NOTES, os.environ.get("LC_MAX_LANES", "2"), COORD_LOG)
     room = 7800 - len((head + rules).encode())
     body = "\n".join(facts)
     while len(body.encode()) > max(room, 0): body = body[: int(len(body) * 0.9)]
@@ -335,7 +362,7 @@ def store(target, cid, outp):
     if err: text = "Sorry, the answer run failed. Please send it again (or choose Deep)."
     started, behind = "", None
     with Thread(target) as d:
-        me = next((x for x in d["msgs"] if x.get("id") == cid and x.get("from") == "JB"), None)
+        me = next((x for x in d["msgs"] if x.get("id") == cid and x.get("from") in ("JB", "Watchdog")), None)
         if intent == "act" and me is not None:
             req = SECRET.sub("[redacted]", req or me.get("text", ""))[:400]
             me["act"] = {"state": "answered", "req": req, "at": now(), "lane": lane_id(cid), "rundir": rd}
@@ -425,6 +452,11 @@ def act_run(target, cid):
     except OSError: pass
     env = dict(os.environ, LC_NOTES=NOTES)
     cmd = [LANE_SH, lane, task, "--role", "coord", "--model", "sonnet", "--effort", "medium", "--brief", a["brief"]]
+    if target == "COORD":
+        # the Controller never waits behind code lanes: it may take the slot above LC_MAX_LANES (lanes only probe up to LC_MAX_LANES)
+        env["LC_MAX_LANES"] = str(int(os.environ.get("LC_MAX_LANES") or 2) + 1)
+        deep = (me or {}).get("depth") == "deep"
+        cmd = [LANE_SH, lane, task, "--role", "coord", "--model", "opus" if deep else "sonnet", "--effort", "high", "--brief", a["brief"]]
     state, sig = "failed", ""
     try:
         r = subprocess.run(cmd, cwd=LC if os.path.isdir(LC) else HOME, env=env, capture_output=True, text=True, timeout=ACT_TIMEOUT)
@@ -443,6 +475,14 @@ def act_run(target, cid):
     finish_act(target, cid, state, sig, lane)
     act_next(target)
 
+def inject(target, text):
+    """wake.py: a judgement event becomes one message from "Watchdog" in the target's thread and one answer run (then act)."""
+    if not TARGET.match(target): raise SystemExit("bad target")
+    cid = "w" + dt.datetime.now().strftime("%m%d%H%M%S")
+    with Thread(target) as d:
+        d["msgs"].append({"id": cid, "from": "Watchdog", "at": now(), "text": SECRET.sub("[redacted]", text)[:2000], "depth": "auto", "pending": True})
+    log("INJECT %s %s" % (target, cid)); spawn(target, cid)
+
 def sweep_acts(target, d):
     """sync(): an action that never reported (Mac restart) is closed as blocked. Caller holds the thread lock."""
     for x in list(d["msgs"]):
@@ -460,4 +500,5 @@ if __name__ == "__main__":
     if pos[:1] == ["plan"]: plan(pos[1], pos[2], pos[3])
     elif pos[:1] == ["store"]: store(pos[1], pos[2], pos[3])
     elif pos[:1] == ["act-run"]: act_run(pos[1], pos[2])
+    elif pos[:1] == ["inject"]: inject(pos[1], " ".join(pos[2:]))
     else: sync()

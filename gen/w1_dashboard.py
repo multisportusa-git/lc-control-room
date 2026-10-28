@@ -347,7 +347,9 @@ usage = []
 for line in rd(os.path.join(EV, "usage_pct.csv")).splitlines():
     f = line.split(",")
     if len(f) >= 2 and re.match(r"\d{4}-", f[0]):
-        try: usage.append({"at": f[0][:16], "week": float(f[1]), "code": float(f[2]) if len(f) > 2 else None, "cowork": float(f[3]) if len(f) > 3 else None})
+        # 4 cols = ts,total,code,cowork (to 27 Oct 05:31); 5+ cols = ts,total,code,chats,cowork[,note] (JB 27 Oct 19:02 on)
+        five = len(f) > 4 and re.match(r"\s*[\d.]+\s*$", f[4])
+        try: usage.append({"at": f[0][:16], "week": float(f[1]), "code": float(f[2]) if len(f) > 2 else None, "chats": float(f[3]) if five else None, "cowork": float(f[4] if five else f[3]) if len(f) > 3 else None})
         except ValueError: pass
 main = sh(["git", "log", "origin/main", "-1", "--format=%h|%cd|%s", "--date=format:%a %H:%M"], cwd=REPO).strip().split("|", 2) if os.path.isdir(REPO) else []
 coord = js(os.path.join(NOTES, "COORDINATOR.json"), {}) or {}
@@ -505,7 +507,7 @@ CHAT_DIR = os.path.join(W1, "chat")
 threads = {}
 for p_ in glob.glob(os.path.join(CHAT_DIR, "*.json")):
     t_ = os.path.basename(p_)[:-5]
-    if not re.match(r"^(V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$", t_): continue
+    if not re.match(r"^(COORD|V3|V2|L-[A-Za-z0-9][A-Za-z0-9-]{0,11})$", t_): continue
     d_ = js(p_, {}) or {}
     threads[t_] = [{"id": str(m.get("id", ""))[:40], "re": str(m.get("re", ""))[:40], "fu": str(m.get("fu", ""))[:40], "from": "JB" if m.get("from") == "JB" else "Claude",
                     "acting": str(m.get("from", "")) == "Claude (acting)",
