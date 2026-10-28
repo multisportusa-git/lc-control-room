@@ -402,5 +402,9 @@ with tempfile.TemporaryDirectory() as tmpR:
     check("live runners: planned queue work starts after the live job frees its runner or on the idle one", TR["W1-98"]["beg_iso"][11:16] in ("11:45", "12:20"), TR["W1-98"]["beg_iso"])
 check("page: timeline draws live runner rows and labels plan rows 'Planned runner'", 'owner:"RUNNER"' in PAGE and '"Planned runner "+n' in PAGE)
 
+_, DT, _ = build(tempfile.mkdtemp(), [task("W1-97", "2026-10-26")], {}, {"v2/sup/truth.txt": "2026-10-28 18:35 1\nTRUTH-RUNNER job x running but not on the page\n"})
+_h = [h for h in DT["health"] if h["name"].startswith("Truth check")]
+check("truth_check flags show as a health row that is not ok and carries the flag text (A100)", len(_h) == 1 and not _h[0]["ok"] and "RUNNER job x" in _h[0]["why"], _h)
+
 print("ALL PASS" if not FAILS else "%d FAILED: %s" % (len(FAILS), ", ".join(FAILS)))
 sys.exit(1 if FAILS else 0)

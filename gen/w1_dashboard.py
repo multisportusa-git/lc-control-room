@@ -706,6 +706,12 @@ health = [
      "ok": last_usage_h is not None and last_usage_h < 14, "why": "older than 14 h: W1-05 is morning and evening" if last_usage_h is not None and last_usage_h >= 14 else ""},
 ]
 
+# truth_check.py (JB A99) writes v2/sup/truth.txt: line 1 = time + count, then one TRUTH- line per disagreement with the machine. Shown as a health row so the page and the machine disagree in view, never silently.
+_tp = os.path.join(NOTES, "v2", "sup", "truth.txt")
+_tl = [l.strip() for l in rd(_tp, 4000).splitlines()[1:] if l.strip().startswith("TRUTH-")] if os.path.exists(_tp) else []
+health.append({"name": "Truth check (page vs machine)", "detail": "%d disagreement%s found by truth_check.py" % (len(_tl), "" if len(_tl) == 1 else "s") if os.path.exists(_tp) else "truth.txt not written yet (digest.py runs it)",
+               "age": age_min(_tp) if os.path.exists(_tp) else None, "ok": os.path.exists(_tp) and not _tl, "why": " | ".join(x[6:] for x in _tl)[:400]})
+
 # ---------- SITREP: the few sentences that answer "where are we" ----------
 def short(x, n):
     x = x.strip()
