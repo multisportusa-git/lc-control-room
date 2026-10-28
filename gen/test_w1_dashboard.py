@@ -363,5 +363,28 @@ r_ = subprocess.run([sys.executable, os.path.join(HERE, "test_chat_act.py")], ca
 print("\n".join(l for l in r_.stdout.splitlines() if l.startswith("FAIL")))
 check("chat acting-run tests (gen/test_chat_act.py) all pass", r_.returncode == 0, r_.stdout[-600:] + r_.stderr[-300:])
 
+# ---------- Your-asks filters survive the background reload (JB 28 Oct 16:23, A93) ----------
+def js_line(prefix):
+    i = PAGE.index("\n" + prefix) + 1; return PAGE[i:PAGE.index("\n", i)]
+if NODE:
+    harness = ("let store={},hash='';const window={};const LS={get(k,d){return k in store?JSON.parse(store[k]):d},set(k,v){store[k]=JSON.stringify(v)}};"
+               "let H={};function setH(k,v){if(v==null)delete H[k];else H[k]=v;hash=new URLSearchParams(H).toString()}"
+               + js_line("function askF(){") + "\n" + js_line("function askFSave(F){") + "\n"
+               "const reload=(keepHash)=>{delete window._askF;H=keepHash?Object.fromEntries(new URLSearchParams(hash)):{};};const out=[];"
+               "let F=askF();F.cat='Your decisions';F.rags=['red'];F.sts=['WORKING','BLOCKED'];askFSave(F);"
+               "reload(true);out.push(JSON.stringify(askF()));"
+               "reload(false);out.push(JSON.stringify(askF()));"
+               "F=askF();F.cat='';F.rags=[];F.sts=[];askFSave(F);reload(true);out.push(JSON.stringify(askF())+'|'+hash);"
+               "store['w1dash.askf']='{\"cat\":5,\"rags\":\"x\",\"sts\":[1,\"DONE\"]}';H={askf:'{bad'};delete window._askF;out.push(JSON.stringify(askF()));"
+               "console.log(out.join('\\n'))")
+    r_ = subprocess.run([NODE, "-e", harness], capture_output=True, text=True, timeout=30)
+    o_ = r_.stdout.strip().split("\n")
+    want = '{"cat":"Your decisions","rags":["red"],"sts":["WORKING","BLOCKED"]}'
+    check("asks filters: restored from the URL after a background reload", len(o_) == 4 and o_[0] == want, (o_, r_.stderr))
+    check("asks filters: restored from localStorage when the URL has none", len(o_) == 4 and o_[1] == want, o_)
+    check("asks filters: clearing them clears both stores", len(o_) == 4 and o_[2] == '{"cat":"","rags":[],"sts":[]}|', o_)
+    check("asks filters: bad saved values fall back safely", len(o_) == 4 and o_[3] == '{"cat":"","rags":[],"sts":["DONE"]}', o_)
+check("page: asks draw and click handler read askF(), the click saves with askFSave", PAGE.count("const F=askF();") == 2 and "askFSave(F);rerender(\"asks\")" in PAGE and "window._askF||(window._askF=" not in PAGE)
+
 print("ALL PASS" if not FAILS else "%d FAILED: %s" % (len(FAILS), ", ".join(FAILS)))
 sys.exit(1 if FAILS else 0)

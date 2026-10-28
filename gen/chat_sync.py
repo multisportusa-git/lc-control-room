@@ -206,7 +206,7 @@ def ask_get(aid):
         try:
             d = json.load(open(os.path.join(NOTES, "w1", "decisions", aid + ".json")))
             return {"id": aid, "title": d.get("title", ""), "cat": "Your decisions", "state": "STAGED", "rag": "amber",
-                    "note": ("decision %s (status %s). Kinds JB may prefix: [DIRECT] [ESCALATE] [PRIORITISE] [COMMENT] [CLOSE]. To track work, `ctl.sh asks add`, "
+                    "note": ("decision %s (status %s). Kinds JB may prefix: [DIRECT] [UPDATE] [ESCALATE] [PRIORITISE] [COMMENT] [CLOSE]. To track work, `ctl.sh asks add`, "
                              "not `asks set %s`. " % (aid, d.get("status"), aid)) + (d.get("situation") or "")[:300], "history": []}
         except Exception: return None
     try:
@@ -610,7 +610,7 @@ def coord_brief(cid, a, me, target="COORD"):
             "- Lanes do code: write a brief (< 8 KB, ending with the lane end-line contract from the coordinator brief) under %s/v2/briefs/ and run "
             "`ctl.sh queue <L> <task> <brief> sonnet high`. Never run scripts/lane.sh. Never edit the app repo.\n"
             "- Control Room page or scripts: edit files under ~/.lc-control-room; say in your last line that they need publishing.\n"
-            "- Keep JB's asks current at every step: `ctl.sh asks set <id> --state WORKING|PARTIAL|DONE --eta HH:MM --note \"...\"`; split a big ask with "
+            "- Keep JB's asks current at every step: `ctl.sh asks set <id> --state WORKING|PARTIAL|DONE --eta HH:MM --note \"...\"` (every state except STAGED needs an ETC; lanes too: `ctl.sh eta <L> HH:MM`); split a big ask with "
             "`ctl.sh asks add --title ... --cat ... --eta HH:MM --msg %s`. DONE only when verifiably done (job PASS, lane started, page edited, ...).\n"
             "- Log each action: `ctl.sh log \"...\"`. Be economical: never read large files whole; use the toolkit.\n"
             "- Other Controller runs may be working in parallel: FIRST read the last 20 lines of %s. Never reverse a hold/unhold/queue made there in the "

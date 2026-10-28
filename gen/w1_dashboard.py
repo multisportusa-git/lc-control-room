@@ -148,12 +148,64 @@ def hours_ok(t, b):
     return b
 fin, beg, slot = {}, {}, {}
 free = {p: [NOW] * n for p, n in POOLS.items()}
+
+# ---------- live lanes (JB 28 Oct 16:18: the timeline must match what the coordinator says) ----------
+# The lane rows are drawn from the machine first, the plan second. A lane holding its lane.sh lock (<notes>/v2/locks/lane-<L>,
+# the semaphore) occupies a code slot until its ETC; waiting/pr/blocked lanes are shown but hold no slot. ETC is the same
+# as the digest: `ctl.sh eta` (v2/sup/lane_eta.json) wins, else run start + kpi4 estimate, else none (flagged "no ETC").
+# A lane named after a plan task (W119 = W1-19) pins that task to the lane's real start and ETC. Planned lane tasks are
+# then scheduled only into slots the live lanes leave free, never on top of them.
+def _lane_etc(L):
+    e = (js(os.path.join(NOTES, "v2", "sup", "lane_eta.json"), {}) or {}).get(L) or {}
+    t = ts(e.get("eta"))
+    if t: return t, "set"
+    try:
+        import csv as _csv
+        for r in _csv.DictReader(open(os.path.join(NOTES, "v2", "kpi4", "tasks.csv"))):
+            if r["lane"] == L and not r["end"] and ts(r["start"]) and NOW - ts(r["start"]) < dt.timedelta(hours=12):
+                return ts(r["start"]) + dt.timedelta(minutes=int(r["est_min"] or 60)), "estimate"
+    except (OSError, KeyError, ValueError): pass
+    return None, "none"
+_ann = rd(os.path.join(NOTES, "announce.log"))[-400000:].splitlines()
+def _run_start(L):
+    for l in reversed(_ann):
+        m = re.match(r"(\d{4}-\d\d-\d\d \d\d:\d\d):\d\d lane %s/\S+ run \d+ start" % re.escape(L), l)
+        if m: return ts(m.group(1))
+    return None
+TASK_OF_LANE = {t["id"].replace("-", ""): t["id"] for t in T}
+_lane_ps = sh(["ps", "-axo", "command"])
+live_lanes = []
+for p in sorted(glob.glob(os.path.join(NOTES, "status", "*.txt"))):
+    L = os.path.basename(p)[:-4]
+    if re.match(r"C[a-z0-9]{6,}$|OM$", L): continue   # coordinator/Controller runs are not code lanes
+    first = (rd(p, 400).splitlines() or [""])[0].split(); st = first[0] if first else ""
+    holds = os.path.isdir(os.path.join(NOTES, "v2", "locks", "lane-" + L))
+    m_ = mtime(p)
+    if not holds and (st in ("done", "", "staged", "parked", "queued") or not m_ or NOW - m_ > dt.timedelta(hours=12)): continue
+    b = _run_start(L) or m_ or NOW
+    f, src = _lane_etc(L)
+    late = bool(f and f < NOW)
+    f_draw = max(f, NOW + dt.timedelta(minutes=10)) if f else NOW + dt.timedelta(minutes=30)
+    live_lanes.append({"lane": L, "state": "running" if holds else st, "holds": holds, "alive": ("lane.sh %s " % L) in _lane_ps,
+                       "task": TASK_OF_LANE.get(L), "beg_iso": b.isoformat(), "fin_iso": f_draw.isoformat(),
+                       "etc": hm(f) if f else "", "etc_src": src, "late": late, "note": clean(first[1] if len(first) > 1 else "", 60)})
+live_lanes.sort(key=lambda x: (not x["holds"], x["beg_iso"]))
+_k = 0
+for x in live_lanes:
+    if x["holds"]:
+        if _k >= len(free["LANE"]): free["LANE"].append(NOW)
+        free["LANE"][_k] = max(free["LANE"][_k], ts(x["fin_iso"])); _k += 1
+    i = x["task"]
+    if i and i in BY and status(i) != "done":   # the plan task this lane is doing: real start and ETC, its own row
+        beg[i], fin[i], slot[i] = ts(x["beg_iso"]), ts(x["fin_iso"]), "LIVE " + x["lane"]
 for t in T:  # finished and running work first
     i = t["id"]; st = status(i)
+    if i in fin: continue
     if st == "done":
         fin[i] = ts((state.get(i) or {}).get("updated")) or NOW; beg[i] = started(i) or fin[i] - dt.timedelta(minutes=5)
     elif st in ("doing", "blocked") and started(i):
         beg[i] = started(i); fin[i] = max(beg[i] + dt.timedelta(minutes=est(t)), NOW + dt.timedelta(minutes=10))
+        if ts((notes.get(i) or {}).get("eta")): fin[i] = max(ts(notes[i]["eta"]), NOW + dt.timedelta(minutes=10))   # a stated ETC beats the estimate
         pool = free.get(t["owner"], free["SCRIPT"]); k = pool.index(min(pool)); pool[k] = max(pool[k], fin[i]); slot[i] = "%s %d" % (t["owner"], k + 1)
 left = [t for t in T if t["id"] not in fin]
 while left:
@@ -710,7 +762,7 @@ phone = {"state": ph_state, "tasks": ph_tasks, "free": ph_free}
 data = {"phone": phone, "gen": NOW.strftime("%a %d %b %H:%M"), "gen_iso": NOW.isoformat(), "today": TODAY, "plan": defs.get("plan", ""), "week": defs.get("week", ""),
         "decisions": decisions, "ntfy": ntfy, "fuel": fuel, "chat": chat, "asks": asks_, "asks_verified": _asks.verified_at() if "_asks" in globals() else "", "v2": v2, "v2k": v2k, "jb": jb, "tok": tok, "health": health, "sit": sit, "burn": burn, "coord_sid": coord.get("cli_uuid", ""), "now_iso": NOW.isoformat(), "pools": POOLS,
         "loop": rd(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "LOOP_LOG.md"), 6000),
-        "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
+        "live_lanes": live_lanes, "tasks": tasks, "today_ids": today_ids, "crit": crit, "gates": gates, "queue": queue, "usage": usage, "facts": facts, "overall": overall,
         "day_finish": max((fin[i] for i in today_ids if status(i) != "done"), default=NOW).strftime("%a %H:%M"),
         "week_finish": max(fin.values(), default=NOW).strftime("%a %d %b %H:%M")}
 

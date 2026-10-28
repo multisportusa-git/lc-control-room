@@ -18,6 +18,7 @@
 #   appium-check                   take the phone lock, open one Appium session (noReset, no app launch), report, close it
 #   review <pr>                    start a review of a PR now (detached)
 #   asks <args>                    the ask tracker (gen/asks.py): list | set <id> --state S --eta HH:MM --note "..." | add ...
+#   eta <L> <HH:MM> [note...]      set a lane's ETC (JB 28 Oct 15:52: every state except STAGED/parked has one; digest flags NO-ETC)
 #   log <text>                     append one line to v2/sup/COORD_LOG.md
 set -u
 N="$HOME/Library/Application Support/Claude/side-session-notes/local_eb83ac5f-2636-437e-a24c-fdb172ad7c08"
@@ -27,7 +28,7 @@ D=00008110-0009399002FA801E
 cmd="${1:-}"; shift 2>/dev/null
 log() { print -r -- "$(date '+%F %H:%M') coord(ctl): $*" >> "${LC_COORD_LOG:-$N/v2/sup/COORD_LOG.md}"; }
 # simulations (gen/sim_controller.py sets LC_CTL_SIM=1): only read-only commands run; anything that changes lanes, jobs or the phone is refused
-if [[ -n "${LC_CTL_SIM:-}" && "$cmd" =~ '^(queue|hold|unhold|full|install-tick|phone-free|appium-start|appium-check|review)$' ]]; then
+if [[ -n "${LC_CTL_SIM:-}" && "$cmd" =~ '^(queue|hold|unhold|full|install-tick|phone-free|appium-start|appium-check|review|eta)$' ]]; then
   echo "SIM: '$cmd' refused in a simulation (read-only commands only)"; log "SIM refused $cmd $*"; exit 0; fi
 case "$cmd" in
   digest) $PY "$N/v2/sup/digest.py" | grep -v 'install gate: no current' ;;
@@ -70,6 +71,14 @@ case "$cmd" in
         scripts/install_gate.sh unlock appium-check >/dev/null ;;
   review) cd "$R" && [[ "$1" =~ '^[0-9]+$' ]] && { (LC_MAX_LANES=6 nohup scripts/review.sh "$1" >> "$N/v2/bg.log" 2>&1 &); echo "review #$1 started"; log "review #$1 started"; } ;;
   asks) $PY "$ROOT/gen/asks.py" "$@" ;;
+  eta) [[ "${1:-}" =~ '^[A-Z][A-Za-z0-9]{0,7}$' && "${2:-}" =~ '^[0-2][0-9]:[0-5][0-9]$' ]] || { echo "usage: eta <L> HH:MM [note]"; exit 2; }
+       $PY -c 'import json,sys,os,datetime as d
+p,L,hm=sys.argv[1:4]; n=d.datetime.now(); t=n.replace(hour=int(hm[:2]),minute=int(hm[3:]),second=0,microsecond=0)
+t=t+d.timedelta(days=1) if t<n-d.timedelta(hours=1) else t
+try: e=json.load(open(p))
+except (OSError,ValueError): e={}
+e[L]={"eta":t.strftime("%Y-%m-%dT%H:%M"),"at":n.strftime("%Y-%m-%dT%H:%M"),"note":" ".join(sys.argv[4:])[:200]}
+json.dump(e,open(p+".tmp","w"),indent=1); os.replace(p+".tmp",p); print("lane %s ETC %s"%(L,e[L]["eta"]))' "$N/v2/sup/lane_eta.json" "$@" && log "lane $1 ETC $2 ${*:3}" ;;
   log) log "$*"; echo logged ;;
   *) sed -n 2,26p "$0"; exit 2 ;;
 esac
