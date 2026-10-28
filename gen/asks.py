@@ -77,7 +77,7 @@ def stale_check():
         open(sf, "w").write(lv)
         if lv != "ok":
             msg = {"amber": "UPDATE needed", "red": "LOOK INTO / ESCALATE / UPDATE", "darkred": "P0 ESCALATION: address and resolve now"}[lv]
-            line = "%s%s ASKS-STALE %s: your-asks 'as of' is %d min old (%s). Verify each ask, then `ctl.sh asks set <id> ...` or `ctl.sh asks verify`.\n" % ("[P0] " if lv == "darkred" else "", now().strftime("%Y-%m-%d %H:%M"), msg, age, lv)
+            line = "%s %sASKS-STALE %s: your-asks 'as of' is %d min old (%s). Verify each ask, then `ctl.sh asks set <id> ...` or `ctl.sh asks verify`.\n" % (now().strftime("%Y-%m-%d %H:%M:%S"), "[P0] " if lv == "darkred" else "", msg, age, lv)
             for f in ("ALERTS.txt", "announce.log"):
                 try: open(os.path.join(NOTES, f), "a").write(line)
                 except OSError: pass
