@@ -39,7 +39,7 @@ case "$cmd" in
     [[ $(wc -c < "$B") -le 8000 ]] || { echo "brief over 8000 bytes: shorten it"; exit 2; }
     [[ "$M" =~ '^(haiku|sonnet|opus)$' ]] || { echo "model must be haiku|sonnet|opus"; exit 2; }
     pct=$(tail -1 "$N/w1/evidence/usage_pct.csv" | cut -d, -f2); auth=$(cut -c1-10 "$N/w1/evidence/usage_authorized" 2>/dev/null)   # JB authorised usage for that day
-    if [[ "$auth" != "$(date +%F)" ]] && (( ${pct%.*} >= 85 )); then echo "usage ${pct}% >= 85%: no new lanes"; exit 3; fi
+    if [[ "$auth" != "$(date +%F)" ]] && (( ${pct%.*} >= 95 )); then echo "usage ${pct}% >= 95%: no new lanes"; exit 3; fi
     printf '%s\n' "$L" "$T" "$B" "$M" "$E" lane "$C" > "$N/v2/queue/$L-$T.req.tmp" && mv "$N/v2/queue/$L-$T.req.tmp" "$N/v2/queue/$L-$T.req"
     log "queued $L/$T ($M/$E) brief $B"; echo "queued $L/$T: lc_watch starts it within a minute (or parks it until a slot frees)" ;;
   hold) for f in "$N"/v2/queue/"$1"-*.req(N); do mv "$f" "$N/v2/queue/held/"; echo "held ${f:t}"; log "held ${f:t}"; done ;;

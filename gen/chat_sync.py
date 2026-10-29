@@ -405,7 +405,7 @@ def make_brief(target, cid, req, rd, jb_text):
         head += ("You are the Controller. First read %s (the coordinator brief) and %s/digest.txt (the digest, generated minutes ago). Then do what JB asked "
                  "AND act on every FLAG in the digest, as the brief says. Launch or requeue lanes ONLY by writing %s/v2/queue/<L>-<task>.req (7 lines) with the "
                  "Write tool; lc_watch starts it within a minute. NEVER run scripts/lane.sh yourself (a lane started from your shell dies with you). Max %s code "
-                 "lanes; no new lane at >= 85%% weekly usage. Things you cannot do with your tools (git push, gh pr create, review.sh, test-submit) go in your last line "
+                 "lanes; no new lane at >= 95%% weekly usage. Things you cannot do with your tools (git push, gh pr create, review.sh, test-submit) go in your last line "
                  "as BLOCKED with the exact one-line command for JB or a session. Append one line per action to %s.\n") % (
             COORD_BRIEF, rd, NOTES, os.environ.get("LC_MAX_LANES", "2"), COORD_LOG)
     room = 7800 - len((head + rules).encode())
@@ -606,7 +606,7 @@ def coord_brief(cid, a, me, target="COORD"):
             "- Your toolkit first: %s <command> (no args lists them): digest, queue, hold, unhold, train, job, fails, full, install-tick, phone, "
             "phone-free, appium-start, appium-check, review, asks, log. Start with `%s digest`.\n"
             "- Rules: %s (read the sections that matter; CLAUDE.md wins). JB's standing rule: his asks are P0; when a slot is free take it for his "
-            "work and hold non-P0 queued lanes (`ctl.sh hold <L>`). Max 2 code lanes; no new lane at >= 85%% weekly usage.\n"
+            "work and hold non-P0 queued lanes (`ctl.sh hold <L>`). Max 2 code lanes; no new lane at >= 95%% weekly usage.\n"
             "- Lanes do code: write a brief (< 8 KB, ending with the lane end-line contract from the coordinator brief) under %s/v2/briefs/ and run "
             "`ctl.sh queue <L> <task> <brief> sonnet high`. Never run scripts/lane.sh. Never edit the app repo.\n"
             "- Control Room page or scripts: edit files under ~/.lc-control-room; say in your last line that they need publishing.\n"

@@ -28,8 +28,8 @@ run(); assert glob.glob(os.path.join(N, "v2/queue/B-u.req")), "2 dead relaunch n
 os.remove(os.path.join(N, "v2/queue/B-u.req")); os.remove(glob.glob(os.path.join(N, "v2/sup/wake/dead-B-*"))[0]); os.makedirs(os.path.join(N, "v2/locks/lane-B"))
 run(); assert not glob.glob(os.path.join(N, "v2/queue/B-u.req")), "queued a locked lane"; print("PASS running lane is left alone")
 # quota stop
-os.rmdir(os.path.join(N, "v2/locks/lane-B")); open(os.path.join(N, "w1/evidence/usage_pct.csv"), "a").write("2026-10-28T11:00,86,55,1,50,x\n")
-run(); assert not glob.glob(os.path.join(N, "v2/queue/B-u.req")), "queued at >= 85%"; print("PASS nothing queued at >= 85% usage")
+os.rmdir(os.path.join(N, "v2/locks/lane-B")); open(os.path.join(N, "w1/evidence/usage_pct.csv"), "a").write("2026-10-28T11:00,96,55,1,50,x\n")
+run(); assert not glob.glob(os.path.join(N, "v2/queue/B-u.req")), "queued at >= 95%"; print("PASS nothing queued at >= 95% usage")
 # third CHANGES escalates instead of requeueing
 open(os.path.join(N, "w1/evidence/usage_pct.csv"), "a").write("2026-10-28T11:05,76,55,1,50,x\n"); os.remove(p)
 for s in ("bbbbbbbb1", "cccccccc1"): open(os.path.join(N, "v2/sup/wake/changes-9-%s" % s[:8]), "w").write("x")
@@ -55,11 +55,11 @@ got = sorted(os.path.basename(f) for f in glob.glob(os.path.join(N, "v2/queue/*.
 print("PASS a consumed next.txt line is never re-queued; next one takes the slot")
 for f in glob.glob(os.path.join(N, "v2/queue/*.req")): os.remove(f)
 open(os.path.join(N, "v2/sup/next.txt"), "a").write("NEXT U | u | %s\n" % bf)
-open(os.path.join(N, "w1/evidence/usage_pct.csv"), "a").write("2026-10-28T12:00,86,55,1,50,x\n")
-run(); assert not glob.glob(os.path.join(N, "v2/queue/U-u.req")), "refilled at >= 85%"
+open(os.path.join(N, "w1/evidence/usage_pct.csv"), "a").write("2026-10-28T12:00,96,55,1,50,x\n")
+run(); assert not glob.glob(os.path.join(N, "v2/queue/U-u.req")), "refilled at >= 95%"
 open(os.path.join(N, "w1/evidence/usage_pct.csv"), "a").write("2026-10-28T12:05,70,55,1,50,x\n"); os.environ["LC_WAKE_MEMFREE"] = "10"
 run(); assert not glob.glob(os.path.join(N, "v2/queue/U-u.req")), "refilled at low memory"
-print("PASS no refill at >= 85% usage or < 20% memory free")
+print("PASS no refill at >= 95% usage or < 20% memory free")
 # 5 staged plan tasks whose dependencies are done (JB 28 Oct 16:08)
 open(os.path.join(N, "w1/evidence/usage_pct.csv"), "a").write("2026-10-28T12:10,70,55,1,50,x\n"); os.environ["LC_WAKE_MEMFREE"] = "50"
 for f in glob.glob(os.path.join(N, "v2/sup/wake/coord-*")): os.remove(f)

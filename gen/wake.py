@@ -9,9 +9,9 @@ judgement events:
                      (lane.sh died, e.g. "brief over 8000 bytes") -> requeue with a short brief (always < 8 KB).
 3. Controller wake : judgement events (3rd CHANGES, a BLOCKED lane, a requeue that failed twice) post one message into the
                      COORD thread and start one Controller run. Caps: LC_WAKE_MAX_DAY (default 6) per day, one per event,
-                     none while weekly usage >= 85% (the newest row of usage_pct.csv).
+                     none while weekly usage >= 95% (the newest row of usage_pct.csv).
 4. slot refill    : JB 28 Oct 16:03 "there should be no available slots". While code slots are free (<notes>/v2/max_lanes minus
-                     lane locks minus pending .req files), weekly usage < 85% and memory free >= 20%, queue the first
+                     lane locks minus pending .req files), weekly usage < 95% and memory free >= 20%, queue the first
                      v2/sup/next.txt line "NEXT <L> | <task> | <brief path> [| model | effort]" whose lane is idle (no
                      lock, no queued/held .req, not queued from next.txt before). The Controller keeps next.txt in P0 order.
 5. staged tasks   : JB 28 Oct 16:08. A W1 plan task still "todo" (STAGED) whose dependencies are all done and whose day has
@@ -34,7 +34,7 @@ V2 = os.path.join(NOTES, "v2"); TQ = os.path.join(NOTES, "testq"); REV = os.path
 SUP = os.path.join(V2, "sup"); MK = os.path.join(SUP, "wake"); BR = os.path.join(V2, "briefs", "auto")
 USAGE = os.path.join(NOTES, "w1", "evidence", "usage_pct.csv")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STOP_PCT = 85.0
+STOP_PCT = 95.0   # JB 2026-10-29 02:22: line moved 85 -> 95
 MAX_DAY = int(os.environ.get("LC_WAKE_MAX_DAY", "6"))
 DEAD_MIN = 5
 END = ("End with: WAITING job=<id> | PR #<n> ready head <sha> | blocked: <why>. Red test first; heavy tests only via "
