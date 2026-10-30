@@ -279,6 +279,53 @@ body.chaton .fab{display:none}
 .cdep{flex:none;width:auto;border:1px solid var(--line2);background:transparent;color:var(--text2);border-radius:999px;padding:3px 10px;font-family:inherit;font-size:11.5px;font-weight:600;line-height:1.3;cursor:pointer}
 .cdep.on{background:#F5F5F7;color:#0A0A0C;border-color:#F5F5F7}
 .chnote{margin:0 16px 8px;padding:8px 12px;border-radius:12px;background:rgba(255,176,0,.1);border:1px solid rgba(255,176,0,.3);font-size:12.5px;color:var(--text2)}
+/* ---------- efficiency tab ---------- */
+:root{--eff-teal:#23a69a;--eff-orange:#f58220;--eff-blue:#3898e8;--eff-mag:#cf4f97;--eff-green:#55b97d;--eff-amber:#e9ad32;--eff-red:#ef5b5b;--eff-surf1:#101b31;--eff-surf2:#17243d;--eff-bdr:#2a3850}
+.eff-wrap{display:flex;flex-direction:column;gap:10px}
+.eff-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 0 10px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.eff-sec{background:var(--eff-surf1);border:1px solid var(--eff-bdr);border-radius:12px;overflow:hidden}
+.eff-sh{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;min-height:44px}
+.eff-sh:hover{background:rgba(255,255,255,.03)}
+.eff-st{font:700 13.5px/1.2 -apple-system,system-ui,sans-serif;flex:1;letter-spacing:-.008em}
+.eff-ss{color:var(--muted);font-size:11.5px;flex:2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:640px){.eff-ss{display:none}}
+.eff-sctl{display:flex;gap:2px;flex:none}
+.eff-sctl button{width:26px;height:26px;border-radius:7px;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;display:grid;place-items:center;transition:background .1s}
+.eff-sctl button:hover{background:rgba(255,255,255,.09);color:var(--text)}
+.eff-col .eff-sb{display:none!important}
+.eff-sb{padding:0 14px 14px}
+.eff-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text2);cursor:default;white-space:nowrap}
+.eff-chip.yes{background:rgba(85,185,125,.14);border-color:rgba(85,185,125,.35);color:#86e3bd}
+.eff-chip.no{background:rgba(239,91,91,.14);border-color:rgba(239,91,91,.35);color:#ffa0a0}
+.eff-chip.unk{background:rgba(155,168,186,.14);border-color:rgba(155,168,186,.3);color:#c0c7d6}
+.eff-chip.insuf{background:rgba(233,173,50,.12);border-color:rgba(233,173,50,.3);color:#f5d07a}
+.eff-chip b{font-size:10px;text-transform:uppercase;letter-spacing:.06em;opacity:.75}
+.eff-qs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.eff-tip{cursor:pointer;position:relative}
+.eff-kpirow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:8px;margin-bottom:12px}
+.eff-kpi{background:var(--eff-surf2);border:1px solid var(--eff-bdr);border-radius:10px;padding:12px 14px}
+.eff-kpi .lab{color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.eff-kpi .val{font:700 22px/1.1 -apple-system,"SF Pro Display",system-ui,sans-serif;letter-spacing:-.02em;margin-top:4px}
+.eff-kpi .val small{font-size:12px;color:var(--muted);font-weight:600}
+.eff-kpi .delta{font-size:11px;margin-top:3px}
+.eff-kpi .delta.up{color:var(--eff-red)}.eff-kpi .delta.dn{color:var(--eff-green)}.eff-kpi .delta.flat{color:var(--muted)}
+.eff-dock{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.eff-dockh{display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer}
+.eff-dockh .eff-st{font-size:12.5px}
+.eff-dockmsg{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:8px;padding:2px 0}
+.eff-dockinp{display:flex;gap:8px;align-items:flex-end}
+.eff-dockinp textarea{flex:1;resize:none;min-height:38px;max-height:120px;padding:9px 12px;border-radius:18px;border:1px solid var(--line2);background:rgba(0,0,0,.25);color:var(--text);font:inherit;font-size:14px;line-height:1.35}
+.eff-dockinp textarea:focus{outline:none;border-color:var(--eff-teal)}
+.eff-dockinp .snd{width:38px;height:38px;border-radius:50%;border:0;background:var(--eff-teal);color:#fff;cursor:pointer;display:grid;place-items:center;flex:none}
+.eff-dockinp .snd:disabled{opacity:.4;cursor:default}
+.eff-ctx{font-size:11px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.eff-ctx button{border:1px solid var(--line2);background:transparent;color:var(--text2);border-radius:999px;padding:2px 9px;font:inherit;font-size:11px;font-weight:600;cursor:pointer}
+.eff-ctx button.on{background:rgba(35,166,154,.18);border-color:rgba(35,166,154,.5);color:var(--eff-teal)}
+.eff-dens{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.eff-compact .eff-kpi{padding:8px 10px}.eff-compact .eff-kpi .val{font-size:17px}
+.eff-compact .eff-sb{padding:0 10px 10px}
+.eff-compact .eff-sh{padding:8px 10px}
+.eff-compact .eff-qs{gap:4px}
 </style>
 </head>
 <body>
@@ -303,6 +350,7 @@ body.chaton .fab{display:none}
 /* Data: embedded when built locally (--out), else fetched from the data branch and decrypted in the browser. */
 const EMBED=/*__DATA__*/null;
 const DATA_URL="https://raw.githubusercontent.com/multisportusa-git/lc-control-room/data/w1.enc";
+const EFF_URL="https://raw.githubusercontent.com/multisportusa-git/lc-control-room/data/efficiency.enc";
 const HOSTED=!EMBED;
 const STALE_MIN=HOSTED?25:6;
 function app(D){
@@ -350,7 +398,7 @@ function setH(k,v){if(v==null)delete H[k];else H[k]=v;history.replaceState(null,
 /* Your-asks filters survive the background reload (safeReload = location.reload): URL hash "askf" first, then localStorage, restored on every draw */
 function askF(){if(window._askF)return window._askF;let f=null;try{if(H.askf)f=JSON.parse(H.askf)}catch(e){}if(!f||typeof f!=="object")f=LS.get("w1dash.askf",null)||{};const sa=a=>Array.isArray(a)?a.filter(x=>typeof x==="string"):[];return window._askF={cat:typeof f.cat==="string"?f.cat:"",rags:sa(f.rags),sts:sa(f.sts)}}
 function askFSave(F){LS.set("w1dash.askf",F);setH("askf",(F.cat||F.rags.length||F.sts.length)?JSON.stringify(F):null)}
-const DEFAULT_ORDER=["asks","dec","you","sit","fuel","v2","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health"];
+const DEFAULT_ORDER=["asks","dec","you","sit","fuel","v2","kpi","chg","iss","tl","board","path","week","live","quota","tok","q","pr","health","eff"];
 let L=LS.get("w1dash.layout",{});L.order=(L.order||[]).filter(k=>DEFAULT_ORDER.includes(k));DEFAULT_ORDER.forEach((k,i)=>{if(!L.order.includes(k))L.order.splice(Math.min(i,L.order.length),0,k)});
 L.col=L.col||{};L.wide=L.wide||{};L.hide=L.hide||{};L.f=L.f||{};
 const saveL=()=>LS.set("w1dash.layout",L);
@@ -426,6 +474,8 @@ const M={
   help:"Read from ROADMAP_TO_BETA.html, which the V2 coordinator keeps with roadmap.py. Steps A-M, the current step, what V2 needs from you, and the coordinator's live updates. V2 work is the field-test build of today's app; V3 is the rebuild planned in Week 1."},
  health:{t:"Data health",s:"Can you trust this page? Every source and its age",i:"health",c:"#3FB98A",w:"full",nav:"Health",
   help:"Each source the page reads, when it last changed, and whether that is fresh enough. If the page itself is older than 6 minutes, the 2-minute updater has stopped."},
+ eff:{t:"Efficiency",s:"Token spend vs outcomes: task classes, amplification, test economics, findings",i:"quota",c:"#23a69a",w:"full",nav:"Efficiency",
+  help:"Content-free efficiency metrics from the EFFM producer (scripts/efficiency_monitor.py on the Mac). Data is encrypted like the main dashboard. Missing or invalid data shows 'no data' — it never breaks other tabs."},
 };
 
 /* ---------- renderers ---------- */
@@ -780,6 +830,240 @@ function v2views(){const K=D.v2k,V=D.v2;if(!K)return"";const vw=L.f.v2v||"board"
 R.q=()=>{const QC={PASS:"green","PASS-FILTERED":"blue",FAIL:"red"};const p=D.facts.pending;
  return `<div class="bar-row"><span class="why">pending ${p.pending} · running ${p.running} · held ${p.held}</span></div>`+(D.queue.length?`<div class="scroll"><table><thead><tr><th>At</th><th>Lane</th><th>Branch</th><th>Targets</th><th class="n">Time</th><th>Result</th></tr></thead>${D.queue.filter(j=>showP(j.prog)).map(j=>`<tr class="row${j.prog}"><td class="mono">${j.at}</td><td>${pg(j.prog)} ${esc(j.lane)}</td><td><div class="ell" style="max-width:200px">${esc(j.branch)}</div><span class="mono why">${j.sha}</span></td><td>${esc(j.targets)}</td><td class="n">${j.dur?Math.round(j.dur/60)+"m":""}</td><td>${pill(QC[j.overall]||"grey",j.overall)}</td></tr>`).join("")}</table></div>`:`<div class="empty">No results.</div>`)};
 R.pr=()=>{const F=D.facts;return `<div class="pathlab">Open · ${F.open_prs.length}</div>`+(F.open_prs.length?F.open_prs.filter(p=>showP(p.prog)).map(p=>`<div style="margin:7px 0;padding-left:8px" class="row${p.prog}">${pg(p.prog)} <a href="${esc(p.url)}">#${p.n}</a> ${esc(p.t)}<div class="why">${esc(p.b)}</div></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="pathlab" style="margin-top:14px">Merged in 24 h · ${F.merged_24h.length}</div>`+(F.merged_24h.length?F.merged_24h.filter(p=>showP(p.prog)).map(p=>`<div style="margin:7px 0;padding-left:8px" class="row${p.prog}">${pg(p.prog)} ${pill("green","#"+p.n)} ${esc(p.t)} <span class="why">${p.at}</span></div>`).join(""):`<div class="empty">None.</div>`)+`<div class="why" style="margin-top:8px">main ${F.main.length?`<span class="mono">${esc(F.main[0])}</span> · ${esc(F.main[1])} · ${esc(F.main[2])}`:"unknown"}</div>`};
+/* ---------- efficiency tab ---------- */
+(function(){
+const EFF_SECS=['exec','outcome','tasks','amp','tests','dups','circuit','findings','quality'];
+const EFF_META={
+ exec:['Executive','Window, data grade, headline KPIs, 13 Q&A'],
+ outcome:['Outcome efficiency','Tokens per accepted outcome by task class'],
+ tasks:['Tasks table','All tasks — sortable, filterable, with session drill-down'],
+ amp:['Request amplification','Requests vs peak context, per session'],
+ tests:['Test economics','Runner minutes, fingerprints, gate decisions'],
+ dups:['Duplicate launches & chains','Redundant wakes, duplicate launches, handoff chains'],
+ circuit:['Provider circuit','State transitions over the window'],
+ findings:['Findings','P0/P1/P2 defects with evidence references'],
+ quality:['Data quality','Overhead, coverage and source notes'],
+};
+const EFF_IC={exec:'#23a69a',outcome:'#3898e8',tasks:'#f58220',amp:'#cf4f97',tests:'#55b97d',dups:'#e9ad32',circuit:'#3898e8',findings:'#ef5b5b',quality:'#9ba8ba'};
+function getEL(){let v;try{v=JSON.parse(localStorage.getItem('w1dash.eff')||'null')||{}}catch(e){v={}}
+ if(!Array.isArray(v.order)||!v.order.every(k=>EFF_SECS.includes(k))){v.order=EFF_SECS.slice()}
+ else{EFF_SECS.forEach((k,i)=>{if(!v.order.includes(k))v.order.splice(Math.min(i,v.order.length),0,k)})}
+ v.col=v.col||{};v.density=v.density||'comfortable';return v}
+function saveEL(el){try{localStorage.setItem('w1dash.eff',JSON.stringify(el))}catch(e){}}
+function getEF(){try{return JSON.parse(localStorage.getItem('w1dash.efff')||'null')||{}}catch(e){return{}}}
+function saveEF(f){try{localStorage.setItem('w1dash.efff',JSON.stringify(f))}catch(e){}}
+
+const efmt=n=>{if(n==null)return'–';if(typeof n==='number'){if(n>=1e9)return(n/1e9).toFixed(2)+'B';if(n>=1e6)return(n/1e6).toFixed(n>=1e7?1:2)+'M';if(n>=1e3)return Math.round(n/1e3)+'k';return String(Math.round(n))}return String(n)};
+const eesc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const svgI2=p=>`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const ragChip=(st,lbl)=>{const m={ok:'yes',warn:'unk',fail:'no',unknown:'unk'};return `<span class="eff-chip ${m[st]||'unk'}">${eesc(lbl||st)}</span>`};
+const ansChip=(a,txt,formula,sample)=>{const cls={YES:'yes',NO:'no',UNKNOWN:'unk',INSUFFICIENT_DATA:'insuf'}[a]||'unk';
+ return `<span class="eff-chip ${cls} eff-tip" title="${eesc(formula||'')} · ${eesc(sample||'')}"><b>${eesc(a)}</b> ${eesc(txt.length>48?txt.slice(0,46)+'…':txt)}</span>`};
+
+function secExec(E){
+ const W=E.window||{};const Q=E.quality||{};const OH=E.overhead||{};
+ const genAt=E.generated_at?new Date(E.generated_at).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'}):'–';
+ const gradeCol={A:'var(--eff-green)',B:'var(--eff-amber)',C:'var(--eff-orange)',DEGRADED:'var(--eff-red)'}[Q.grade]||'var(--muted)';
+ const kpis=(E.cards||[]).filter(c=>c.section!=='quality').slice(0,6);
+ const deltaStr=(c)=>{const d=c.delta_prev;if(d==null||d===0)return`<div class="delta flat">no change</div>`;const up=d>0;const pct=Math.abs(d);return`<div class="delta ${c.id.endsWith('rate')||c.id.endsWith('share')?up?'dn':'up':up?'up':'dn'}">${up?'▲':'▼'} ${efmt(pct)} vs prev round</div>`};
+ const kpiHtml=kpis.length?`<div class="eff-kpirow">${kpis.map(c=>`<div class="eff-kpi">${ragChip(c.status||'unknown')}<div class="lab" style="margin-top:4px">${eesc(c.label)}</div><div class="val">${efmt(c.value)}<small>${eesc(c.unit||'')}</small></div>${deltaStr(c)}</div>`).join('')}</div>`:'';
+ const qchips=(E.questions||[]).map(q=>ansChip(q.answer,q.text,q.formula,q.sample)).join('');
+ return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:10px">
+  <div style="flex:0 0 auto"><div class="why">Generated</div><div style="font-weight:700">${genAt}</div></div>
+  <div style="flex:0 0 auto"><div class="why">Window</div><div class="mono" style="font-weight:700">${eesc(W.id||'–')} · ${W.hours!=null?W.hours+'h':'?'}</div></div>
+  <div style="flex:0 0 auto"><div class="why">Grade</div><div style="font-weight:800;font-size:22px;line-height:1;color:${gradeCol}">${eesc(Q.grade||'?')}</div></div>
+  <div style="flex:0 0 auto"><div class="why">Collector</div><div class="mono">${OH.collect_ms!=null?OH.collect_ms+' ms':'–'} · ${OH.db_bytes!=null?efmt(OH.db_bytes)+' B':'–'}</div></div>
+  ${Q.reasons&&Q.reasons.length?`<div style="flex:1;min-width:200px"><div class="why">Grade reasons</div><div class="why" style="color:var(--warn)">${Q.reasons.map(eesc).join(' · ')}</div></div>`:''}
+ </div>${kpiHtml}<div class="eff-qs">${qchips||'<div class="empty">No Q&A data.</div>'}</div>`}
+
+function secOutcome(E){
+ const tasks=(E.tasks||[]).filter(t=>t.accepted);
+ if(!tasks.length)return`<div class="empty">No accepted tasks in this window.</div>`;
+ const byKind={};tasks.forEach(t=>{const k=t.kind||'other';const z=byKind[k]||(byKind[k]={n:0,tok:0});z.n++;z.tok+=t.raw_tokens||0});
+ const rows=Object.entries(byKind).sort((a,b)=>b[1].tok-a[1].tok);
+ const maxT=Math.max(1,...rows.map(([,z])=>z.tok/z.n));
+ const KCOL2={lane:'var(--eff-blue)',subagent:'var(--eff-mag)',coordinator:'var(--eff-teal)',cowork:'var(--eff-amber)',other:'var(--muted)'};
+ const totalTok=tasks.reduce((a,t)=>a+(t.raw_tokens||0),0),totalAcc=tasks.length;
+ return`<div class="eff-kpirow" style="margin-bottom:14px"><div class="eff-kpi"><div class="lab">Tokens / accepted outcome</div><div class="val">${efmt(totalTok/totalAcc)}<small>tok</small></div></div><div class="eff-kpi"><div class="lab">Accepted tasks</div><div class="val">${totalAcc}</div></div><div class="eff-kpi"><div class="lab">Total raw tokens</div><div class="val">${efmt(totalTok)}</div></div></div>
+ <div class="pathlab" style="margin-bottom:8px">By task kind</div>
+ ${rows.map(([k,z])=>{const tpo=z.tok/z.n;return`<div class="hbar"><div class="ell" style="color:${KCOL2[k]||'var(--muted)'}"><span class="mdot" style="background:${KCOL2[k]||'var(--muted)'}"></span>${k}</div><div class="track"><span style="width:${(tpo/maxT*100).toFixed(1)}%;background:${KCOL2[k]||'var(--muted)'}"></span></div><div class="v">${efmt(tpo)} / task (${z.n})</div></div>`}).join('')}`}
+
+function secTasks(E){
+ const EF=getEF();const sort=EF.tsort||'requests',dir=EF.tdir||'desc';
+ const filters=[['kind','Kind'],['model','Model'],['outcome','Outcome']];
+ const uniq=(arr,f)=>[...new Set(arr.map(f).filter(Boolean))];
+ const tasks=E.tasks||[];
+ const kinds=uniq(tasks,t=>t.kind),models=uniq(tasks,t=>t.model),outcomes=uniq(tasks,t=>t.outcome);
+ let rows=tasks.filter(t=>(!EF.tkind||t.kind===EF.tkind)&&(!EF.tmodel||t.model===EF.tmodel)&&(!EF.toutcome||t.outcome===EF.toutcome));
+ const cmp=(a,b)=>{const va=a[sort]??0,vb=b[sort]??0;const r=typeof va==='string'?va.localeCompare(vb):vb-va;return dir==='asc'?-r:r};
+ rows=rows.slice().sort(cmp);
+ const th=(k,l)=>`<th class="sort ${['requests','raw_tokens','peak_ctx','runner_min'].includes(k)?'n':''}" data-etsort="${k}" data-etdir="${sort===k&&dir==='desc'?'asc':'desc'}">${l}${sort===k?dir==='desc'?' ▾':' ▴':''}</th>`;
+ const outcomeCol={accepted:'var(--eff-green)',rejected:'var(--eff-red)',abandoned:'var(--muted)','in-progress':'var(--eff-amber)'};
+ const flagBadge=f=>`<span class="eff-chip unk" style="font-size:10px;padding:1px 6px">${eesc(f)}</span>`;
+ const fbar=`<div class="bar-row" style="margin-bottom:10px">
+  ${kinds.length>1?`<select class="inp" data-etf="tkind" style="font-size:12px;padding:5px 8px"><option value="">All kinds</option>${kinds.map(k=>`<option value="${eesc(k)}" ${EF.tkind===k?'selected':''}>${eesc(k)}</option>`).join('')}</select>`:''}
+  ${models.length>1?`<select class="inp" data-etf="tmodel" style="font-size:12px;padding:5px 8px"><option value="">All models</option>${models.map(k=>`<option value="${eesc(k)}" ${EF.tmodel===k?'selected':''}>${eesc(k)}</option>`).join('')}</select>`:''}
+  ${outcomes.length>1?`<select class="inp" data-etf="toutcome" style="font-size:12px;padding:5px 8px"><option value="">All outcomes</option>${outcomes.map(k=>`<option value="${eesc(k)}" ${EF.toutcome===k?'selected':''}>${eesc(k)}</option>`).join('')}</select>`:''}
+  <span class="why">${rows.length} of ${tasks.length} tasks</span>
+  <button class="tbtn" data-etf-reset style="font-size:11px;padding:5px 10px">Clear</button>
+  <button class="tbtn" data-eff-export style="font-size:11px;padding:5px 10px">Export JSON</button>
+ </div>`;
+ const tbl=rows.length?`<div class="scroll"><table><thead><tr>${th('task_id','Task')}${th('kind','Kind')}${th('requests','Req')}${th('raw_tokens','Tokens')}${th('peak_ctx','Peak ctx')}${th('sessions','Sess')}${th('handoffs','Hops')}${th('runner_min','Runner min')}${th('outcome','Outcome')}</tr></thead><tbody>${rows.map(t=>`<tr class="click" data-eff-task="${eesc(t.task_id)}"><td class="mono"><b>${eesc(t.task_id)}</b>${(t.flags||[]).length?' '+t.flags.map(flagBadge).join(''):''}</td><td><span class="mdot" style="background:var(--eff-blue)"></span>${eesc(t.kind)}</td><td class="n">${t.requests??'–'}</td><td class="n">${efmt(t.raw_tokens)}</td><td class="n" style="color:${(t.peak_ctx||0)>=175000?'var(--eff-amber)':'inherit'}">${efmt(t.peak_ctx)}</td><td class="n">${t.sessions??'–'}</td><td class="n">${t.handoffs??'–'}</td><td class="n">${t.runner_min!=null?t.runner_min.toFixed(1):'–'}</td><td><span style="color:${outcomeCol[t.outcome]||'var(--muted)'}">${eesc(t.outcome||'–')}</span></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">No tasks match the filter.</div>`;
+ return fbar+tbl}
+
+function secAmp(E){
+ const sessions=E.sessions||[];if(!sessions.length)return`<div class="empty">No session data.</div>`;
+ const W=Math.min(700,window.innerWidth-80),H=260,pl=48,pb=30,pt=14;
+ const maxR=Math.max(20,...sessions.map(s=>s.requests||0))*1.1;
+ const maxC=Math.max(50000,...sessions.map(s=>s.peak_ctx||0))*1.05;
+ const x=r=>pl+(r/maxR)*(W-pl-12);const y=v=>H-pb-(v/maxC)*(H-pb-pt);
+ const ROLE_COL={lane:'var(--eff-blue)',subagent:'var(--eff-mag)',coordinator:'var(--eff-teal)',cowork:'var(--eff-amber)',other:'var(--muted)'};
+ let svg=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Sessions: requests vs peak context">`;
+ [[20,'20 req','rgba(255,255,255,.12)'],[50,'50 req','var(--eff-orange)']].forEach(([v,l,c])=>{const xv=x(v);svg+=`<line x1="${xv}" x2="${xv}" y1="${pt}" y2="${H-pb}" stroke="${c}" stroke-dasharray="4 4"/><text x="${xv}" y="${pt-2}" text-anchor="middle" style="font-size:10px">${l}</text>`});
+ [[125000,'125k ctx','rgba(255,255,255,.12)'],[175000,'175k','var(--eff-amber)']].forEach(([v,l,c])=>{const yv=y(v);svg+=`<line x1="${pl}" x2="${W-8}" y1="${yv}" y2="${yv}" stroke="${c}" stroke-dasharray="4 4"/><text x="${pl-4}" y="${yv+4}" text-anchor="end" style="font-size:10px">${l}</text>`});
+ [0,50,100,150].forEach(v=>{svg+=`<text x="${pl-4}" y="${y(v*1000)+4}" text-anchor="end">${v}k</text>`});
+ [0,20,40,60,80].forEach(v=>{svg+=`<text x="${x(v)}" y="${H-8}" text-anchor="middle">${v}</text>`});
+ svg+=`<text x="${W/2}" y="${H-2}" text-anchor="middle" style="fill:var(--muted)">Requests</text><text x="10" y="${H/2}" text-anchor="middle" transform="rotate(-90,10,${H/2})" style="fill:var(--muted)">Peak ctx</text>`;
+ sessions.forEach(s=>{const col=ROLE_COL[s.role]||'var(--muted)';svg+=`<circle cx="${x(s.requests||0)}" cy="${y(s.peak_ctx||0)}" r="5" fill="${col}" stroke="var(--eff-surf1)" stroke-width="1.5" opacity=".85"><title>${eesc(s.sid)} · ${eesc(s.task_id||'?')} · ${s.requests}req · ${efmt(s.peak_ctx)} ctx</title></circle>`});
+ svg+=`</svg>`;
+ const leg=Object.entries(ROLE_COL).filter(([k])=>sessions.some(s=>s.role===k)).map(([k,c])=>`<span><i style="background:${c};display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:-2px;margin-right:4px"></i>${k}</span>`).join('');
+ return svg+`<div class="legend">${leg}</div><div class="why">Threshold lines: orange=50 req, amber=175k ctx. ${sessions.filter(s=>(s.requests||0)>50).length} session(s) above 50 req; ${sessions.filter(s=>(s.peak_ctx||0)>=175000).length} at or above 175k ctx.</div>`}
+
+function secTests(E){
+ const tests=E.tests||[];if(!tests.length)return`<div class="empty">No test job data.</div>`;
+ const byClass={full:0,focused:0,train:0,main:0};tests.forEach(t=>{byClass[t.class]=(byClass[t.class]||0)+(t.minutes||0)});
+ const totalMin=tests.reduce((a,t)=>a+(t.minutes||0),0);
+ const fps=tests.map(t=>t.fingerprint).filter(Boolean);const uniqFps=new Set(fps);const dupFps=fps.length-uniqFps.size;
+ const passed=tests.filter(t=>t.result==='PASS').length,failed=tests.filter(t=>t.result==='FAIL').length;
+ const gates={allowed:0,refused:0,flake_retry:0,exception:0};tests.forEach(t=>{if(t.gate)gates[t.gate]=(gates[t.gate]||0)+1});
+ const barCol={full:'var(--eff-blue)',focused:'var(--eff-teal)',train:'var(--eff-mag)',main:'var(--eff-orange)'};
+ const maxM=Math.max(1,...Object.values(byClass));
+ return`<div class="eff-kpirow" style="margin-bottom:12px"><div class="eff-kpi"><div class="lab">Total runner min</div><div class="val">${totalMin.toFixed(1)}<small>min</small></div></div><div class="eff-kpi"><div class="lab">Jobs</div><div class="val">${tests.length}<small> · ${passed} PASS ${failed} FAIL</small></div></div><div class="eff-kpi"><div class="lab">Repeated fingerprints</div><div class="val" style="color:${dupFps>0?'var(--eff-amber)':'inherit'}">${dupFps}</div></div></div>
+ <div class="pathlab" style="margin-bottom:8px">Minutes by class</div>
+ ${['full','focused','train','main'].map(c=>`<div class="hbar"><div>${c}</div><div class="track"><span style="width:${(byClass[c]||0)/maxM*100}%;background:${barCol[c]}"></span></div><div class="v">${(byClass[c]||0).toFixed(1)} min</div></div>`).join('')}
+ <div class="pathlab" style="margin:10px 0 6px">Gate decisions</div>
+ <div style="display:flex;flex-wrap:wrap;gap:8px">${Object.entries(gates).filter(([,n])=>n>0).map(([k,n])=>`<span class="eff-chip ${k==='refused'?'no':k==='exception'?'no':'yes'}">${eesc(k)} ${n}</span>`).join('')}</div>
+ <div class="pathlab" style="margin:10px 0 6px">Snapshot funnel</div>
+ <div class="hbar"><div>Total jobs</div><div class="track"><span style="width:100%;background:var(--eff-blue)"></span></div><div class="v">${tests.length}</div></div>
+ <div class="hbar"><div>PASS</div><div class="track"><span style="width:${(passed/Math.max(1,tests.length)*100).toFixed(1)}%;background:var(--eff-green)"></span></div><div class="v">${passed}</div></div>
+ <div class="hbar"><div>Unique fingerprints</div><div class="track"><span style="width:${(uniqFps.size/Math.max(1,fps.length)*100).toFixed(1)}%;background:var(--eff-teal)"></span></div><div class="v">${uniqFps.size}</div></div>`}
+
+function secDups(E){
+ const tasks=E.tasks||[];
+ const dupT=tasks.filter(t=>(t.duplicate_launches||0)>0);
+ const multiLaunch=tasks.filter(t=>(t.launches||0)>1);
+ const longChain=tasks.filter(t=>(t.handoffs||0)>2);
+ if(!dupT.length&&!multiLaunch.length&&!longChain.length)return`<div class="empty" style="color:var(--eff-green)">No duplicate launches or long handoff chains.</div>`;
+ let h='';
+ if(dupT.length){h+=`<div class="pathlab" style="margin-bottom:6px">Duplicate launches (${dupT.length})</div>`;h+=`<div class="scroll"><table><thead><tr><th>Task</th><th class="n">Dup launches</th><th>Flags</th></tr></thead><tbody>${dupT.map(t=>`<tr><td class="mono">${eesc(t.task_id)}</td><td class="n" style="color:var(--eff-amber)">${t.duplicate_launches}</td><td>${(t.flags||[]).map(f=>`<span class="eff-chip unk" style="font-size:10px;padding:1px 5px">${eesc(f)}</span>`).join(' ')}</td></tr>`).join('')}</tbody></table></div><br>`}
+ if(longChain.length){h+=`<div class="pathlab" style="margin-bottom:6px">Long handoff chains &gt; 2 hops (${longChain.length})</div>`;h+=`<div class="scroll"><table><thead><tr><th>Task</th><th class="n">Handoffs</th><th class="n">Sessions</th></tr></thead><tbody>${longChain.map(t=>`<tr><td class="mono">${eesc(t.task_id)}</td><td class="n">${t.handoffs}</td><td class="n">${t.sessions}</td></tr>`).join('')}</tbody></table></div>`}
+ return h||'<div class="empty">None.</div>'}
+
+function secCircuit(E){
+ const events=E.circuit||[];
+ if(!events.length)return`<div class="empty">No circuit events recorded.</div>`;
+ const stateCol={closed:'var(--eff-green)','half-open':'var(--eff-amber)',open:'var(--eff-red)'};
+ const W2=Math.min(700,window.innerWidth-80),H2=80,pl2=20,pb2=24;
+ const times=events.map(e=>new Date(e.ts).getTime()).filter(Boolean);if(!times.length)return`<div class="empty">No timestamped events.</div>`;
+ const t0=Math.min(...times),t1=Math.max(...times,t0+1);
+ const xT=t=>pl2+(t-t0)/(t1-t0)*(W2-pl2-12);
+ let svg=`<svg width="100%" viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Circuit timeline">`;
+ events.forEach((e,i)=>{const t=new Date(e.ts).getTime();const x0=xT(t);const x1=i<events.length-1?xT(new Date(events[i+1].ts).getTime()):W2-12;const c=stateCol[e.state]||'var(--muted)';svg+=`<rect x="${x0}" y="${pb2}" width="${Math.max(4,x1-x0)}" height="32" fill="${c}" rx="3" opacity=".7"><title>${eesc(e.state)} @ ${eesc(e.ts)} ${e.reason_class?'· '+eesc(e.reason_class):''}</title></rect>`});
+ events.filter((_,i)=>i===0||i===events.length-1).forEach(e=>{const t=new Date(e.ts).getTime();svg+=`<text x="${xT(t)}" y="${H2-4}" text-anchor="middle" style="font-size:10px">${new Date(t).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</text>`});
+ svg+=`</svg>`;
+ const leg=Object.entries(stateCol).map(([k,c])=>`<span><i style="background:${c};display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-2px;margin-right:4px"></i>${k}</span>`).join('');
+ const trips=events.filter(e=>e.state==='open').length;
+ return svg+`<div class="legend">${leg}</div><div class="why">${trips} open trip${trips!==1?'s':''} · ${events.length} transitions total</div>`}
+
+function secFindings(E){
+ const EF=getEF();const sev=EF.fsev||'all';
+ const findings=(E.findings||[]).filter(f=>sev==='all'||f.severity===sev);
+ const sevCol={P0:'var(--eff-red)',P1:'var(--eff-orange)',P2:'var(--eff-amber)'};
+ const counts={P0:0,P1:0,P2:0};(E.findings||[]).forEach(f=>{if(f.severity)counts[f.severity]=(counts[f.severity]||0)+1});
+ const fbar=`<div class="bar-row" style="margin-bottom:10px"><div class="seg">${['all','P0','P1','P2'].map(k=>`<button data-etf="fsev" data-etfv="${k}" class="${sev===k?'on':''}">${k==='all'?`All (${(E.findings||[]).length})`:k+' ('+counts[k]+')'}</button>`).join('')}</div></div>`;
+ if(!findings.length)return fbar+`<div class="empty" style="color:var(--eff-green)">No findings at this severity.</div>`;
+ return fbar+findings.map(f=>`<div class="it ${f.severity==='P0'?'red':f.severity==='P1'?'amber':''}" style="margin-bottom:8px"><div style="display:flex;gap:8px;align-items:flex-start"><span class="eff-chip ${f.severity==='P0'?'no':f.severity==='P1'?'insuf':'unk'}" style="flex:none">${eesc(f.severity)}</span><div><div style="font-weight:700">${eesc(f.title)}</div><div class="why">${eesc(f.metric||'')}${f.evidence_ref?' · ref: '+eesc(f.evidence_ref):''}${f.owner_subsystem?' · '+eesc(f.owner_subsystem):''}</div></div></div></div>`).join('')}
+
+function secQuality(E){
+ const Q=E.quality||{};const OH=E.overhead||{};
+ const tasks=E.tasks||[];const sessions=E.sessions||[];const tests=E.tests||[];
+ const nullTasks=tasks.filter(t=>t.outcome==null).length;
+ const nullSess=sessions.filter(s=>s.task_id==null).length;
+ const rows=[
+  {name:'Schema version',detail:eesc(E.schema||'–'),ok:E.schema==='lc-eff/1'},
+  {name:'Data grade',detail:`${eesc(Q.grade||'–')} ${Q.reasons&&Q.reasons.length?'· '+Q.reasons.map(eesc).join('; '):''}`,ok:Q.grade==='A'||Q.grade==='B'},
+  {name:'Collector overhead',detail:`${OH.collect_ms!=null?OH.collect_ms+' ms':'–'} · ${OH.db_bytes!=null?efmt(OH.db_bytes)+' B':'–'}`,ok:(OH.collect_ms||0)<2000},
+  {name:'Tasks coverage',detail:`${tasks.length} tasks; ${nullTasks} null outcomes`,ok:nullTasks===0},
+  {name:'Sessions coverage',detail:`${sessions.length} sessions; ${nullSess} without task_id`,ok:nullSess===0},
+  {name:'Test jobs',detail:`${tests.length} jobs`,ok:tests.length>0},
+  {name:'Series data',detail:`${(E.series&&E.series.tokens_by_hour||[]).length} hourly buckets`,ok:(E.series&&E.series.tokens_by_hour||[]).length>0},
+ ];
+ return`<div class="scroll"><table><thead><tr><th>Source</th><th>Detail</th><th>Status</th></tr></thead>${rows.map(r=>`<tr><td><b>${r.name}</b></td><td class="why">${r.detail}</td><td>${r.ok?'<span class="eff-chip yes">OK</span>':'<span class="eff-chip unk">Check</span>'}</td></tr>`).join('')}</table></div>`}
+
+function effDock(){
+ const PASS=window._PASS;const dockCol=!!getEL().dockCol;
+ const thread=(typeof CH!=='undefined'?chatMsgs('COORD'):[]).slice(-4);
+ const threadHtml=thread.length?thread.map(m=>{if(m.from==='JB')return`<div class="bub me" style="--cc:var(--eff-teal);max-width:90%;font-size:13px">${eesc(m.text)}</div>`;return`<div class="bub cl" style="max-width:90%;font-size:13px">${eesc(m.text)}</div>`}).join(''):`<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px 0">Ask the coordinator about these metrics.</div>`;
+ return`<div class="eff-dock" id="eff-dock">
+  <div class="eff-dockh" data-eff-dock-tog>
+   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--eff-teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+   <span class="eff-st" style="color:var(--eff-teal)">Coordinator chat dock</span>
+   <span class="why" style="font-size:11.5px">messages go to the Controller channel</span>
+   <button class="eff-sctl" style="background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:13px">${dockCol?'+':'−'}</button>
+  </div>
+  ${dockCol?'':
+  `<div class="eff-dockmsg" id="eff-dockmsg">${threadHtml}</div>
+  <div class="eff-dockinp">
+   <textarea id="eff-chatinp" rows="1" maxlength="4000" placeholder="Ask the coordinator…" aria-label="Message coordinator"></textarea>
+   <button class="snd eff-chatsnd" id="eff-chatsnd" aria-label="Send" ${PASS?'':'disabled'} style="background:var(--eff-teal)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+   </button>
+  </div>
+  <div class="eff-ctx">
+   <span>Attach:</span>
+   <button class="cdep ${getEF().attach?'on':''}" id="eff-attach" title="Prepend the current filter state and active task to the message">${getEF().attach?'✓ ':''} Context</button>
+   ${PASS?'':'<span style="color:var(--warn)">Passphrase required to send.</span>'}
+  </div>`
+  }
+ </div>`}
+
+function effCtxStr(){
+ const EF=getEF();const parts=[];
+ if(EF.tkind)parts.push('kind='+EF.tkind);
+ if(EF.tmodel)parts.push('model='+EF.tmodel);
+ if(EF.toutcome)parts.push('outcome='+EF.toutcome);
+ if(EF.fsev&&EF.fsev!=='all')parts.push('sev='+EF.fsev);
+ if(!parts.length)return'';
+ return'[ctx: '+parts.join(', ')+'] '}
+
+const SECS={exec:secExec,outcome:secOutcome,tasks:secTasks,amp:secAmp,tests:secTests,dups:secDups,circuit:secCircuit,findings:secFindings,quality:secQuality};
+
+R.eff=function(){
+ const E=window._EFF;
+ const el=getEL();const compact=el.density==='compact';
+ const noData=!E||E.schema!=='lc-eff/1';
+ const densCtl=`<div class="eff-dens"><span>Density:</span><div class="seg">${['comfortable','compact'].map(d=>`<button data-eff-dens="${d}" class="${el.density===d?'on':''}">${d}</button>`).join('')}</div></div>`;
+ const resetBtn=`<button class="tbtn" data-eff-reset style="font-size:11.5px;margin-left:auto">Reset layout</button>`;
+ const bar=`<div class="eff-bar">${densCtl}${resetBtn}</div>`;
+ if(noData)return`<div id="eff-inner" class="eff-wrap ${compact?'eff-compact':''}">${bar}<div class="empty" style="padding:16px 0">No efficiency data. The EFFM producer (scripts/efficiency_monitor.py) may not be running yet, or push.sh has not published it.</div></div>`;
+ const secShell=k=>{
+  const [title,sub]=EFF_META[k];const col=!!el.col[k];const idx=el.order.indexOf(k);const ic=EFF_IC[k]||'var(--muted)';
+  return`<div class="eff-sec ${col?'eff-col':''}" data-ek="${k}">
+   <div class="eff-sh" data-eff-sec-tog="${k}">
+    <div class="mi" style="background:${ic}22;color:${ic};width:24px;height:24px;border-radius:7px;flex:none;display:grid;place-items:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></div>
+    <span class="eff-st">${eesc(title)}</span>
+    <span class="eff-ss">${eesc(sub)}</span>
+    <div class="eff-sctl" style="display:flex;gap:2px;flex:none">
+     ${idx>0?`<button data-eup="${k}" title="Move up" aria-label="Move up">${svgI2('<path d="M6 15l6-6 6 6"/>')}</button>`:''}
+     ${idx<el.order.length-1?`<button data-edn="${k}" title="Move down" aria-label="Move down">${svgI2('<path d="M6 9l6 6 6-6"/>')}</button>`:''}
+     <button data-eff-sec-tog="${k}" title="${col?'Expand':'Collapse'}" aria-label="${col?'Expand':'Collapse'}">${col?svgI2('<path d="M12 5v14M5 12h14"/>'):svgI2('<path d="M5 12h14"/>')}</button>
+    </div>
+   </div>
+   ${col?'':`<div class="eff-sb">${SECS[k](E)}</div>`}
+  </div>`};
+ return`<div id="eff-inner" class="eff-wrap ${compact?'eff-compact':''}">${bar}${el.order.map(secShell).join('')}${effDock()}</div>`};
+})();
+
 R.health=()=>{const rows=[{name:HOSTED?"Published data":"This page",detail:HOSTED?"encrypted on the Mac, pushed to GitHub every 10 min":"built by w1_dashboard.py",age:pageAge,ok:pageAge<=STALE_MIN,why:pageAge>STALE_MIN?(HOSTED?"the Mac has not pushed: asleep, offline or the job stopped":"the updater is not running"):""},...D.health];
  const ag=a=>a==null?"–":a<1?"just now":a<60?a+" min":a<1440?(a/60).toFixed(1)+" h":(a/1440).toFixed(1)+" d";
  return `<div class="scroll"><table><thead><tr><th>Source</th><th>What it holds</th><th class="n">Last change</th><th>Status</th></tr></thead>${rows.map(h=>`<tr><td><b>${esc(h.name)}</b></td><td>${esc(h.detail)}${h.why?`<div class="why" style="color:var(--warn)">${esc(h.why)}</div>`:""}</td><td class="n">${ag(h.age)}</td><td>${pill(h.ok?"green":"amber",h.ok?"Fresh":"Check")}</td></tr>`).join("")}</table></div><div class="why" style="margin-top:8px">Not visible from this Mac: cloud sessions (this Cowork chat, claude.ai). The quota reading covers them. Alerts: ${D.facts.alerts.length?esc(D.facts.alerts[D.facts.alerts.length-1]):"none"}</div>`};
@@ -902,13 +1186,29 @@ document.addEventListener("click",e=>{
  if(e.target.id==="markseen"){markSeen();location.reload();return}
  const sg=e.target.closest(".seg button");if(sg&&sg.parentElement.dataset.f==="prog"){L.f.prog=sg.dataset.v;saveL();renderAll();return}
  if(sg){const f=sg.parentElement.dataset.f;if(f==="hidedone")L.f.hidedone=!L.f.hidedone;else L.f[f]=sg.dataset.v;saveL();rerender(sg.closest(".mod").dataset.k);return}
- const th=e.target.closest("th.sort");if(th){L.f.sort=th.dataset.sort;saveL();rerender("tok");return}
+ const th=e.target.closest("th.sort");if(th){if(th.dataset.etsort){let f;try{f=JSON.parse(localStorage.getItem('w1dash.efff')||'null')||{}}catch(ex){f={}}f.tsort=th.dataset.etsort;f.tdir=th.dataset.etdir||'desc';try{localStorage.setItem('w1dash.efff',JSON.stringify(f))}catch(ex){}rerender("eff");return}L.f.sort=th.dataset.sort;saveL();rerender("tok");return}
  const vv=e.target.closest("[data-v2v]");if(vv){L.f.v2v=vv.dataset.v2v;saveL();rerender("v2")}
  const jb=e.target.closest("[data-jump]");if(jb){e.preventDefault();return jumpIss(jb.dataset.jump)}
  const g=e.target.closest("[data-go]");if(g){e.preventDefault();return go(g.dataset.go)}
  const kk=e.target.closest("[data-kind]");if(kk){L.f.kind=kk.dataset.kind;saveL();rerender("tok");return}
  const a=e.target.closest("[data-t]");if(a){e.preventDefault();return openTask(a.dataset.t)}
- const b=e.target.closest("[data-s]");if(b){e.preventDefault();return openSess(+b.dataset.s)}});
+ const b=e.target.closest("[data-s]");if(b){e.preventDefault();return openSess(+b.dataset.s)}
+ /* --- efficiency tab interactions --- */
+ const effSecTog=e.target.closest("[data-eff-sec-tog]");if(effSecTog){const k=effSecTog.dataset.effSecTog;let el2;try{el2=JSON.parse(localStorage.getItem('w1dash.eff')||'null')||{}}catch(ex){el2={}}el2.col=el2.col||{};el2.col[k]=!el2.col[k];try{localStorage.setItem('w1dash.eff',JSON.stringify(el2))}catch(ex){}rerender("eff");return}
+ const effUp=e.target.closest("[data-eup]");if(effUp){let el2;try{el2=JSON.parse(localStorage.getItem('w1dash.eff')||'null')||{}}catch(ex){el2={}}const EFF_SECS2=['exec','outcome','tasks','amp','tests','dups','circuit','findings','quality'];if(!Array.isArray(el2.order))el2.order=EFF_SECS2.slice();const k=effUp.dataset.eup,i=el2.order.indexOf(k);if(i>0){[el2.order[i-1],el2.order[i]]=[el2.order[i],el2.order[i-1]]}try{localStorage.setItem('w1dash.eff',JSON.stringify(el2))}catch(ex){}rerender("eff");return}
+ const effDn=e.target.closest("[data-edn]");if(effDn){let el2;try{el2=JSON.parse(localStorage.getItem('w1dash.eff')||'null')||{}}catch(ex){el2={}}const EFF_SECS2=['exec','outcome','tasks','amp','tests','dups','circuit','findings','quality'];if(!Array.isArray(el2.order))el2.order=EFF_SECS2.slice();const k=effDn.dataset.edn,i=el2.order.indexOf(k);if(i<el2.order.length-1){[el2.order[i+1],el2.order[i]]=[el2.order[i],el2.order[i+1]]}try{localStorage.setItem('w1dash.eff',JSON.stringify(el2))}catch(ex){}rerender("eff");return}
+ /* eff seg buttons (findings severity) */
+ const effSeg=e.target.closest("[data-etf][data-etfv]");if(effSeg){let f;try{f=JSON.parse(localStorage.getItem('w1dash.efff')||'null')||{}}catch(ex){f={}}f[effSeg.dataset.etf]=effSeg.dataset.etfv;try{localStorage.setItem('w1dash.efff',JSON.stringify(f))}catch(ex){}rerender("eff");return}
+ /* eff filter reset */
+ const etfResetBtn=e.target.closest("[data-etf-reset]");if(etfResetBtn){try{localStorage.removeItem('w1dash.efff')}catch(ex){}rerender("eff");return}
+ const effDens=e.target.closest("[data-eff-dens]");if(effDens){let el2;try{el2=JSON.parse(localStorage.getItem('w1dash.eff')||'null')||{}}catch(ex){el2={}}el2.density=effDens.dataset.effDens;try{localStorage.setItem('w1dash.eff',JSON.stringify(el2))}catch(ex){}rerender("eff");return}
+ const effReset=e.target.closest("[data-eff-reset]");if(effReset){try{localStorage.removeItem('w1dash.eff');localStorage.removeItem('w1dash.efff')}catch(ex){}rerender("eff");return}
+ const effDockTog=e.target.closest("[data-eff-dock-tog]");if(effDockTog){let el2;try{el2=JSON.parse(localStorage.getItem('w1dash.eff')||'null')||{}}catch(ex){el2={}}el2.dockCol=!el2.dockCol;try{localStorage.setItem('w1dash.eff',JSON.stringify(el2))}catch(ex){}rerender("eff");return}
+ const effAttach=e.target.id==="eff-attach";if(effAttach){let ef;try{ef=JSON.parse(localStorage.getItem('w1dash.efff')||'null')||{}}catch(ex){ef={}}ef.attach=!ef.attach;try{localStorage.setItem('w1dash.efff',JSON.stringify(ef))}catch(ex){}rerender("eff");return}
+ const effExp=e.target.closest("[data-eff-export]");if(effExp&&window._EFF){try{const ef=JSON.parse(localStorage.getItem('w1dash.efff')||'null')||{};const tasks=(window._EFF.tasks||[]).filter(t=>(!ef.tkind||t.kind===ef.tkind)&&(!ef.tmodel||t.model===ef.tmodel)&&(!ef.toutcome||t.outcome===ef.toutcome));const blob=new Blob([JSON.stringify(tasks,null,2)],{type:'application/json'});const a2=document.createElement('a');a2.href=URL.createObjectURL(blob);a2.download='eff-tasks.json';a2.click()}catch(ex){}return}
+ const effTask=e.target.closest("[data-eff-task]");if(effTask&&window._EFF){const tid=effTask.dataset.effTask;const t=(window._EFF.tasks||[]).find(t=>t.task_id===tid);if(!t)return;const sess=(window._EFF.sessions||[]).filter(s=>s.task_id===tid);const tests=(window._EFF.tests||[]).filter(j=>j.task_id===tid);const s2=String;const ef=v=>v==null?'–':String(v);$("#panel").innerHTML=`<button class="x" aria-label="Close">×</button><h3 class="mono">${s2(tid)}</h3><div class="meta">${ef(t.kind)} · ${ef(t.model)} ${ef(t.effort)} · ${ef(t.outcome)}</div><div class="mini"><div class="tile"><div class="lab">Requests</div><div class="val">${ef(t.requests)}</div></div><div class="tile"><div class="lab">Raw tokens</div><div class="val">${ef(t.raw_tokens!=null?(t.raw_tokens/1000).toFixed(0)+'k':'–')}</div></div><div class="tile"><div class="lab">Peak ctx</div><div class="val">${ef(t.peak_ctx!=null?(t.peak_ctx/1000).toFixed(0)+'k':'–')}</div></div><div class="tile"><div class="lab">Handoffs</div><div class="val">${ef(t.handoffs)}</div></div><div class="tile"><div class="lab">Runner min</div><div class="val">${t.runner_min!=null?t.runner_min.toFixed(1):'–'}</div></div><div class="tile"><div class="lab">Cache read</div><div class="val">${t.cache_read_share!=null?Math.round(t.cache_read_share*100)+'%':'–'}</div></div></div>${sess.length?`<h5>Sessions (${sess.length})</h5><table>${sess.map(s=>`<tr><td class="mono" style="font-size:12px">${s.sid}</td><td>${ef(s.role)}</td><td class="n">${ef(s.requests)} req</td><td class="n">${s.peak_ctx?(s.peak_ctx/1000).toFixed(0)+'k':'–'}</td></tr>`).join('')}</table>`:''} ${tests.length?`<h5>Test jobs (${tests.length})</h5><table>${tests.map(j=>`<tr><td class="mono" style="font-size:12px">${j.job}</td><td>${j.target}</td><td>${j.result}</td><td class="n">${j.minutes?j.minutes.toFixed(1)+'m':'–'}</td></tr>`).join('')}</table>`:''}`;openPanel();return}
+ const effSnd=e.target.id==="eff-chatsnd";if(effSnd){const ta=document.getElementById("eff-chatinp");if(!ta||!window._PASS)return;let ef;try{ef=JSON.parse(localStorage.getItem('w1dash.efff')||'null')||{}}catch(ex){ef={}}const ctx=ef.attach?(()=>{const parts=[];if(ef.tkind)parts.push('kind='+ef.tkind);if(ef.tmodel)parts.push('model='+ef.tmodel);if(ef.toutcome)parts.push('outcome='+ef.toutcome);if(ef.fsev&&ef.fsev!=='all')parts.push('sev='+ef.fsev);return parts.length?'[ctx: '+parts.join(', ')+'] ':''})():'';const txt=ctx+(ta.value||'').trim();if(!txt)return;ta.value='';effSnd.disabled=true;(async()=>{try{const cid=Array.from(crypto.getRandomValues(new Uint8Array(9)),x=>'abcdefghijkmnpqrstuvwxyz23456789'[x%32]).join('');const at=new Date().toISOString();const enc=await encryptTxt(JSON.stringify({t:'COORD',m:txt,cid,d:'auto',at}),window._PASS);const r=await postIssue('CHAT COORD',enc);if(!r.ok)window.open(ISSUE_NEW+'?title=CHAT+COORD&body='+encodeURIComponent(enc),'_blank','noopener');const q=LS.get('w1dash.chatq',{});q[cid]={t:'COORD',m:txt,d:'auto',at,ts:Date.now(),via:r.ok?'direct':'github'};LS.set('w1dash.chatq',q);startPoll()}catch(ex){}finally{effSnd.disabled=false}})();return}
+});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closePanel();if((e.key==="Enter"||e.key===" ")&&e.target.matches(".brow,.it,.tile.click")){e.preventDefault();e.target.click()}});
 document.addEventListener("mousemove",e=>{const r=e.target.closest&&e.target.closest("#tokchart rect[data-k]");const tip=$("#tip");if(!r){tip.style.display="none";return}
  const z=window._series[r.dataset.k]||{inp:0,cw:0,cr:0,out:0},d=new Date(r.dataset.k*1000);
@@ -918,6 +1218,8 @@ document.addEventListener("mousemove",e=>{const r=e.target.closest&&e.target.clo
 /* ---------- boot ---------- */
 $("#foot").innerHTML=`Built by <span class="mono">gen/w1_dashboard.py</span> on JB's Mac from local files${HOSTED?", encrypted there and published to GitHub; your browser decrypts it":""}. Viewing and refreshing cost no model tokens. Layout, filters and the "since you last looked" snapshot live in this browser only. Projections are estimates; status colours follow fixed rules (open a module's ⓘ).<details><summary>Decision-loop log for this version</summary><div class="why" style="margin-top:6px">${esc(D.loop||"")}</div></details>`;
 renderAll();
+/* Lazy-load efficiency data from efficiency.enc on the data branch */
+if(HOSTED){fetch(EFF_URL+"?t="+Math.floor(Date.now()/60000),{cache:"no-store"}).then(r=>r.ok?r.text():null).then(async txt=>{if(!txt)return;try{window._EFF=await decrypt(txt.trim(),window._PASS);rerender("eff")}catch(e){}}).catch(()=>{})}
 try{const y=sessionStorage.getItem("w1dash.y");if(y!=null){scrollTo(0,+y);sessionStorage.removeItem("w1dash.y")}}catch(e){}
 if(H.go&&M[H.go])go(H.go,true);
 if(H.t)openTask(H.t);else if(H.s){const i=TK.sessions.findIndex(s=>s.id===H.s);if(i>=0)openSess(i)}
@@ -977,7 +1279,12 @@ document.addEventListener("click",e=>{if(e.target.closest("#fab,#chatbtn")){e.pr
  const ct=e.target.closest("[data-ct]");if(ct){CT=ct.dataset.ct;SS.set("w1dash.chatt2",CT);return renderChat()}
  const cd=e.target.closest("[data-cd]");if(cd){LS.set("w1dash.chatd",cd.dataset.cd);return renderChat()}
  if(e.target.closest("[data-cs]"))return sendChat()});
-document.addEventListener("change",e=>{if(e.target.matches("#chat [data-cl]")&&e.target.value){CT="L-"+e.target.value;SS.set("w1dash.chatt2",CT);renderChat()}});
+document.addEventListener("change",e=>{if(e.target.matches("#chat [data-cl]")&&e.target.value){CT="L-"+e.target.value;SS.set("w1dash.chatt2",CT);renderChat();return}
+ /* eff filter dropdowns */
+ const ef2=e.target.closest("[data-etf]");if(ef2){let f;try{f=JSON.parse(localStorage.getItem('w1dash.efff')||'null')||{}}catch(ex){f={}}const k=ef2.dataset.etf;f[k]=ef2.value||undefined;try{localStorage.setItem('w1dash.efff',JSON.stringify(f))}catch(ex){}rerender("eff");return}
+ const etfReset=e.target.closest("[data-etf-reset]");if(etfReset){try{localStorage.removeItem('w1dash.efff')}catch(ex){}rerender("eff");return}
+ /* eff sort via th click — handled in click; here for select-based sort if any */
+ const ets=e.target.closest("[data-etf]");if(ets){let f;try{f=JSON.parse(localStorage.getItem('w1dash.efff')||'null')||{}}catch(ex){f={}}f[ets.dataset.etf]=ets.value||undefined;try{localStorage.setItem('w1dash.efff',JSON.stringify(f))}catch(ex){}rerender("eff")}});
 document.addEventListener("input",e=>{if(e.target.id==="chin"){SS.set("w1dash.chatdraft",e.target.value);e.target.style.height="auto";e.target.style.height=Math.min(160,e.target.scrollHeight)+"px"}});
 document.addEventListener("keydown",e=>{if(e.target.id==="chin"&&e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}if(e.key==="Escape"&&document.body.classList.contains("chaton"))closeChat()});
 function typing(){const ae=document.activeElement;return !!(ae&&(ae.tagName==="TEXTAREA"||ae.tagName==="INPUT"||ae.tagName==="SELECT"||ae.isContentEditable))}
