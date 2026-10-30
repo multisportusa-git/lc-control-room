@@ -25,7 +25,7 @@ judgement events:
                      prints it under FLAGS), one ALERTS.txt line and one Controller wake per distinct mismatch.
 Never runs lane.sh itself (lc_watch starts .req files), never touches git. Usage: wake.py [--dry-run]
 """
-import glob, json, os, re, subprocess, sys, time, datetime as dt
+import glob, hashlib, json, os, re, subprocess, sys, time, datetime as dt
 
 DRY = "--dry-run" in sys.argv
 HOME = os.path.expanduser("~")
@@ -66,6 +66,33 @@ def usage_pct():
     try: return float(rows[-1][1])
     except (IndexError, ValueError): return None
 
+CIRCUIT_F = os.path.join(V2, "provider_circuit.json")   # state=open → no Controller wake
+DECISIONS_DIR = os.path.join(NOTES, "w1", "decisions")
+ASKS_STALE_F = os.path.join(MK, "asks_stale.json")   # {hash, ts, reason, skip_count, alert_hash}
+WAKE_DEDUP_SECS = 3600   # 60 min: same hash within this window → skip
+
+def circuit_open():
+    try: return json.load(open(CIRCUIT_F)).get("state") == "open"
+    except (OSError, ValueError): return False
+
+def _open_decision_ids():
+    ids = set()
+    try:
+        for f in glob.glob(os.path.join(DECISIONS_DIR, "D-*.json")):
+            try:
+                d = json.load(open(f))
+                if d.get("status") == "open": ids.add(str(d.get("id", "")))
+            except (OSError, ValueError): pass
+    except OSError: pass
+    return frozenset(ids)
+
+def _asks_state_hash(asks_data, dec_ids):
+    items = sorted((a["id"], a.get("state",""), bool(a.get("blocked"))) for a in (asks_data or {}).get("asks",[]) if a.get("state") != "DONE")
+    return hashlib.md5(json.dumps([items, sorted(dec_ids)], separators=(",",":")).encode()).hexdigest()[:16]
+
+def _jsave(path, obj):
+    tmp = path + ".tmp"; open(tmp, "w").write(json.dumps(obj)); os.replace(tmp, path)
+
 EPOCH_F = os.path.join(MK, "epoch")   # events older than the watchdog's first run are history, never acted on
 def epoch():
     if not os.path.exists(EPOCH_F) and not DRY:
@@ -93,6 +120,10 @@ def wakes_today():
 
 def wake_coord(key, text):
     """One Controller run for one judgement event."""
+    if circuit_open():
+        ck = "circuit-" + key[:40]
+        if not marked(ck): announce("wake skipped (provider circuit open): %s" % text[:80]); mark(ck)
+        return False
     if marked("coord-" + key): return False
     pct = usage_pct()
     if pct is not None and pct >= STOP_PCT:
@@ -173,17 +204,16 @@ def step():
             wake_coord("blocked-%s-%d" % (L, int(mtime(p))), "Watchdog: lane %s ended BLOCKED: %s" % (L, (ln[1] if len(ln) > 1 else "")[:300]))
 
 ASKS = os.path.join(NOTES, "w1", "asks.json")
-ASK_EVERY, ASK_REWAKE = 5 * 60, 15 * 60
+ASK_EVERY = 5 * 60
 def asks_check():
-    """4. JB's asks (JB 28 Oct 14:47: 'the coordinator should have been alerted multiple times'). Every 5 min: an open ask past
-    its ETA, BLOCKED, or with no ETA is late. Late asks wake the Controller at once when a new id turns late, and again every
-    15 min while any stays late. Not counted against MAX_DAY (JB's asks are P0); the usage stop still holds, then a P0 line
-    goes to ALERTS.txt instead. The page turns overdue asks red itself (index.html, client-side)."""
+    """4. JB's asks (JB 28 Oct 14:47). Every 5 min: an open ask past its ETA, BLOCKED, or with no ETA is late.
+    State-hash dedupe (CH-020): same hash within 60 min → skip (write counter line only); hash changes or new id → wake at once.
+    One P0 ALERTS.txt line per state hash (not every 15 min). Circuit open → skip wake."""
     st = os.path.join(MK, "asks-check")
     if time.time() - mtime(st) < ASK_EVERY: return
     if not DRY: open(st, "w").write(now())
-    t = dt.datetime.now(); late = []
-    for a in (js(ASKS, {}) or {}).get("asks", []):
+    t = dt.datetime.now(); late = []; asks_data = js(ASKS, {}) or {}
+    for a in asks_data.get("asks", []):
         if a.get("state") == "DONE": continue
         why = "BLOCKED" if (a.get("blocked") or a.get("state") == "BLOCKED") else ""
         if not why and not a.get("eta"): why = "no ETA"
@@ -192,7 +222,7 @@ def asks_check():
                 if dt.datetime.fromisoformat(a["eta"]) < t: why = "overdue since " + a["eta"][11:16]
             except ValueError: why = "bad ETA"
         if why: late.append((a["id"], why, a.get("title", "")[:60]))
-    for p in glob.glob(os.path.join(NOTES, "status", "*.txt")):  # a BLOCKED flag left 60+ min (blocker may have merged) is late too
+    for p in glob.glob(os.path.join(NOTES, "status", "*.txt")):
         try: first = open(p).read().split(None, 1)[:1]
         except OSError: continue
         if first == ["blocked"] and time.time() - mtime(p) > 3600:
@@ -203,21 +233,40 @@ def asks_check():
     if not late:
         if prev and not DRY: os.remove(lf)
         return
+    # CH-020: state-hash dedupe
+    h = _asks_state_hash(asks_data, _open_decision_ids())
+    dd = js(ASKS_STALE_F, {}) or {}
     new = [i for i in ids if i not in prev[1:]]
-    if not new and time.time() - mtime(lf) < ASK_REWAKE: return
+    if dd.get("hash") == h and time.time() - dd.get("ts", 0) < WAKE_DEDUP_SECS and not new:
+        skip = dd.get("skip_count", 0) + 1
+        if not DRY:
+            dd["skip_count"] = skip
+            os.makedirs(os.path.dirname(ASKS_STALE_F), exist_ok=True); _jsave(ASKS_STALE_F, dd)
+        announce("asks-stale dedup: same state hash %s, skip #%d (%d late: %s)" % (h, skip, len(late), " ".join(ids[:5])))
+        return
     text = ("Watchdog: %d of JB's asks are late (P0): %s. For each: act now (fix lane, train, page), then "
             "`ctl.sh asks set <id> --state ... --eta HH:MM --note ...` with a real ETA; DONE only when verified.") % (
         len(late), "; ".join("%s %s (%s)" % x for x in late[:15]))
     if not DRY: open(lf, "w").write(now()[:16].replace(" ", "T") + " " + " ".join(ids))
     pct = usage_pct()
     if pct is not None and pct >= STOP_PCT:
-        if not DRY: open(os.path.join(NOTES, "ALERTS.txt"), "a").write("%s [P0] ASKS-LATE (no wake, usage %.0f%%): %s\n" % (now(), pct, text))
+        # one P0 per state hash (not every invocation)
+        if dd.get("alert_hash") != h:
+            if not DRY:
+                open(os.path.join(NOTES, "ALERTS.txt"), "a").write("%s [P0] ASKS-LATE (no wake, usage %.0f%%): %s\n" % (now(), pct, text))
+                dd2 = dict(dd, alert_hash=h, hash=h, ts=time.time(), skip_count=0)
+                os.makedirs(os.path.dirname(ASKS_STALE_F), exist_ok=True); _jsave(ASKS_STALE_F, dd2)
         announce("asks late, Controller wake skipped (usage %.0f%%): %s" % (pct, " ".join(ids)))
+        return
+    if circuit_open():
+        announce("asks-late wake skipped (provider circuit open): %s" % " ".join(ids))
         return
     if DRY: print("DRY would wake Controller: %s" % text); return
     if not os.environ.get("LC_WAKE_NOINJECT"): subprocess.run([sys.executable, os.path.join(ROOT, "gen", "chat_sync.py"), "inject", "COORD", text], timeout=60)
     open(os.path.join(NOTES, "ALERTS.txt"), "a").write("%s [P0] ASKS-LATE: %s\n" % (now(), text))
     announce("Controller woken (asks late): %s" % " ".join(ids))
+    dd_new = {"hash": h, "ts": time.time(), "reason": "ASKS-LATE", "skip_count": 0}
+    os.makedirs(os.path.dirname(ASKS_STALE_F), exist_ok=True); _jsave(ASKS_STALE_F, dd_new)
 
 NEXT_F = os.path.join(SUP, "next.txt")
 def max_lanes():
