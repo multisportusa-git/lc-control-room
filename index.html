@@ -1002,7 +1002,7 @@ function secQuality(E){
 
 function effDock(){
  const PASS=window._PASS;const dockCol=!!getEL().dockCol;
- const thread=(typeof CH!=='undefined'?chatMsgs('COORD'):[]).slice(-4);
+ let thread=[];try{thread=chatMsgs('COORD').slice(-4)}catch(ex){}/* CH is declared after the first render: TDZ */
  const threadHtml=thread.length?thread.map(m=>{if(m.from==='JB')return`<div class="bub me" style="--cc:var(--eff-teal);max-width:90%;font-size:13px">${eesc(m.text)}</div>`;return`<div class="bub cl" style="max-width:90%;font-size:13px">${eesc(m.text)}</div>`}).join(''):`<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px 0">Ask the coordinator about these metrics.</div>`;
  return`<div class="eff-dock" id="eff-dock">
   <div class="eff-dockh" data-eff-dock-tog>

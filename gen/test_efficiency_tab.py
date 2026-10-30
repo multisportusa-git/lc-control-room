@@ -243,6 +243,7 @@ def _build_test_page(fixture_data, title="efficiency test") -> str:
         "queue": [],
         "tok": {"sessions": [], "buckets": [], "models": [], "timelines": {}},
         "ntfy": "test-topic",
+        "usage": [],
         "_eff": fixture_data,
     }
     # Embed the data and disable the passphrase prompt.
