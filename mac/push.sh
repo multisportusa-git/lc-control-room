@@ -34,10 +34,16 @@ find "$HOME/.config/lc-fuel/state" -name '*.json' -mmin -1440 -exec cp {} "$FU.t
 tail -n 200 "$NOTES/w1/fuel/events.jsonl" > "$FU.tmp/events.jsonl" 2>/dev/null; rm -rf "$FU"; mv "$FU.tmp" "$FU"
 "$PY" "$ROOT/gen/asks.py" stale >/dev/null 2>&1 || true  # 0-token: staleness alert for the coordinator (2/5/15 min)
 # Efficiency data: collect and export if the producer script exists (lane EFFM)
-EFF_SCRIPT="$HOME/Claude_London Commuter/scripts/efficiency_monitor.py"
+# Producer runs from a detached origin/main worktree (the main checkout may sit on another branch); refreshed each cycle.
+# macOS has no `timeout`: perl alarm caps each step at 20 s. Fails open: no data this cycle, other tabs unaffected.
+EFF_WT="$HOME/Claude_London Commuter/.worktrees/EFF-live"
+if [[ -d "$EFF_WT" ]]; then
+  git -C "$EFF_WT" fetch -q origin main 2>/dev/null && git -C "$EFF_WT" checkout -q --detach FETCH_HEAD 2>/dev/null
+fi
+EFF_SCRIPT="$EFF_WT/scripts/efficiency_monitor.py"
 if [[ -f "$EFF_SCRIPT" ]]; then
-  timeout 20 "$PY" "$EFF_SCRIPT" collect 2>/dev/null && \
-    timeout 20 "$PY" "$EFF_SCRIPT" export --out "$STATE/efficiency.json" 2>/dev/null || \
+  ( cd "$EFF_WT/scripts" && perl -e 'alarm shift; exec @ARGV' 20 "$PY" "$EFF_SCRIPT" collect >/dev/null 2>&1 && \
+    perl -e 'alarm shift; exec @ARGV' 20 "$PY" "$EFF_SCRIPT" export --out "$STATE/efficiency.json" >/dev/null 2>&1 ) || \
     echo "efficiency export failed; no data this cycle"
 fi
 if [[ -f "$STATE/efficiency.json" ]]; then
