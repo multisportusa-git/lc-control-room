@@ -15,11 +15,17 @@ drop to 80/88/94 % of the lowest compaction point seen for that model, so a smal
 On entering a band the session is told (hook additionalContext), JB gets one phone alert (ntfy) and the event is
 written to <notes>/w1/fuel/events.jsonl for the Control Room. Band 2 repeats every 5 tool calls, band 3 on every call.
 Never blocks a tool call; any error exits 0 silently (errors go to ~/.config/lc-fuel/guard.log)."""
-import json, os, sys, time, subprocess
+import json, os, re, sys, time, subprocess
 
 HOME = os.path.expanduser("~")
-CFG = os.path.join(HOME, ".config", "lc-fuel")
-NOTES = os.path.join(HOME, "Library/Application Support/Claude/side-session-notes/local_eb83ac5f-2636-437e-a24c-fdb172ad7c08")
+CFG = os.environ.get("LC_FUEL_CFG") or os.path.join(HOME, ".config", "lc-fuel")
+NOTES = os.environ.get("LC_FUEL_NOTES") or os.path.join(HOME, "Library/Application Support/Claude/side-session-notes/local_eb83ac5f-2636-437e-a24c-fdb172ad7c08")
+
+# CH-011/012: efficiency thresholds (config at top of file)
+NM_ADVISORY = 20     # no-milestone requests before advisory
+NM_WARN = 50         # no-milestone requests before warning
+CTX_NM_WARN = 125000 # context size (tokens) without milestone before warning
+REREAD_ADVISORY = 2  # reads of the same file before advisory (triggers on the 3rd read)
 TOPIC_FILE = os.path.join(HOME, ".config", "lc-control-room", "ntfy_topic")
 DESKTOP = (225000, 250000, 275000)
 LEAN = (175000, 200000, 225000)
@@ -124,57 +130,131 @@ def alert(title, body):
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 
+_MILESTONE_RE = re.compile(r'git\s+commit|git\s+push|scripts/test-submit\.sh|gh\s+pr\s+(?:create|comment|ready)|train\.sh')
+
+
+def _is_milestone(tool_name, cmd):
+    return tool_name == "Bash" and bool(_MILESTONE_RE.search(cmd))
+
+
+def _path_hash(path):
+    import hashlib
+    return hashlib.sha1(path.encode()).hexdigest()[:12]
+
+
+def _ev_eff(sid, cwd, event_type, count):
+    p = os.path.join(NOTES, "w1", "fuel", "events.jsonl")
+    try:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "a") as f:
+            f.write(json.dumps({"at": int(time.time()), "type": event_type,
+                                 "sid": sid, "count": count, "cwd": os.path.basename(cwd)}) + "\n")
+    except OSError:
+        pass
+
+
+def _eff_track(st, tool_name, tool_input, sid, cwd, msgs):
+    """Update efficiency counters in st (mutates); append advisory/warning strings to msgs.
+    Never stores command text or file paths — only counts and booleans."""
+    cmd = (tool_input.get("command") or "") if tool_name == "Bash" else ""
+    if _is_milestone(tool_name, cmd):
+        st["nm"] = 0
+        for k in ("nm_adv", "nm_warn", "ctx_warn"):
+            st.pop(k, None)
+        return
+    nm = st.get("nm", 0) + 1
+    st["nm"] = nm
+    if nm == NM_ADVISORY and not st.get("nm_adv"):
+        st["nm_adv"] = True
+        msgs.append("EFFICIENCY ADVISORY (%s): %d requests without a milestone "
+                    "(git commit/push, test-submit, gh pr, train.sh). "
+                    "Consider committing progress." % (sid[:8], nm))
+        _ev_eff(sid, cwd, "nm_advisory", nm)
+    if nm == NM_WARN and not st.get("nm_warn"):
+        st["nm_warn"] = True
+        msgs.append("EFFICIENCY WARNING (%s): %d requests without a milestone. "
+                    "Act now: commit, push, or submit tests." % (sid[:8], nm))
+        _ev_eff(sid, cwd, "nm_warn", nm)
+    if tool_name == "Read":
+        path = str(tool_input.get("file_path") or "")
+        if path:
+            ph = _path_hash(path)
+            rc = st.get("rc", {})
+            rc[ph] = rc.get(ph, 0) + 1
+            st["rc"] = rc
+            if rc[ph] == REREAD_ADVISORY + 1 and not st.get("rr_" + ph):
+                st["rr_" + ph] = True
+                msgs.append("EFFICIENCY ADVISORY (%s): file hash %s read %d times. "
+                             "Consider caching the result." % (sid[:8], ph, rc[ph]))
+                _ev_eff(sid, cwd, "reread", rc[ph])
+
+
 def main():
     inp = json.load(sys.stdin)
     sid = inp.get("session_id") or ""
     tp = inp.get("transcript_path") or ""
     cwd = inp.get("cwd") or ""
-    if not sid or not tp or not os.path.exists(tp):
+    tool_name = inp.get("tool_name") or ""
+    tool_input = inp.get("tool_input") or {}
+    if not sid:
         return
-    ctx, model, compact = last_usage(tp)
     cps = jload(os.path.join(CFG, "compact_points.json"), {})
     st_path = os.path.join(CFG, "state", sid + ".json")
     st = jload(st_path, {"band": 0, "calls": 0, "compacts": 0})
-    if compact and model and compact != st.get("seen_compact"):
-        st["seen_compact"] = compact
-        if not cps.get(model) or compact < cps[model]:
-            cps[model] = int(compact)
-            jsave(os.path.join(CFG, "compact_points.json"), cps)
-        alert("LC fuel: auto-compact happened", "%s compacted at %dk (%s). Thresholds for %s now adapt." % (os.path.basename(cwd), compact // 1000, model, model))
-        ev(sid, cwd, compact, model, -1, "compacted")
-    if not ctx:
-        return
-    coord = jload(os.path.join(NOTES, "COORDINATOR.json"), {})
-    if os.environ.get("LC_ROLE") == "coordinator" or coord.get("cli_uuid") == sid:
-        role = "coordinator"
-    elif "haiku" in model:
-        role = "haiku"
-    else:
-        if "lean" not in st:
-            st["lean"] = parent_lean()
-        role = "lean" if st["lean"] else "desktop"
-    th = thresholds(role, model, cps)
-    band = 3 if ctx >= th[2] else 2 if ctx >= th[1] else 1 if ctx >= th[0] else 0
-    st["calls"] = st.get("calls", 0) + 1
-    say = False
-    if band > st.get("band", 0):
-        say = True
-        alert("LC fuel: %s %dk" % (os.path.basename(cwd) or "session", ctx // 1000),
-              ["", "start hand-over", "hand-over must be complete", "STOP: make safe"][band] + " (%s, %s)" % (role, sid[:8]))
-        ev(sid, cwd, ctx, model, band, role)
-        st["calls"] = 0
-    elif band > 0 and band != st.get("band", 0):
-        say = True  # fell back into a lower band (e.g. after a compaction): still past a threshold
-        st["calls"] = 0
-    elif band == 3 or (band == 2 and st["calls"] % 5 == 0):
-        say = True
-    if band < st.get("band", 0):
-        st["calls"] = 0
-    st.update(band=band, ctx=ctx, role=role, at=int(time.time()), cwd=cwd, model=model)
+    eff_msgs = []
+    _eff_track(st, tool_name, tool_input, sid, cwd, eff_msgs)
+    ctx, model, compact = 0, "", None
+    if tp and os.path.exists(tp):
+        ctx, model, compact = last_usage(tp)
+        if compact and model and compact != st.get("seen_compact"):
+            st["seen_compact"] = compact
+            if not cps.get(model) or compact < cps[model]:
+                cps[model] = int(compact)
+                jsave(os.path.join(CFG, "compact_points.json"), cps)
+            alert("LC fuel: auto-compact happened", "%s compacted at %dk (%s). Thresholds for %s now adapt." % (os.path.basename(cwd), compact // 1000, model, model))
+            ev(sid, cwd, compact, model, -1, "compacted")
+    band_msg = None
+    if ctx:
+        coord = jload(os.path.join(NOTES, "COORDINATOR.json"), {})
+        if os.environ.get("LC_ROLE") == "coordinator" or coord.get("cli_uuid") == sid:
+            role = "coordinator"
+        elif "haiku" in model:
+            role = "haiku"
+        else:
+            if "lean" not in st:
+                st["lean"] = parent_lean()
+            role = "lean" if st["lean"] else "desktop"
+        th = thresholds(role, model, cps)
+        band = 3 if ctx >= th[2] else 2 if ctx >= th[1] else 1 if ctx >= th[0] else 0
+        # CH-011: 125K context without milestone warning
+        if ctx >= CTX_NM_WARN and st.get("nm", 0) >= 1 and not st.get("ctx_warn"):
+            st["ctx_warn"] = True
+            eff_msgs.append("EFFICIENCY WARNING (%s): context at %dk with %d requests since last milestone."
+                            % (sid[:8], ctx // 1000, st["nm"]))
+            _ev_eff(sid, cwd, "ctx_nm_warn", ctx)
+        st["calls"] = st.get("calls", 0) + 1
+        say = False
+        if band > st.get("band", 0):
+            say = True
+            alert("LC fuel: %s %dk" % (os.path.basename(cwd) or "session", ctx // 1000),
+                  ["", "start hand-over", "hand-over must be complete", "STOP: make safe"][band] + " (%s, %s)" % (role, sid[:8]))
+            ev(sid, cwd, ctx, model, band, role)
+            st["calls"] = 0
+        elif band > 0 and band != st.get("band", 0):
+            say = True
+            st["calls"] = 0
+        elif band == 3 or (band == 2 and st["calls"] % 5 == 0):
+            say = True
+        if band < st.get("band", 0):
+            st["calls"] = 0
+        st.update(band=band, ctx=ctx, role=role, at=int(time.time()), cwd=cwd, model=model)
+        if say:
+            band_msg = message(band, ctx, th, role, sid, cwd)
     jsave(st_path, st)
-    if say:
+    all_msgs = ([band_msg] if band_msg else []) + eff_msgs
+    if all_msgs:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse",
-                                                 "additionalContext": message(band, ctx, th, role, sid, cwd)}}))
+                                                 "additionalContext": "\n\n".join(all_msgs)}}))
 
 
 def ev(sid, cwd, ctx, model, band, note):

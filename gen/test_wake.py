@@ -90,3 +90,113 @@ assert any("stale" in x for x in wk.timeline_problems(dict(ok, gen_iso="2026-10-
 assert any("no live_lanes" in x for x in wk.timeline_problems({"gen_iso": g, "tasks": []}, set(), {}, n0))
 print("PASS timeline truth: missing live row, ETC drift, planned task drawn as running, stale data, old generator all caught; clean page passes")
 print("ALL PASS")
+
+# --- CH-020 dedupe + circuit tests (pytest-collectable) ---
+
+def _wake_notes(usage_row="2026-10-28T10:00,70,50,1,49,x\n"):
+    """Fresh temp notes dir for CH-020 tests."""
+    d = tempfile.mkdtemp()
+    for sub in ("v2/lanes", "v2/queue", "v2/locks", "v2/sup/wake",
+                 "reviews", "testq/results", "status", "w1/evidence", "w1/decisions"):
+        os.makedirs(os.path.join(d, sub))
+    open(os.path.join(d, "w1/evidence/usage_pct.csv"), "w").write(usage_row)
+    return d
+
+def _wake_run(notes, extra=None):
+    env = dict(os.environ, LC_WAKE_NOTES=notes, LC_WAKE_NOINJECT="1",
+               LC_WAKE_REPO=RP, LC_W1_TASKS=TF)
+    if extra:
+        env.update(extra)
+    return subprocess.run([sys.executable, W], env=env, capture_output=True, text=True).stdout
+
+def _make_ask(notes, state="WORKING", blocked=False, eta=None):
+    asks = {"asks": [{"id": "A-1", "state": state, "title": "Test ask",
+                       "cat": "Question", "blocked": blocked}]}
+    if eta:
+        asks["asks"][0]["eta"] = eta
+    open(os.path.join(notes, "w1/asks.json"), "w").write(json.dumps(asks))
+
+def _force_recheck(notes):
+    """Backdate throttle files so asks_check re-runs."""
+    distant_past = time.time() - 7200
+    for fname in ("asks-check", "asks-late"):
+        p = os.path.join(notes, "v2/sup/wake", fname)
+        if os.path.exists(p):
+            os.utime(p, (distant_past, distant_past))
+
+def _setup(n, usage_extra=None):
+    """Write epoch with no asks (clean state), backdate it, optionally add usage row."""
+    _wake_run(n)  # epoch run (no asks yet → no P0 pollution)
+    old = time.time() - 7200
+    os.utime(os.path.join(n, "v2/sup/wake/epoch"), (old, old))
+    if usage_extra:
+        open(os.path.join(n, "w1/evidence/usage_pct.csv"), "a").write(usage_extra)
+
+def test_dedup_same_hash():
+    """Same state hash within 60 min: only 1 wake; second run deduped."""
+    n = _wake_notes()
+    _setup(n)
+    _make_ask(n)
+    _force_recheck(n)
+
+    out1 = _wake_run(n)  # run 1: no prior state → wake
+    assert "Controller woken (asks late)" in out1, "run 1 should wake: " + out1
+
+    _force_recheck(n)
+    out2 = _wake_run(n)  # run 2: same hash, < 60 min → dedup
+    assert "Controller woken (asks late)" not in out2, "same hash should dedup: " + out2
+    assert "dedup" in out2, "expected dedup announce: " + out2
+
+def test_changed_ask_wakes():
+    """A changed ask state bypasses dedup and wakes immediately."""
+    n = _wake_notes()
+    _setup(n)
+    _make_ask(n, state="WORKING")
+    _force_recheck(n)
+
+    out1 = _wake_run(n)  # run 1: wake
+    assert "Controller woken (asks late)" in out1, "run 1: " + out1
+
+    _force_recheck(n)  # same state → dedup
+    out_dup = _wake_run(n)
+    assert "Controller woken (asks late)" not in out_dup, "same state should dedup: " + out_dup
+
+    _force_recheck(n)
+    _make_ask(n, state="BLOCKED")  # state changed → different hash → bypasses dedup
+    out2 = _wake_run(n)
+    assert "Controller woken (asks late)" in out2, "changed ask should wake: " + out2
+
+def test_circuit_open_no_wake():
+    """provider_circuit.json state=open suppresses all Controller wakes."""
+    n = _wake_notes()
+    _setup(n)
+    _make_ask(n)
+    _force_recheck(n)
+    open(os.path.join(n, "v2/provider_circuit.json"), "w").write(json.dumps({"state": "open"}))
+
+    out = _wake_run(n)
+    assert "Controller woken" not in out, "circuit open should suppress wake: " + out
+    assert "circuit" in out.lower(), "expected circuit announce: " + out
+
+def test_stale_p0_once_per_hash():
+    """Repeated stale escalations write 1 ALERTS.txt [P0] ASKS-LATE line per state hash."""
+    n = _wake_notes(usage_row="2026-10-28T10:00,96,50,1,49,x\n")
+    _setup(n)
+    _make_ask(n)
+    _force_recheck(n)
+    alerts_f = os.path.join(n, "ALERTS.txt")
+
+    _wake_run(n)  # run 1: first hash → 1 P0 line
+    _force_recheck(n)
+    _wake_run(n)  # run 2: same hash → no new P0
+    _force_recheck(n)
+    _wake_run(n)  # run 3: same hash → still no new P0
+    p0_lines = [l for l in (open(alerts_f).read().splitlines() if os.path.exists(alerts_f) else []) if "[P0] ASKS-LATE" in l]
+    assert len(p0_lines) == 1, "expected 1 P0 line, got %d: %s" % (len(p0_lines), p0_lines)
+
+    _force_recheck(n)
+    _make_ask(n, state="BLOCKED")  # different hash
+    open(os.path.join(n, "w1/evidence/usage_pct.csv"), "a").write("2026-10-28T11:00,96,50,1,49,x\n")
+    _wake_run(n)  # run 4: new hash → second P0 line
+    p0_lines = [l for l in open(alerts_f).read().splitlines() if "[P0] ASKS-LATE" in l]
+    assert len(p0_lines) == 2, "expected 2 P0 lines after hash change, got %d: %s" % (len(p0_lines), p0_lines)
