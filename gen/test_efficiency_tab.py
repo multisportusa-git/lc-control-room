@@ -271,8 +271,8 @@ def test_renders_without_errors(playwright_available: bool) -> bool:
     test_page = _build_test_page(fixture_data)
 
     if not playwright_available:
-        # Static check: just verify the patched page is valid HTML with no obvious template errors
-        if "{{" in test_page or "}}" in test_page:
+        # Static check: verify no unresolved template placeholders (}} is valid CSS — only check {{)
+        if "{{" in test_page:
             err("index.html contains unresolved template variables")
             print("FAIL (static)")
             return False
@@ -343,6 +343,7 @@ def test_renders_without_errors(playwright_available: bool) -> bool:
 def test_null_heavy_fixture() -> bool:
     """Tab renders without errors when most fields are null."""
     print("4. Null-heavy fixture renders without errors … ", end=" ")
+    ERRORS.clear()  # isolated check; prior test errors must not cascade
     null_data = {
         "schema": "lc-eff/1",
         "generated_at": "2026-10-30T16:00:00Z",
