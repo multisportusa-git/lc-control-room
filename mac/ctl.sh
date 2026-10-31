@@ -22,7 +22,7 @@
 #   log <text>                     append one line to v2/sup/COORD_LOG.md
 set -u
 N="$HOME/Library/Application Support/Claude/side-session-notes/local_eb83ac5f-2636-437e-a24c-fdb172ad7c08"
-R="$HOME/Claude_London Commuter"; ROOT="${0:A:h:h}"
+R="$HOME/Claude_London Commuter/.worktrees/RUNTIME"; ROOT="${0:A:h:h}"
 PY=/Library/Frameworks/Python.framework/Versions/3.11/bin/python3; [[ -x $PY ]] || PY=python3
 D=00008110-0009399002FA801E
 cmd="${1:-}"; shift 2>/dev/null
