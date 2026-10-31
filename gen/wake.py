@@ -210,7 +210,10 @@ def asks_check():
     State-hash dedupe (CH-020): same hash within 60 min → skip (write counter line only); hash changes or new id → wake at once.
     One P0 ALERTS.txt line per state hash (not every 15 min). Circuit open → skip wake."""
     st = os.path.join(MK, "asks-check")
-    if time.time() - mtime(st) < ASK_EVERY: return
+    # JB 2026-10-31 04:27: 04:30-10:30 that day the asks check runs every 30 min (back to 5 min after)
+    every = ASK_EVERY
+    if "2026-10-31 04:30" <= dt.datetime.now().strftime("%Y-%m-%d %H:%M") < "2026-10-31 10:30": every = 30 * 60
+    if time.time() - mtime(st) < every: return
     if not DRY: open(st, "w").write(now())
     t = dt.datetime.now(); late = []; asks_data = js(ASKS, {}) or {}
     for a in asks_data.get("asks", []):
