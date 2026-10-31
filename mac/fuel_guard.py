@@ -14,12 +14,24 @@ If a model has auto-compacted earlier than that on this Mac (a compact_boundary 
 drop to 80/88/94 % of the lowest compaction point seen for that model, so a smaller context window is covered too.
 On entering a band the session is told (hook additionalContext), JB gets one phone alert (ntfy) and the event is
 written to <notes>/w1/fuel/events.jsonl for the Control Room. Band 2 repeats every 5 tool calls, band 3 on every call.
-Never blocks a tool call; any error exits 0 silently (errors go to ~/.config/lc-fuel/guard.log)."""
+
+Circuit breaker (JB 2026-10-31): when requests since last milestone >= threshold (default 20) OR context growth
+since last milestone >= threshold (default 50000 tokens), PostToolUse switches from advisory to ENFORCED CHECKPOINT:
+it returns decision=block for non-milestone tool calls, allowing only git, scripts/test-submit.sh, Write/Edit of a
+brief or status file, and reading at most 1 file. Thresholds: ~/.config/lc-fuel/breaker.json (keys "requests",
+"ctx_growth"). Kill switch: ~/.config/lc-fuel/breaker.off. Coordinator sessions exempt.
+
+Repeated reads: the 3rd read of the same unchanged file (same path and mtime/size) in a session is refused
+(decision=block) with the line range already read.
+
+Any error exits 0 silently (errors go to ~/.config/lc-fuel/guard.log)."""
 import json, os, re, sys, time, subprocess
 
 HOME = os.path.expanduser("~")
 CFG = os.environ.get("LC_FUEL_CFG") or os.path.join(HOME, ".config", "lc-fuel")
 NOTES = os.environ.get("LC_FUEL_NOTES") or os.path.join(HOME, "Library/Application Support/Claude/side-session-notes/local_eb83ac5f-2636-437e-a24c-fdb172ad7c08")
+BREAKER_CFG = os.environ.get("LC_BREAKER_CFG") or os.path.join(HOME, ".config", "lc-fuel", "breaker.json")
+BREAKER_OFF = os.environ.get("LC_BREAKER_OFF") or os.path.join(HOME, ".config", "lc-fuel", "breaker.off")
 
 # CH-011/012: efficiency thresholds (config at top of file)
 NM_ADVISORY = 20     # no-milestone requests before advisory
@@ -155,13 +167,13 @@ def _ev_eff(sid, cwd, event_type, count):
 
 def _eff_track(st, tool_name, tool_input, sid, cwd, msgs):
     """Update efficiency counters in st (mutates); append advisory/warning strings to msgs.
-    Never stores command text or file paths — only counts and booleans."""
+    Returns True if a milestone was hit (nm reset). Never stores command text or file paths — only counts."""
     cmd = (tool_input.get("command") or "") if tool_name == "Bash" else ""
     if _is_milestone(tool_name, cmd):
         st["nm"] = 0
         for k in ("nm_adv", "nm_warn", "ctx_warn"):
             st.pop(k, None)
-        return
+        return True
     nm = st.get("nm", 0) + 1
     st["nm"] = nm
     if nm == NM_ADVISORY and not st.get("nm_adv"):
@@ -187,6 +199,101 @@ def _eff_track(st, tool_name, tool_input, sid, cwd, msgs):
                 msgs.append("EFFICIENCY ADVISORY (%s): file hash %s read %d times. "
                              "Consider caching the result." % (sid[:8], ph, rc[ph]))
                 _ev_eff(sid, cwd, "reread", rc[ph])
+    return False
+
+
+# ── Circuit breaker ────────────────────────────────────────────────────────────
+
+def _load_breaker_cfg():
+    """Returns (req_thresh, ctx_growth_thresh) from config file (defaults 20 / 50000)."""
+    d = jload(BREAKER_CFG, {})
+    return int(d.get("requests", 20)), int(d.get("ctx_growth", 50000))
+
+
+def _circuit_open(role, st, nm, ctx_growth, req_thresh, ctx_thresh):
+    """True when enforced-checkpoint mode is active."""
+    if role == "coordinator":
+        return False
+    if os.path.exists(BREAKER_OFF):
+        return False
+    return nm >= req_thresh or ctx_growth >= ctx_thresh
+
+
+_ENFORCED_BASH_RE = re.compile(r'\bgit\b|scripts/test-submit\.sh')
+
+
+def _is_allowed_in_enforced(tool_name, tool_input, st):
+    """True when the tool is permitted while the circuit is open."""
+    if tool_name == "Bash":
+        cmd = tool_input.get("command") or ""
+        return bool(_ENFORCED_BASH_RE.search(cmd))
+    if tool_name in ("Write", "Edit"):
+        return True  # brief / status file; path validation is Claude's job
+    if tool_name == "Read":
+        return st.get("enforced_reads", 0) < 1
+    return False
+
+
+def _enforced_block_msg(sid, nm, ctx_growth, req_thresh, ctx_thresh):
+    reasons = []
+    if nm >= req_thresh:
+        reasons.append("%d requests without a milestone (threshold %d)" % (nm, req_thresh))
+    if ctx_growth >= ctx_thresh:
+        reasons.append("context grew %dk tokens without a milestone (threshold %dk)" % (ctx_growth // 1000, ctx_thresh // 1000))
+    return ("CHECKPOINT REQUIRED (%s): %s. "
+            "Commit/push your work or write a hand-over brief and end with HANDOFF/WAITING. "
+            "Allowed: git, scripts/test-submit.sh, Write/Edit (brief or status file), "
+            "Read (once more this period)." % (sid[:8], "; ".join(reasons)))
+
+
+# ── Repeated-read refusal ──────────────────────────────────────────────────────
+
+def _file_stat(path):
+    """Returns (mtime_ns, size) tuple or None."""
+    try:
+        s = os.stat(path)
+        return (s.st_mtime_ns, s.st_size)
+    except OSError:
+        return None
+
+
+def _reread_check(st, tool_name, tool_input):
+    """Return a block-reason string when the same unchanged file is read a 3rd time; else None."""
+    if tool_name != "Read":
+        return None
+    path = str(tool_input.get("file_path") or "")
+    if not path:
+        return None
+    stat = _file_stat(path)
+    if stat is None:
+        return None
+    ph = _path_hash(path)
+    rr2 = st.get("rr2", {})
+    entry = rr2.get(ph)
+    if entry is None:
+        rr2[ph] = {"stat": list(stat), "count": 1,
+                   "range": [tool_input.get("offset"), tool_input.get("limit")]}
+        st["rr2"] = rr2
+        return None
+    prev_stat = tuple(entry.get("stat", [None, None]))
+    if stat != prev_stat:
+        rr2[ph] = {"stat": list(stat), "count": 1,
+                   "range": [tool_input.get("offset"), tool_input.get("limit")]}
+        st["rr2"] = rr2
+        return None
+    count = entry.get("count", 0) + 1
+    entry["count"] = count
+    st["rr2"] = rr2
+    if count >= 3:
+        rng = entry.get("range", [None, None])
+        offset, limit = rng[0], rng[1]
+        if offset is not None or limit is not None:
+            rng_str = "lines %d--%d" % (offset or 0, (offset or 0) + (limit or 9999))
+        else:
+            rng_str = "full file"
+        return ("REPEATED READ REFUSED (%s): already read %d times unchanged; "
+                "use the previously read content (%s)." % (path, count, rng_str))
+    return None
 
 
 def main():
@@ -201,8 +308,17 @@ def main():
     cps = jload(os.path.join(CFG, "compact_points.json"), {})
     st_path = os.path.join(CFG, "state", sid + ".json")
     st = jload(st_path, {"band": 0, "calls": 0, "compacts": 0})
+
+    # Repeated-read refusal (always active, independent of ctx)
+    reread_block = _reread_check(st, tool_name, tool_input)
+    if reread_block:
+        jsave(st_path, st)
+        print(json.dumps({"decision": "block", "reason": reread_block}))
+        return
+
     eff_msgs = []
-    _eff_track(st, tool_name, tool_input, sid, cwd, eff_msgs)
+    hit_milestone = _eff_track(st, tool_name, tool_input, sid, cwd, eff_msgs)
+
     ctx, model, compact = 0, "", None
     if tp and os.path.exists(tp):
         ctx, model, compact = last_usage(tp)
@@ -213,17 +329,29 @@ def main():
                 jsave(os.path.join(CFG, "compact_points.json"), cps)
             alert("LC fuel: auto-compact happened", "%s compacted at %dk (%s). Thresholds for %s now adapt." % (os.path.basename(cwd), compact // 1000, model, model))
             ev(sid, cwd, compact, model, -1, "compacted")
+
+    # Determine role early (needed for both band tracking and circuit breaker)
+    coord = jload(os.path.join(NOTES, "COORDINATOR.json"), {})
+    if os.environ.get("LC_ROLE") == "coordinator" or coord.get("cli_uuid") == sid:
+        role = "coordinator"
+    elif model and "haiku" in model:
+        role = "haiku"
+    else:
+        if "lean" not in st:
+            st["lean"] = parent_lean()
+        role = "lean" if st["lean"] else "desktop"
+
+    # Circuit-breaker milestone tracking (update ctx baseline on milestone)
+    if ctx and "ctx_at_milestone" not in st:
+        st["ctx_at_milestone"] = ctx  # first ctx reading becomes the baseline
+    if hit_milestone:
+        if ctx:
+            st["ctx_at_milestone"] = ctx
+        st.pop("enforced_reads", None)
+        st.pop("enforced_ever", None)
+
     band_msg = None
     if ctx:
-        coord = jload(os.path.join(NOTES, "COORDINATOR.json"), {})
-        if os.environ.get("LC_ROLE") == "coordinator" or coord.get("cli_uuid") == sid:
-            role = "coordinator"
-        elif "haiku" in model:
-            role = "haiku"
-        else:
-            if "lean" not in st:
-                st["lean"] = parent_lean()
-            role = "lean" if st["lean"] else "desktop"
         th = thresholds(role, model, cps)
         band = 3 if ctx >= th[2] else 2 if ctx >= th[1] else 1 if ctx >= th[0] else 0
         # CH-011: 125K context without milestone warning
@@ -250,6 +378,26 @@ def main():
         st.update(band=band, ctx=ctx, role=role, at=int(time.time()), cwd=cwd, model=model)
         if say:
             band_msg = message(band, ctx, th, role, sid, cwd)
+
+    # Circuit breaker check (runs even without ctx — nm alone can trip it)
+    req_thresh, ctx_thresh = _load_breaker_cfg()
+    nm = st.get("nm", 0)
+    ctx_growth = max(0, ctx - st.get("ctx_at_milestone", ctx)) if ctx else 0
+    if _circuit_open(role, st, nm, ctx_growth, req_thresh, ctx_thresh):
+        if not _is_allowed_in_enforced(tool_name, tool_input, st):
+            block_reason = _enforced_block_msg(sid, nm, ctx_growth, req_thresh, ctx_thresh)
+            if not st.get("enforced_ever"):
+                st["enforced_ever"] = True
+                alert("LC fuel: CHECKPOINT %s" % os.path.basename(cwd),
+                      "circuit open: %d nm, %dk ctx growth (%s)" % (nm, ctx_growth // 1000, sid[:8]))
+                ev(sid, cwd, ctx, model, -2, "enforced_block")
+            jsave(st_path, st)
+            print(json.dumps({"decision": "block", "reason": block_reason}))
+            return
+        # Allowed tool in enforced mode: track Read count
+        if tool_name == "Read":
+            st["enforced_reads"] = st.get("enforced_reads", 0) + 1
+
     jsave(st_path, st)
     all_msgs = ([band_msg] if band_msg else []) + eff_msgs
     if all_msgs:
