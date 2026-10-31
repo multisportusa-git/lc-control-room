@@ -54,7 +54,7 @@ case "$cmd" in
   install-tick) cd "$R" && scripts/install_gate.sh tick; scripts/install_gate.sh holder ;;
   phone) xcrun devicectl list devices 2>/dev/null | grep -E 'iPhone|Watch' | grep -v simulated
          curl -s -m 3 localhost:4723/status | grep -q '"ready":true' && echo "Appium server: up on :4723" || echo "Appium server: down"
-         curl -s -m 3 localhost:8100/status | grep -q sessionId && echo "WDA: listening on :8100" || echo "WDA: not listening"
+         curl -s -m 3 localhost:8100/status | grep -q sessionId && echo "WDA: listening on :8100" || echo "WDA: :8100 closed (normal with no open Appium session; it opens with a session - run appium-check to prove WDA)"
          cd "$R" && scripts/install_gate.sh holder; cat "$N/w1/phone_free.json" 2>/dev/null ;;
   phone-free) [[ "${1:-}" =~ '^[0-2][0-9]:[0-5][0-9]$' ]] || { echo "usage: phone-free HH:MM note"; exit 2; }; u="$(date +%Y-%m-%d)T$1"; shift
         $PY -c 'import json,sys,datetime;json.dump({"at":datetime.datetime.now().strftime("%Y-%m-%dT%H:%M"),"by":"JB","until":sys.argv[2],"note":" ".join(sys.argv[3:])[:300]},open(sys.argv[1],"w"))' "$N/w1/phone_free.json" "$u" "$@" && log "phone-free until $u" && cat "$N/w1/phone_free.json" ;;
